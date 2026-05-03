@@ -326,6 +326,17 @@ public class NMOS6502 implements Processor {
         }
 
         if (halted) {
+            // Repeat the last read cycle on each PHI2
+             if (this.phase == Phase.PHI_2) {
+                 if (this.subCycleIndex >= 0) {
+                     this.execute();
+                 }
+                 if (this.subCycleIndex < 0) {
+                     setIR(readByte(getPC()));
+                     // TODO: Investigate whether the CPU can react to polled interrupts here
+                     subCycleIndex = 0;
+                 }
+             }
             this.onSubCycleEnd(originalSubCycleIndex, originalInstructionRegister, originalDisablePCWrites);
             return 0;
         }
@@ -368,9 +379,9 @@ public class NMOS6502 implements Processor {
             this.oldNMI = currentNMI;
             this.cpuHalted = systemBus.getRDY() && this.readWriteCycle == ReadWriteCycle.READ;
             if (this.cpuHalted) {
-                //setIR(originalInstructionRegister);
-                //this.subCycleIndex = originalSubCycleIndex;
-                //this.disablePCWrites = originalDisablePCWrites;
+                setIR(originalInstructionRegister);
+                this.subCycleIndex = originalSubCycleIndex;
+                this.disablePCWrites = originalDisablePCWrites;
             }
         }
         this.phase = this.phase.getOpposite();

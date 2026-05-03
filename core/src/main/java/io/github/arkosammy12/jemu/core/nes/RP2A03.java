@@ -76,7 +76,9 @@ public class RP2A03<E extends NESEmulator> implements Bus {
 
     @Override
     public int readByte(int address) {
-        this.internalDataBus = this.emulator.getCpuBus().readByte(address);
+        if (!this.isDmaUsingExternalBusOnThisCycle()) {
+            this.internalDataBus = this.emulator.getCpuBus().readByte(address);
+        }
         return this.internalDataBus;
     }
 
@@ -171,18 +173,35 @@ public class RP2A03<E extends NESEmulator> implements Bus {
                     this.emulator.getCpuBus().writeByte(OAMDATA_ADDR, this.oamDmaCurrentData);
                     this.oamDmaTransferredBytes++;
                     this.oamDmaCurrentData = -1;
-                } else {
-                    this.emulator.getBus().readByte(this.cpu.getLastAddress());
                 }
             }
         }
     }
 
+    // Assumes that the CPU is cycled before the DMA units
+    private boolean isDmaUsingExternalBusOnThisCycle() {
+        return switch (this.apuHalfCycleType) {
+            case GET -> switch (this.dmcDmaStep) {
+                case NONE, DUMMY -> this.isOamDmaGetCycle();
+                case GET -> this.cpu.isHalted();
+            };
+            case PUT -> switch (this.dmcDmaStep) {
+                case NONE, DUMMY, GET -> this.isOamDmaPutCycle();
+            };
+        };
+    }
+
+    private boolean isOamDmaGetCycle() {
+        return this.oamDmaTransferredBytes < 256 && this.cpu.isHalted();
+    }
+
+    private boolean isOamDmaPutCycle() {
+        return this.oamDmaCurrentData >= 0 && this.oamDmaTransferredBytes < 256 && this.cpu.isHalted();
+    }
+
     private void tickOamDmaGetIfOngoing() {
         if (this.oamDmaTransferredBytes < 256) {
             this.oamDmaCurrentData = this.emulator.getCpuBus().readByte((this.oamDmaSourceAddressHighByte << 8) | (this.oamDmaTransferredBytes & 0xFF));
-        } else {
-            this.emulator.getCpuBus().readByte(this.cpu.getLastAddress());
         }
     }
 
