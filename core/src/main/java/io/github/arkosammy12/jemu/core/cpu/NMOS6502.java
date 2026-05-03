@@ -39,6 +39,7 @@ public class NMOS6502 implements Processor {
     private int finalVar;
     private int temp;
     private boolean boundaryCrossed;
+    private boolean shxSkipHigh;
 
     private Phase phase = Phase.PHI_1;
     private ReadWriteCycle readWriteCycle = ReadWriteCycle.READ;
@@ -309,6 +310,14 @@ public class NMOS6502 implements Processor {
 
     private boolean getBoundaryCrossed() {
         return this.boundaryCrossed;
+    }
+
+    private void setSHXSkipHigh(boolean value) {
+        this.shxSkipHigh = value;
+    }
+
+    private boolean getSHXSkipHigh() {
+        return this.shxSkipHigh;
     }
 
     @Override
@@ -5796,6 +5805,7 @@ public class NMOS6502 implements Processor {
                     case 6 -> {
                         setFinal(getAddress() + getY());
                         setAddressLow(getFinalLow());
+                        setSHXSkipHigh(systemBus.getRDY());
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -5813,7 +5823,9 @@ public class NMOS6502 implements Processor {
                     case 9 -> { // PAGE BOUNDARY NOT CROSSED BRANCH
                         int high = getAddressHigh() & 0xFFFF;
                         high = (high + 1) & 0xFFFF;
-                        // TODO: If the RDY flag was just set, set High to 0xFFFF
+                        if (getSHXSkipHigh()){
+                            high = 0xFF;
+                        }
                         int finalVal = (high & getA() & getX()) & 0xFFFF;
                         int finalAddress = address;
                         writeByte(finalAddress, finalVal & 0xFF);
@@ -5822,7 +5834,9 @@ public class NMOS6502 implements Processor {
                     }
                     case 10 -> { // PAGE BOUNDARY CROSSED BRANCH
                         int high = getAddressHigh() & 0xFFFF;
-                        // TODO: If the RDY flag was just set, set High to 0xFFFF
+                        if (getSHXSkipHigh()){
+                            high = 0xFF;
+                        }
                         int finalVal = (high & getA() & getX()) & 0xFFFF;
                         int finalAddress = ((finalVal << 8) | getAddressLow()) & 0xFFFF;
                         writeByte(finalAddress, finalVal & 0xFF);
@@ -6089,6 +6103,7 @@ public class NMOS6502 implements Processor {
                         setAddressLow(getTargetLow());
                         setAddressHigh(getPointerHigh());
                         setBoundaryCrossed(getPointerHigh() != getTargetHigh());
+                        setSHXSkipHigh(systemBus.getRDY());
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -6101,11 +6116,19 @@ public class NMOS6502 implements Processor {
                     }
                     case 7 -> {
                         setS(getA() & getX());
+                        int high = getAddressHigh();
                         if (getBoundaryCrossed()) {
-                            int val = (getAddressHigh() & getA() & getX()) & 0xFF;
+                            if (getSHXSkipHigh()) {
+                                high = 0xFF;
+                            }
+                            int val = (high & getA() & getX()) & 0xFF;
                             writeByte(getAddressLow() | (val << 8), val);
                         } else {
-                            int val = ((getAddressHigh() + 1) & getA() & getX()) & 0xFF;
+                            high = (high + 1) & 0xFF;
+                            if (getSHXSkipHigh()) {
+                                high = 0xFF;
+                            }
+                            int val = (high & getA() & getX()) & 0xFF;
                             writeByte(getAddress(), val);
                         }
                         pollInterrupts();
@@ -6143,6 +6166,7 @@ public class NMOS6502 implements Processor {
                         setAddressLow(getTargetLow());
                         setAddressHigh(getPointerHigh());
                         setBoundaryCrossed(getPointerHigh() != getTargetHigh());
+                        setSHXSkipHigh(systemBus.getRDY());
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -6154,11 +6178,19 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 7;
                     }
                     case 7 -> {
+                        int high = getAddressHigh();
                         if (getBoundaryCrossed()) {
-                            int val = getAddressHigh() & getY();
+                            if (getSHXSkipHigh()) {
+                                high = 0xFF;
+                            }
+                            int val = high & getY();
                             writeByte(getAddressLow() | (val << 8), val);
                         } else {
-                            int val = ((getAddressHigh() + 1) & getY()) & 0xFF;
+                            high = (high + 1) & 0xFF;
+                            if (getSHXSkipHigh()) {
+                                high = 0xFF;
+                            }
+                            int val = (high & getY()) & 0xFF;
                             writeByte(getAddress(), val);
                         }
                         pollInterrupts();
@@ -6243,6 +6275,7 @@ public class NMOS6502 implements Processor {
                         setAddressLow(getTargetLow());
                         setAddressHigh(getPointerHigh());
                         setBoundaryCrossed(getPointerHigh() != getTargetHigh());
+                        setSHXSkipHigh(systemBus.getRDY());
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -6254,11 +6287,19 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 7;
                     }
                     case 7 -> {
+                        int high = getAddressHigh();
                         if (getBoundaryCrossed()) {
-                            int val = getAddressHigh() & getX();
+                            if (getSHXSkipHigh()) {
+                                high = 0xFF;
+                            }
+                            int val = high & getX();
                             writeByte(getAddressLow() | (val << 8), val);
                         } else {
-                            int val = ((getAddressHigh() + 1) & getX()) & 0xFF;
+                            high = (high + 1) & 0xFF;
+                            if (getSHXSkipHigh()) {
+                                high = 0xFF;
+                            }
+                            int val = (high & getX()) & 0xFF;
                             writeByte(getAddress(), val);
                         }
                         pollInterrupts();
@@ -6296,6 +6337,7 @@ public class NMOS6502 implements Processor {
                         setAddressLow(getTargetLow());
                         setAddressHigh(getPointerHigh());
                         setBoundaryCrossed(getPointerHigh() != getTargetHigh());
+                        setSHXSkipHigh(systemBus.getRDY());
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -6311,7 +6353,9 @@ public class NMOS6502 implements Processor {
                         if (!getBoundaryCrossed()) {
                             high++;
                         }
-                        // TODO: IF RDY WENT LOW 4 CYCLES AGO, HIGH = $FFFF
+                        if (getSHXSkipHigh()){
+                            high = 0xFF;
+                        }
                         int val = (high & getA() & getX()) & 0xFF;
                         if (getBoundaryCrossed()) {
                             writeByte(getAddressLow() | (val << 8), val);
