@@ -110,7 +110,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
                 ret |= this.pulseChannel1.getLengthCounter() > 0 ? 1 : 0;
 
                 this.clearFrameInterruptFlagSignal.trigger(switch (this.getCurrentApuHalfCycleType()) {
-                    case GET -> 3;
+                    case GET -> 2;
                     case PUT -> 1;
                 }, 0);
 
