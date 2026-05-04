@@ -183,17 +183,18 @@ public class RP2A03<E extends NESEmulator> implements Bus {
 				}
 			}
 			case PUT -> {
-				boolean finalOamPut = this.oamDmaCurrentData >= 0 && this.oamDmaTransferredBytes == 255;
-				if (this.dmcDmaStep == DmcDmaStep.DUMMY && !finalOamPut) {
-					// If DMC DMA starts by this point in the OAM DMA transfer, this cycle is the DMC DMA alignment cycle.
-					// Do not transition DMC DMA to its GET step yet
-					if (!(this.dmcDmaRequestPending && this.oamDmaCurrentData >= 0 && this.oamDmaTransferredBytes == 254)) {
-						this.dmcDmaStep = DmcDmaStep.GET;
+				switch (this.dmcDmaStep) {
+					case DUMMY -> {
+						boolean finalOamPut = this.oamDmaCurrentData >= 0 && this.oamDmaTransferredBytes == 255;
+						if (!finalOamPut) {
+							// If DMC DMA starts by this point in the OAM DMA transfer, this cycle is the DMC DMA alignment cycle.
+							// Do not transition DMC DMA to its GET step yet
+							if (!(this.dmcDmaRequestPending && this.oamDmaCurrentData >= 0 && this.oamDmaTransferredBytes == 254)) {
+								this.dmcDmaStep = DmcDmaStep.GET;
+							}
+						}
 					}
-				}
-
-				if (this.dmcDmaStep == DmcDmaStep.ALIGNMENT) {
-					this.dmcDmaStep = DmcDmaStep.GET;
+					case ALIGNMENT -> this.dmcDmaStep = DmcDmaStep.GET;
 				}
 
 				if (this.oamDmaCurrentData >= 0 && this.oamDmaTransferredBytes < 256) {
