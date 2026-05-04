@@ -326,11 +326,15 @@ public class NMOS6502 implements Processor {
         int originalSubCycleIndex = this.subCycleIndex;
         int originalInstructionRegister = this.getIR();
         boolean originalDisablePCWrites = this.disablePCWrites;
+        BRKSource originalBrkSource = this.brkSource;
+        int originalBrkVector = this.brkVector;
+        boolean originalPushB = this.pushB;
+
         boolean halted = this.cpuHalted;
 
         if (this.firstSubCycle) {
             this.firstSubCycle = false;
-            this.onSubCycleEnd(originalSubCycleIndex, originalInstructionRegister, originalDisablePCWrites);
+            this.onSubCycleEnd(originalSubCycleIndex, originalInstructionRegister, originalDisablePCWrites, originalBrkSource, originalBrkVector, originalPushB);
             return 0;
         }
 
@@ -346,7 +350,7 @@ public class NMOS6502 implements Processor {
                      subCycleIndex = 0;
                  }
              }
-            this.onSubCycleEnd(originalSubCycleIndex, originalInstructionRegister, originalDisablePCWrites);
+            this.onSubCycleEnd(originalSubCycleIndex, originalInstructionRegister, originalDisablePCWrites, originalBrkSource, originalBrkVector, originalPushB);
             return 0;
         }
 
@@ -375,11 +379,11 @@ public class NMOS6502 implements Processor {
             subCycleIndex = 0;
         }
 
-        this.onSubCycleEnd(originalSubCycleIndex, originalInstructionRegister, originalDisablePCWrites);
+        this.onSubCycleEnd(originalSubCycleIndex, originalInstructionRegister, originalDisablePCWrites, originalBrkSource, originalBrkVector, originalPushB);
         return 0;
     }
 
-    private void onSubCycleEnd(int originalSubCycleIndex, int originalInstructionRegister, boolean originalDisablePCWrites) {
+    private void onSubCycleEnd(int originalSubCycleIndex, int originalInstructionRegister, boolean originalDisablePCWrites, BRKSource originalBrkSource, int originalBrkVector, boolean originalPushB) {
         if (this.phase == Phase.PHI_2) {
             boolean currentNMI = systemBus.getNMI();
             if (!this.oldNMI && currentNMI) {
@@ -391,6 +395,9 @@ public class NMOS6502 implements Processor {
                 setIR(originalInstructionRegister);
                 this.subCycleIndex = originalSubCycleIndex;
                 this.disablePCWrites = originalDisablePCWrites;
+                this.brkSource = originalBrkSource;
+                setBrkVector(originalBrkVector);
+                this.pushB = originalPushB;
             }
         }
         this.phase = this.phase.getOpposite();
