@@ -99,9 +99,9 @@ public class RP2A03<E extends NESEmulator> implements Bus {
         } else if (address == OAMDMA_ADDR) {
             return -1;
         } else if (address == JOY1_ADDR) {
-            return this.controller.readJoy1();
+            return (this.controller.readJoy1() & ~0xE0) | (this.internalDataBus & 0xE0);
         } else if (address == JOY2_ADDR) {
-            return this.controller.readJoy2();
+            return (this.controller.readJoy2() & ~0xE0) | (this.internalDataBus & 0xE0);
         } else {
             return -1;
         }

@@ -60,9 +60,6 @@ public class NESCPUBus<E extends NESEmulator> implements Bus {
         }
 
         if (ret >= 0) {
-            if (address == JOY1_ADDR || address == JOY2_ADDR) {
-                ret = (ret & ~0xE0) | (this.dataBus & 0xE0);
-            }
             this.dataBus = ret;
             return ret;
         } else {
