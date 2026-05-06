@@ -150,14 +150,14 @@ public class CosmacVipEmulator implements Emulator, CDP1802.SystemBus {
         }
     }
 
-    public int readIN(int ioPort) {
+    public int readIO(int ioPort) {
         if (ioPort == 1) {
             this.vdp.setDisplayEnable(true);
         }
         return 0xFF;
     }
 
-    public void writeOUT(int ioPort, int value) {
+    public void writeIO(int ioPort, int value) {
         if ((ioPort & 4) != 0) {
             this.bus.unlatchAddressMsb();
         }

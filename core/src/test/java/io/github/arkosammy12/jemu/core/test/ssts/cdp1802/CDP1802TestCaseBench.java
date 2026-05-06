@@ -119,12 +119,12 @@ public class CDP1802TestCaseBench implements CDP1802.SystemBus {
     }
 
     @Override
-    public int readIN(int port) {
+    public int readIO(int port) {
         return 0;
     }
 
     @Override
-    public void writeOUT(int port, int value) {
+    public void writeIO(int port, int value) {
 
     }
 

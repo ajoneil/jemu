@@ -389,11 +389,11 @@ public class CDP1802 implements Processor {
                     setR(getX(), getR(getX()) + 1);
                 } else if (N >= 0x1 && N <= 0x7) { // 6N: OUT | M(R(X)) → BUS; R(X) + 1 → R(X)
                     int NX = N & 7;
-                    this.systemBus.writeOUT(NX, this.systemBus.getBus().readByte(getR(getX())));
+                    this.systemBus.writeIO(NX, this.systemBus.getBus().readByte(getR(getX())));
                     setR(getX(), getR(getX()) + 1);
                 } else if (N >= 0x9 && N <= 0xF) { // 6N: INP | BUS → M(R(X)), D
                     int NX = N & 7;
-                    int input = this.systemBus.readIN(NX);
+                    int input = this.systemBus.readIO(NX);
                     this.systemBus.getBus().writeByte(getR(getX()), input);
                     setD(input);
                 } else if (N == 0x8) { // 68: Undefined. Return 0xFF from pull up data bus
@@ -800,9 +800,9 @@ public class CDP1802 implements Processor {
 
         void writeDMAOUT(int address, int value);
 
-        int readIN(int port);
+        int readIO(int port);
 
-        void writeOUT(int port, int value);
+        void writeIO(int port, int value);
 
     }
 
