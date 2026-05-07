@@ -1,9 +1,8 @@
 package io.github.arkosammy12.jemu.core.cosmacvip;
 
 import io.github.arkosammy12.jemu.core.common.VideoGenerator;
-import io.github.arkosammy12.jemu.core.cpu.CDP1802;
 
-public class CDP1861<E extends CosmacVipEmulator> extends VideoGenerator<E> {
+public class CDP1861<E extends CosmacVIPEmulator> extends VideoGenerator<E> {
 
     private static final int SCANLINES_PER_FRAME = 262;
     protected static final int MACHINE_CYCLES_PER_SCANLINE = 14;
@@ -65,7 +64,7 @@ public class CDP1861<E extends CosmacVipEmulator> extends VideoGenerator<E> {
     }
 
     public void cycle() {
-        if (this.cycles % CosmacVipEmulator.CYCLES_PER_FRAME == 0) {
+        if (this.cycles % CosmacVIPEmulator.CYCLES_PER_FRAME == 0) {
             this.enabled = this.displayEnableLatch;
         }
         if (this.enabled) {

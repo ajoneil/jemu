@@ -128,6 +128,7 @@ public class RP2A03<E extends NESEmulator> implements Bus {
 				this.cpu.cycle();
 
 				this.controller.cycle();
+                this.emulator.getCartridge().cycle();
 
 				if (this.scheduleDmcDmaHaltCountdown > 0) {
 					this.scheduleDmcDmaHaltCountdown--;

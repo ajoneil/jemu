@@ -1,12 +1,15 @@
 package io.github.arkosammy12.jemu.core.cosmacvip;
 
-import io.github.arkosammy12.jemu.core.common.SystemHost;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import io.github.arkosammy12.jemu.core.common.Bus;
 
-public class CosmacVipBus implements Bus {
+import java.util.Arrays;
 
-    private static final int[] MONITOR_ROM = {
+import static io.github.arkosammy12.jemu.core.common.SystemHost.intToByteArray;
+
+public class CosmacVIPBus implements Bus {
+
+    private static final byte[] MONITOR_ROM = intToByteArray(new int[] {
             0xF8, 0x80, 0xB2, 0xF8, 0x08, 0xA2, 0xE2, 0xD2,
             0x64, 0x00, 0x62, 0x0C, 0xF8, 0xFF, 0xA1, 0xF8,
             0x0F, 0xB1, 0xF8, 0xAA, 0x51, 0x01, 0xFB, 0xAA,
@@ -71,9 +74,9 @@ public class CosmacVipBus implements Bus {
             0xD8, 0xAD, 0x02, 0xF6, 0xF6, 0xF6, 0xF6, 0xD5,
             0x42, 0xFA, 0x0F, 0xD5, 0x8E, 0xF6, 0xAE, 0x32,
             0xDC, 0x3B, 0xEA, 0x1D, 0x1D, 0x30, 0xEA, 0x01,
-    };
+    });
 
-    private static final int[] CHIP_8_INTERPRETER = {
+    private static final byte[] CHIP_8_INTERPRETER = intToByteArray(new int[] {
             0x91, 0xbb, 0xff, 0x01, 0xb2, 0xb6, 0xf8, 0xcf,
             0xa2, 0xf8, 0x81, 0xb1, 0xf8, 0x46, 0xa1, 0x90,
             0xb4, 0xf8, 0x1b, 0xa4, 0xf8, 0x01, 0xb5, 0xf8,
@@ -138,15 +141,16 @@ public class CosmacVipBus implements Bus {
             0xf2, 0x56, 0xd4, 0x45, 0xaa, 0x86, 0xfa, 0x0f,
             0xba, 0xd4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0xe0, 0x00, 0x4b
-    };
+    });
 
-    protected final int[] bytes;
+    protected final byte[] ram;
     protected boolean addressMsbLatched = true;
     protected int dataBus = 0;
 
-    public CosmacVipBus(CosmacVipEmulator emulator) {
-        int[] rom = SystemHost.byteToIntArray(emulator.getHost().getRom());
-        this.bytes = new int[0x1000];
+    public CosmacVIPBus(CosmacVIPEmulator emulator) {
+        byte[] hostRom = emulator.getHost().getRom();
+        byte[] rom = Arrays.copyOf(hostRom, hostRom.length);
+        this.ram = new byte[0x1000];
         try {
             this.initializeRam(emulator, rom);
         } catch (ArrayIndexOutOfBoundsException e) {
@@ -156,26 +160,26 @@ public class CosmacVipBus implements Bus {
         }
     }
 
-    protected void initializeRam(CosmacVipEmulator emulator, int[] rom) {
+    protected void initializeRam(CosmacVIPEmulator emulator, byte[] rom) {
         if (emulator.getChip8Interpreter() == CosmacVIPHost.Chip8Interpreter.CHIP_8) {
-            System.arraycopy(CHIP_8_INTERPRETER, 0, this.bytes, 0, CHIP_8_INTERPRETER.length);
-            System.arraycopy(rom, 0, this.bytes, CHIP_8_INTERPRETER.length, rom.length);
+            System.arraycopy(CHIP_8_INTERPRETER, 0, this.ram, 0, CHIP_8_INTERPRETER.length);
+            System.arraycopy(rom, 0, this.ram, CHIP_8_INTERPRETER.length, rom.length);
         } else {
-            System.arraycopy(rom, 0, this.bytes, 0, rom.length);
+            System.arraycopy(rom, 0, this.ram, 0, rom.length);
         }
     }
 
     @Override
     public int readByte(int address) {
         int actualAddress = this.addressMsbLatched ? address | 0x8000 : address;
-        int value;
+        byte value;
         if (actualAddress >= 0x8000) {
             value = MONITOR_ROM[actualAddress & 0x1FF];
         } else {
-            value = this.bytes[actualAddress & 0xFFF];
+            value = this.ram[actualAddress & 0xFFF];
         }
-        this.dataBus = value;
-        return value;
+        this.dataBus = (int) value & 0xFF;
+        return this.dataBus;
     }
 
     @Override
@@ -185,7 +189,7 @@ public class CosmacVipBus implements Bus {
         if (actualAddress >= 0x8000) {
             return;
         }
-        this.bytes[actualAddress & 0xFFF] = value & 0xFF;
+        this.ram[actualAddress & 0xFFF] = (byte) value;
     }
 
     public void unlatchAddressMsb() {

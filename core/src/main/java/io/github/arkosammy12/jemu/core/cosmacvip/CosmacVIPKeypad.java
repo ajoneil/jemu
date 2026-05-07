@@ -2,7 +2,7 @@ package io.github.arkosammy12.jemu.core.cosmacvip;
 
 import io.github.arkosammy12.jemu.core.common.SystemController;
 
-public class CosmacVIPKeypad<E extends CosmacVipEmulator> extends SystemController<E> {
+public class CosmacVIPKeypad<E extends CosmacVIPEmulator> extends SystemController<E> {
 
     private final boolean[] keys = new boolean[16];
     private int latchedKey = 0;

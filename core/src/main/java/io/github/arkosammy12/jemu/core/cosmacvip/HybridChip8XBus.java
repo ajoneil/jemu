@@ -1,8 +1,10 @@
 package io.github.arkosammy12.jemu.core.cosmacvip;
 
-public class HybridChip8XBus extends CosmacVipBus {
+import static io.github.arkosammy12.jemu.core.common.SystemHost.intToByteArray;
 
-    private static final int[] CHIP_8X_INTERPRETER = {
+public class HybridChip8XBus extends CosmacVIPBus {
+
+    private static final byte[] CHIP_8X_INTERPRETER = intToByteArray(new int[] {
             0x91, 0xBB, 0xFF, 0x01, 0xB2, 0xB6, 0xF8, 0xCF,
             0xA2, 0xF8, 0x81, 0xB1, 0xF8, 0x46, 0xA1, 0x90,
             0xB4, 0xF8, 0x1B, 0xA4, 0xF8, 0x02, 0xB5, 0xF8,
@@ -99,20 +101,20 @@ public class HybridChip8XBus extends CosmacVipBus {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x02, 0x80, 0x00, 0xE0, 0x00, 0x4B
-    };
+    });
 
-    private final CosmacVipEmulator emulator;
+    private final CosmacVIPEmulator emulator;
 
-    public HybridChip8XBus(CosmacVipEmulator emulator) {
+    public HybridChip8XBus(CosmacVIPEmulator emulator) {
         super(emulator);
         this.emulator = emulator;
     }
 
     @Override
-    protected void initializeRam(CosmacVipEmulator emulator, int[] rom) {
+    protected void initializeRam(CosmacVIPEmulator emulator, byte[] rom) {
         if (emulator.getChip8Interpreter() == CosmacVIPHost.Chip8Interpreter.CHIP_8X) {
-            System.arraycopy(CHIP_8X_INTERPRETER, 0, this.bytes, 0, CHIP_8X_INTERPRETER.length);
-            System.arraycopy(rom, 0, this.bytes, CHIP_8X_INTERPRETER.length, rom.length);
+            System.arraycopy(CHIP_8X_INTERPRETER, 0, this.ram, 0, CHIP_8X_INTERPRETER.length);
+            System.arraycopy(rom, 0, this.ram, CHIP_8X_INTERPRETER.length, rom.length);
         } else {
             super.initializeRam(emulator, rom);
         }
@@ -124,7 +126,7 @@ public class HybridChip8XBus extends CosmacVipBus {
         if (actualAddress >= 0xC000 && this.emulator.getVideoGenerator() instanceof VP590<?> vp590) {
             int value = vp590.readColorRam(address);
             this.dataBus = value;
-            return value;
+            return value & 0xFF;
         }
         return super.readByte(address);
     }

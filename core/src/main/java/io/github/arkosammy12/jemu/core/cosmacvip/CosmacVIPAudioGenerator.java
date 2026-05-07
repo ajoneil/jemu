@@ -6,7 +6,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
 
-public class CosmacVipAudioGenerator<E extends CosmacVipEmulator> extends AudioGenerator<E> {
+public class CosmacVIPAudioGenerator<E extends CosmacVIPEmulator> extends AudioGenerator<E> {
 
     public static final int SQUARE_WAVE_AMPLITUDE = 4;
 
@@ -20,7 +20,7 @@ public class CosmacVipAudioGenerator<E extends CosmacVipEmulator> extends AudioG
             0xFF, 0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0, 0, 0, 0
     };
 
-    public CosmacVipAudioGenerator(E emulator) {
+    public CosmacVIPAudioGenerator(E emulator) {
         super(emulator);
     }
 

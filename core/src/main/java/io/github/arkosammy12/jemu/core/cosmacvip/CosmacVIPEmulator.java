@@ -4,7 +4,7 @@ import io.github.arkosammy12.jemu.core.common.*;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import io.github.arkosammy12.jemu.core.cpu.CDP1802;
 
-public class CosmacVipEmulator implements Emulator, CDP1802.SystemBus {
+public class CosmacVIPEmulator implements Emulator, CDP1802.SystemBus {
 
     public static final int CYCLES_PER_FRAME = 3668;
 
@@ -12,14 +12,14 @@ public class CosmacVipEmulator implements Emulator, CDP1802.SystemBus {
     private final CosmacVIPHost.Chip8Interpreter chip8Interpreter;
 
     private final CDP1802 cpu;
-    private final CosmacVipBus bus;
+    private final CosmacVIPBus bus;
     private final CDP1861<?> vdp;
     private final AudioGenerator<?> audioGenerator;
     private final CosmacVIPKeypad<?> keypad;
 
     private final int frameRate;
 
-    public CosmacVipEmulator(CosmacVIPHost host) {
+    public CosmacVIPEmulator(CosmacVIPHost host) {
         try {
             this.host = host;
             this.chip8Interpreter = host.getChip8Interpreter();
@@ -31,9 +31,9 @@ public class CosmacVipEmulator implements Emulator, CDP1802.SystemBus {
                 this.audioGenerator = new VP595<>(this);
                 this.frameRate = 61;
             } else {
-                this.bus = new CosmacVipBus(this);
+                this.bus = new CosmacVIPBus(this);
                 this.vdp = new CDP1861<>(this);
-                this.audioGenerator = new CosmacVipAudioGenerator<>(this);
+                this.audioGenerator = new CosmacVIPAudioGenerator<>(this);
                 this.frameRate = 60;
             }
         } catch (Exception e) {

@@ -22,6 +22,7 @@ public abstract class NESCartridge<E extends NESEmulator> implements Bus {
         int mapperNumber = iNESFile.getMapperNumber();
         return switch (mapperNumber) {
             case 0 -> new NROMCartridge<>(emulator, iNESFile);
+            case 1 -> new MMC1Cartridge<>(emulator, iNESFile);
             case 2 -> new UXROMCartridge<>(emulator, iNESFile);
             case 3 -> new CNROMCartridge<>(emulator, iNESFile);
             case 7 -> new AXROMCartridge<>(emulator, iNESFile);
@@ -58,6 +59,10 @@ public abstract class NESCartridge<E extends NESEmulator> implements Bus {
 
 
         return (ciRamA10 << 10) | (vRamAddr & 0x03FF);
+    }
+
+    public void cycle() {
+
     }
 
     public boolean getIRQSignal() {

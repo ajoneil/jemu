@@ -208,6 +208,9 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
     private int primaryOamAddress;
     private int secondaryOamAddress;
+    // TODO: Update on $2004 writes, expose on $2004 reads. Constantly refill on every second half dots except during sprite eval
+    // PPU accesses OAM on every dot
+    private int oamBuffer;
 
     private DotHalf currentDotHalf = DotHalf.FIRST;
     private int dotNumber;
@@ -242,7 +245,6 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
     private int secondaryOamClearStep = 0;
 
-    private int primaryOamBuffer;
     private int spriteEvaluationStep = 0;
     private int spriteEvaluationOamReadingCounter = 0;
     private boolean spriteEvaluationOriginalPrimaryOamAddressOverflowed;
@@ -907,15 +909,15 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         switch (this.spriteEvaluationStep) {
             case 0 -> { // Read cycle
                 this.spriteEvaluationOriginalPrimaryOamAddressOverflowed = this.spriteEvaluationPrimaryOamAddressOverflowed;
-                this.primaryOamBuffer = this.primaryOAM[this.primaryOamAddress];
+                this.oamBuffer = this.primaryOAM[this.primaryOamAddress];
                 if (firstDot && this.isRenderingEnabled()) {
-                    this.sprite0OnNextScanline = this.isSpriteYInRange(this.primaryOamBuffer);
+                    this.sprite0OnNextScanline = this.isSpriteYInRange(this.oamBuffer);
                 }
                 if (this.spriteEvaluationOamReadingCounter > 0) {
                     this.spriteEvaluationOamReadingCounter--;
                     this.incrementPrimaryOamAddressLow();
                 } else {
-                    if (this.isSpriteYInRange(this.primaryOamBuffer) && !this.spriteEvaluationPrimaryOamAddressOverflowed) {
+                    if (this.isSpriteYInRange(this.oamBuffer) && !this.spriteEvaluationPrimaryOamAddressOverflowed) {
                         this.spriteEvaluationOamReadingCounter = 7;
                         this.incrementPrimaryOamAddressLow();
                         if (this.spriteEvaluationSecondaryOamAddressOverflowed && this.isRenderingEnabled()) {
@@ -934,7 +936,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
             }
             case 1 -> { // Write cycle
                 if (!this.spriteEvaluationOriginalPrimaryOamAddressOverflowed && !this.spriteEvaluationSecondaryOamAddressOverflowed) {
-                    this.secondaryOAM[this.secondaryOamAddress] = this.primaryOamBuffer;
+                    this.secondaryOAM[this.secondaryOamAddress] = this.oamBuffer;
                     if (this.spriteEvaluationOamReadingCounter > 0) {
                         this.spriteEvaluationOamReadingCounter--;
                         this.incrementSecondaryOamAddress();

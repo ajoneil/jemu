@@ -8,7 +8,7 @@ import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.core.common.Emulator;
 import io.github.arkosammy12.jemu.core.cosmacvip.CosmacVIPKeypad;
-import io.github.arkosammy12.jemu.core.cosmacvip.CosmacVipEmulator;
+import io.github.arkosammy12.jemu.core.cosmacvip.CosmacVIPEmulator;
 import io.github.arkosammy12.jemu.core.cosmacvip.CosmacVIPHost;
 import io.github.arkosammy12.jemu.core.drivers.VideoDriver;
 import io.github.arkosammy12.jemu.frontend.audio.AudioRenderer;
@@ -29,7 +29,7 @@ public class DefaultCosmacVIPAdapter extends DefaultSystemAdapter implements Cos
     private final System system;
     private final Chip8Interpreter chip8Interpreter;
 
-    private final CosmacVipEmulator emulator;
+    private final CosmacVIPEmulator emulator;
     private final JPanelVideoDriver videoDriver;
     private final DefaultAudioRendererDriver audioDriver;
     private final AudioRenderer audioRenderer;
@@ -41,7 +41,7 @@ public class DefaultCosmacVIPAdapter extends DefaultSystemAdapter implements Cos
         this.system = initializer.getSystem().orElse(COSMAC_VIP);
         this.chip8Interpreter = chip8Interpreter;
 
-        this.emulator = new CosmacVipEmulator(this);
+        this.emulator = new CosmacVIPEmulator(this);
 
         KeyAdapter keyAdapter = new KeyAdapter() {
 

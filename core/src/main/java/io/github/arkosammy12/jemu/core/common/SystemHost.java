@@ -23,7 +23,15 @@ public interface SystemHost {
     static int[] byteToIntArray(byte[] byteArray) {
         int[] arr = new int[byteArray.length];
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = byteArray[i] & 0xFF;
+            arr[i] = (int) byteArray[i] & 0xFF;
+        }
+        return arr;
+    }
+
+    static byte[] intToByteArray(int[] intArray) {
+        byte[] arr = new byte[intArray.length];
+        for (int i = 0; i < arr.length; i++) {
+            arr[i] = (byte) intArray[i];
         }
         return arr;
     }

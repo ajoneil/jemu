@@ -45,13 +45,9 @@ public class NROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
             } else {
                 return this.characterRom[(address - CHR_ROM_START) % this.characterRom.length];
             }
-        } else if (address >= CIRAM_START && address <= CIRAM_END) {
+        } else if (address >= CIRAM_START && address <= CIRAM_MIRROR_END) {
             return this.readByteVRAM(this.mapNametableAddress(address));
-        } else if (address >= CIRAM_MIRROR_START && address <= CIRAM_MIRROR_END) {
-            return this.readByteVRAM(this.mapNametableAddress(address));
-        } else if (address >= PALETTE_RAM_START && address <= PALETTE_RAM_END) {
-            return address & 0xFF;
-        } else if (address >= PALETTE_RAM_MIRROR_START && address <= PALETTE_RAM_MIRROR_END) {
+        } else if (address >= PALETTE_RAM_START && address <= PALETTE_RAM_MIRROR_END) {
             return address & 0xFF;
         } else {
             throw new EmulatorException("Invalid NES NROM cartridge PPU read address $%04X!".formatted(address));
@@ -64,13 +60,9 @@ public class NROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
             if (this.characterRam != null) {
                 this.characterRam[(address - CHR_ROM_START) % this.characterRam.length] = value & 0xFF;
             }
-        } else if (address >= CIRAM_START && address <= CIRAM_END) {
+        } else if (address >= CIRAM_START && address <= CIRAM_MIRROR_END) {
             this.writeByteVRAM(this.mapNametableAddress(address), value);
-        } else if (address >= CIRAM_MIRROR_START && address <= CIRAM_MIRROR_END) {
-            this.writeByteVRAM(this.mapNametableAddress(address), value);
-        } else if (address >= PALETTE_RAM_START && address <= PALETTE_RAM_END) {
-
-        } else if (address >= PALETTE_RAM_MIRROR_START && address <= PALETTE_RAM_MIRROR_END) {
+        } else if (address >= PALETTE_RAM_START && address <= PALETTE_RAM_MIRROR_END) {
 
         } else {
             throw new EmulatorException("Invalid NES NROM cartridge PPU write address $%04X!".formatted(address));
@@ -85,9 +77,7 @@ public class NROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
             } else {
                 return -1;
             }
-        } else if (address >= 0x8000 && address <= 0xBFFF) {
-            return this.programRom[(address - 0x8000) % this.programRom.length];
-        } else if (address >= 0xC000 && address <= 0xFFFF) {
+        } else if (address >= 0x8000 && address <= 0xFFFF) {
             return this.programRom[(address - 0x8000) % this.programRom.length];
         } else {
             return -1;

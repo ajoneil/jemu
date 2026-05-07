@@ -2,7 +2,7 @@ package io.github.arkosammy12.jemu.core.cosmacvip;
 
 import java.util.Arrays;
 
-public class  VP590<E extends CosmacVipEmulator> extends CDP1861<E> {
+public class  VP590<E extends CosmacVIPEmulator> extends CDP1861<E> {
 
     private static final int[] BACKGROUND_COLORS = {
             0xFF000080,
@@ -11,14 +11,14 @@ public class  VP590<E extends CosmacVipEmulator> extends CDP1861<E> {
             0XFF800000
     };
 
-    private final int[] colorRam = new int[256];
+    private final byte[] colorRam = new byte[256];
     private int backgroundColorIndex = 0;
     private boolean hiresColor = false;
     private boolean colorRamModified = false;
 
     public VP590(E emulator) {
         super(emulator);
-        Arrays.fill(this.colorRam, 0xF0);
+        Arrays.fill(this.colorRam, (byte) 0xF0);
         for (int[] ints : this.displayBuffer) {
             Arrays.fill(ints, 0xFF000000);
         }
@@ -31,11 +31,11 @@ public class  VP590<E extends CosmacVipEmulator> extends CDP1861<E> {
         } else if ((address >= 0xD000 && address <= 0xDFFF) || (address >= 0xF000 && address <= 0xFFFF)) {
             hiresColor = true;
         }
-        this.colorRam[address & (this.hiresColor ? 0xFF : 0xE7)] = 0xF0 | (value & 7);
+        this.colorRam[address & (this.hiresColor ? 0xFF : 0xE7)] = (byte) (0xF0 | (value & 7));
     }
 
     public int readColorRam(int address) {
-        return this.colorRam[address & (this.hiresColor ? 0xFF : 0xE7)];
+        return (int) this.colorRam[address & (this.hiresColor ? 0xFF : 0xE7)] & 0xFF;
     }
 
     public void incrementBackgroundColorIndex() {
