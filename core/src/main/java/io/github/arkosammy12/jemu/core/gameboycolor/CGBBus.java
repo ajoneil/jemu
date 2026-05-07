@@ -385,6 +385,10 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
         }
     }
 
+    // TODO: VDMA bus conflicts with OAM DMA.
+    // The low 8 bits of the OAM DMA, as well as the written value, get hijacked by VDMA
+    // if they both try to use the bus on the same cycle.
+    // OAM DMA will write the value read by VDMA, and use the low (or high?) 8 bits of the VDMA write address
     public void cycleVDMA() {
         if (this.vdmaTransferInProgress) {
             switch (this.currentVDMAType) {
