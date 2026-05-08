@@ -213,7 +213,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         int pulseGroupSum = pulse1 + pulse2;
 
         if (pulseGroupSum > 0) {
-            pulseOut = 95.88 / (((double) 8128 / pulseGroupSum) + 100);
+            pulseOut = 95.88 / (((double) 8128 / (double) pulseGroupSum) + 100);
         }
 
         if (triangle != 0 || noise != 0 || dmc != 0) {
@@ -607,6 +607,11 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         @Override
         protected int getDigitalOutput() {
             if (this.getLengthCounter() <= 0) {
+                return 0;
+            }
+
+            // Workaround to prevent aliasing with very high frequencies
+            if (this.getTimerReload() <= 0) {
                 return 0;
             }
             return TRIANGLE_WAVEFORM_LUT[this.sequencerStep];
