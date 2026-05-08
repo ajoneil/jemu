@@ -513,13 +513,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
         @Override
         protected int getDigitalOutput() {
-            if (this.getLengthCounter() <= 0) {
-                return 0;
-            }
-            if (this.getTimerReload() < 8) {
-                return 0;
-            }
-            if (this.sweepTargetPeriod > 0x7FF) {
+            if (this.getLengthCounter() <= 0 || this.getTimerReload() < 8 || this.sweepTargetPeriod > 0x7FF) {
                 return 0;
             }
             return DUTY_CYCLES[this.getDutyCycle()][this.sequencerStep] != 0 ? (this.getConstantVolumeFlag() ? this.getEnvelopeDividerPeriod() : this.envelopeDecayCounter) : 0;
@@ -606,12 +600,8 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
         @Override
         protected int getDigitalOutput() {
-            if (this.getLengthCounter() <= 0) {
-                return 0;
-            }
-
-            // Workaround to prevent aliasing with very high frequencies
-            if (this.getTimerReload() <= 0) {
+            //                                  v Workaround to prevent aliasing with very high frequencies
+            if (this.getLengthCounter() <= 0 || this.getTimerReload() <= 0) {
                 return 0;
             }
             return TRIANGLE_WAVEFORM_LUT[this.sequencerStep];
