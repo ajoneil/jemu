@@ -3,6 +3,7 @@ package io.github.arkosammy12.jemu.core.gameboy;
 import io.github.arkosammy12.jemu.core.common.Bus;
 import io.github.arkosammy12.jemu.core.common.SystemHost;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
+import io.github.arkosammy12.jemu.core.gameboy.mbcs.*;
 import org.apache.commons.io.FilenameUtils;
 import org.tinylog.Logger;
 

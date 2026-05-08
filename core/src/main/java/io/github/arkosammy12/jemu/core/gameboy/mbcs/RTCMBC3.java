@@ -1,6 +1,7 @@
-package io.github.arkosammy12.jemu.core.gameboy;
+package io.github.arkosammy12.jemu.core.gameboy.mbcs;
 
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
+import io.github.arkosammy12.jemu.core.gameboy.GameBoyEmulator;
 
 import java.util.Optional;
 

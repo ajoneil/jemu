@@ -1,6 +1,8 @@
-package io.github.arkosammy12.jemu.core.gameboy;
+package io.github.arkosammy12.jemu.core.gameboy.mbcs;
 
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
+import io.github.arkosammy12.jemu.core.gameboy.GameBoyCartridge;
+import io.github.arkosammy12.jemu.core.gameboy.GameBoyEmulator;
 import org.jetbrains.annotations.Nullable;
 import org.tinylog.Logger;
 

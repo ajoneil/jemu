@@ -1,21 +1,21 @@
-package io.github.arkosammy12.jemu.core.nes;
+package io.github.arkosammy12.jemu.core.nes.mappers;
 
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
+import io.github.arkosammy12.jemu.core.nes.NESCartridge;
+import io.github.arkosammy12.jemu.core.nes.NESEmulator;
 import io.github.arkosammy12.jemu.core.nes.ines.INESFile;
 
 import java.util.Arrays;
 import java.util.Optional;
 
-import static io.github.arkosammy12.jemu.core.nes.RP2C02.*;
-import static io.github.arkosammy12.jemu.core.nes.RP2C02.CIRAM_END;
+import static io.github.arkosammy12.jemu.core.nes.RP2C02.CHR_ROM_END;
+import static io.github.arkosammy12.jemu.core.nes.RP2C02.CHR_ROM_START;
 import static io.github.arkosammy12.jemu.core.nes.RP2C02.CIRAM_MIRROR_END;
-import static io.github.arkosammy12.jemu.core.nes.RP2C02.CIRAM_MIRROR_START;
-import static io.github.arkosammy12.jemu.core.nes.RP2C02.PALETTE_RAM_END;
+import static io.github.arkosammy12.jemu.core.nes.RP2C02.CIRAM_START;
 import static io.github.arkosammy12.jemu.core.nes.RP2C02.PALETTE_RAM_MIRROR_END;
-import static io.github.arkosammy12.jemu.core.nes.RP2C02.PALETTE_RAM_MIRROR_START;
 import static io.github.arkosammy12.jemu.core.nes.RP2C02.PALETTE_RAM_START;
 
-public class AXROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
+public class UXROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
 
     private final byte[] programRom;
     private final byte[] characterRom;
@@ -23,7 +23,7 @@ public class AXROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
 
     private int bankSelect;
 
-    public AXROMCartridge(E emulator, INESFile iNESFile) {
+    public UXROMCartridge(E emulator, INESFile iNESFile) {
         super(emulator, iNESFile);
 
         byte[] programRomData = iNESFile.getProgramRom();
@@ -54,7 +54,7 @@ public class AXROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
         } else if (address >= PALETTE_RAM_START && address <= PALETTE_RAM_MIRROR_END) {
             return address & 0xFF;
         } else {
-            throw new EmulatorException("Invalid NES AXROM cartridge PPU read address $%04X!".formatted(address));
+            throw new EmulatorException("Invalid NES UXROM cartridge PPU read address $%04X!".formatted(address));
         }
     }
 
@@ -69,20 +69,18 @@ public class AXROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
         } else if (address >= PALETTE_RAM_START && address <= PALETTE_RAM_MIRROR_END) {
 
         } else {
-            throw new EmulatorException("Invalid NES AXROM cartridge PPU write address $%04X!".formatted(address));
+            throw new EmulatorException("Invalid NES UXROM cartridge PPU write address $%04X!".formatted(address));
         }
-    }
-
-    @Override
-    protected int mapNametableAddress(int address) {
-        // Single-screen mirroring
-        return (address & 0x3FF) | ((this.bankSelect & (1 << 4)) != 0 ? 0x400 : 0);
     }
 
     @Override
     public int readByte(int address) {
         if (address >= 0x8000 && address <= 0xFFFF) {
-            return (int) this.programRom[(((this.bankSelect & 0b111) << 15) | (address & 0x7FFF)) % this.programRom.length] & 0xFF;
+            if (address >= 0xC000) {
+                return (int) this.programRom[(this.programRom.length - 0x4000) | (address & 0x3FFF)] & 0xFF;
+            } else {
+                return (int) this.programRom[(this.bankSelect << 14) | (address & 0x3FFF)] & 0xFF;
+            }
         } else {
             return -1;
         }
@@ -91,7 +89,7 @@ public class AXROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public void writeByte(int address, int value) {
         if (address >= 0x8000 && address <= 0xFFFF) {
-            this.bankSelect = value & 0xFF;
+            this.bankSelect = value & 0xF;
         }
     }
 

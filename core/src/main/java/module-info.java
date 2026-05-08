@@ -14,5 +14,7 @@ module core {
     exports io.github.arkosammy12.jemu.core.gameboycolor;
     exports io.github.arkosammy12.jemu.core.nes;
     exports io.github.arkosammy12.jemu.core.nes.ines;
+    exports io.github.arkosammy12.jemu.core.nes.mappers;
+    exports io.github.arkosammy12.jemu.core.gameboy.mbcs;
 
 }

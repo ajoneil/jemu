@@ -1,6 +1,8 @@
-package io.github.arkosammy12.jemu.core.nes;
+package io.github.arkosammy12.jemu.core.nes.mappers;
 
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
+import io.github.arkosammy12.jemu.core.nes.NESCartridge;
+import io.github.arkosammy12.jemu.core.nes.NESEmulator;
 import io.github.arkosammy12.jemu.core.nes.ines.INESFile;
 import io.github.arkosammy12.jemu.core.nes.ines.NES20File;
 

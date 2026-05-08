@@ -3,6 +3,7 @@ package io.github.arkosammy12.jemu.core.nes;
 import io.github.arkosammy12.jemu.core.common.Bus;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import io.github.arkosammy12.jemu.core.nes.ines.INESFile;
+import io.github.arkosammy12.jemu.core.nes.mappers.*;
 
 import static io.github.arkosammy12.jemu.core.nes.RP2C02.CIRAM_START;
 
