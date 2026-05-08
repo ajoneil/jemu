@@ -115,7 +115,7 @@ public class INESFile {
         return this.characterRamSizeBytes;
     }
 
-    public NametableArrangement getNametableMirroring() {
+    public NametableArrangement getNametableArrangement() {
         return this.nametableArrangement;
     }
 

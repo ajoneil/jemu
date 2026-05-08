@@ -10,12 +10,14 @@ public abstract class NESCartridge<E extends NESEmulator> implements Bus {
 
     protected final E emulator;
     protected final INESFile iNESFile;
+    private final INESFile.NametableArrangement iNESFileNametableArrangement;
 
     private final byte[] vRam = new byte[0x800];
 
     public NESCartridge(E emulator, INESFile iNESFile) {
         this.emulator = emulator;
         this.iNESFile = iNESFile;
+        this.iNESFileNametableArrangement = this.iNESFile.getNametableArrangement();
     }
 
     public static <E extends NESEmulator> NESCartridge<E> getCartridge(E emulator, INESFile iNESFile) {
@@ -48,17 +50,10 @@ public abstract class NESCartridge<E extends NESEmulator> implements Bus {
 
     protected int mapNametableAddress(int address) {
         int vRamAddr = (address - CIRAM_START) & 0x0FFF;
-
-        int ppuA10 = (vRamAddr >> 10) & 1;
-        int ppuA11 = (vRamAddr >> 11) & 1;
-
-        int ciRamA10 = switch (this.getINESFile().getNametableMirroring()) {
-            case VERTICAL -> ppuA11;
-            case HORIZONTAL -> ppuA10;
+        return switch (this.iNESFileNametableArrangement) {
+            case HORIZONTAL -> (vRamAddr & (1 << 10)) | (vRamAddr & 0x03FF);
+            case VERTICAL -> ((vRamAddr & (1 << 11)) >>> 1) | (vRamAddr & 0x03FF);
         };
-
-
-        return (ciRamA10 << 10) | (vRamAddr & 0x03FF);
     }
 
     public void cycle() {

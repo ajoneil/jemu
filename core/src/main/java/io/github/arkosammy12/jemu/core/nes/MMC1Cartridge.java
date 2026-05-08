@@ -111,7 +111,7 @@ public class MMC1Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     public int readByte(int address) {
         if (address >= 0x6000 && address <= 0x7FFF) {
             if (this.programRam != null && this.programRam.length > 0) {
-                return (int) this.programRam[this.mapProgRamAddress(address)] & 0xFF;
+                return (int) this.programRam[this.mapProgRamAddress(address) % this.programRam.length] & 0xFF;
             } else {
                 return -1;
             }
@@ -126,7 +126,7 @@ public class MMC1Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     public void writeByte(int address, int value) {
         if (address >= 0x6000 && address <= 0x7FFF) {
             if (this.programRam != null && this.programRam.length > 0 && this.isProgramRamEnabled()) {
-                this.programRam[this.mapProgRamAddress(address)] = (byte) value;
+                this.programRam[this.mapProgRamAddress(address) % this.programRam.length] = (byte) value;
             }
         } else if (address >= 0x8000 && address <= 0xFFFF) {
             if ((value & 0x80) != 0) {
@@ -192,49 +192,38 @@ public class MMC1Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     private int mapPrgRomAddress(int address) {
         address &= 0x7FFF;
         int a18;
-        if ((this.control & (1 << 4)) == 0) {
+        if ((this.control & (1 << 4)) == 0 || address <= 0x0FFF) {
             a18 = (this.chrBank0 & (1 << 4)) << 14;
         } else {
-            if (address <= 0x0FFF) {
-                a18 = (this.chrBank0 & (1 << 4)) << 14;
-            } else {
-                a18 = (this.chrBank1 & (1 << 4)) << 14;
-            }
+            a18 = (this.chrBank1 & (1 << 4)) << 14;
         }
 
-        int bank = this.prgBank & 0b1111;
+        int bankBits = this.prgBank & 0b1111;
         return switch (this.getProgramRomBankMode()) {
-            case 0, 1 -> {
-                bank &= ~1;
-                yield address | (bank << 14) | (a18);
-            }
+            case 0, 1 -> address | ((bankBits & ~1) << 14) | (a18);
             case 2 -> {
                 if (address <= 0x3FFF) {
-                    bank = 0;
+                    bankBits = 0;
                 }
-                yield (address & 0x3FFF) | (bank << 14) | (a18);
+                yield (address & 0x3FFF) | (bankBits << 14) | (a18);
             }
             case 3 -> {
                 if (address > 0x3FFF) {
-                    bank = 0b1111;
+                    bankBits = 0b1111;
                 }
-                yield (address & 0x3FFF) | (bank << 14) | (a18);
+                yield (address & 0x3FFF) | (bankBits << 14) | (a18);
             }
-            default -> throw new EmulatorException("NES MMC1 PRG-ROM bank mode bits not in [0, 3]!");
+            default -> throw new EmulatorException("NES MMC1 PRG-ROM bankBits mode bits not in [0, 3]!");
         };
     }
 
     private int mapProgRamAddress(int address) {
         address &= 0x1FFF;
         int bankBits;
-        if ((this.control & (1 << 4)) == 0) {
+        if ((this.control & (1 << 4)) == 0 || address <= 0x0FFF) {
             bankBits = (this.chrBank0 >>> 2) & 0b11;
         } else {
-            if (address <= 0x0FFF) {
-                bankBits = (this.chrBank0 >>> 2) & 0b11;
-            } else {
-                bankBits = (this.chrBank1 >>> 2) & 0b11;
-            }
+            bankBits = (this.chrBank1 >>> 2) & 0b11;
         }
         if (this.programRam.length == KB_32) {
             bankBits >>>= 1;
