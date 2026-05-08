@@ -17,24 +17,24 @@ import static io.github.arkosammy12.jemu.core.nes.RP2C02.PALETTE_RAM_START;
 
 public class AXROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
 
-    private final int[] programRom;
-    private final int[] characterRom;
-    private final int[] characterRam;
+    private final byte[] programRom;
+    private final byte[] characterRom;
+    private final byte[] characterRam;
 
     private int bankSelect;
 
     public AXROMCartridge(E emulator, INESFile iNESFile) {
         super(emulator, iNESFile);
 
-        int[] programRomData = iNESFile.getProgramRom();
+        byte[] programRomData = iNESFile.getProgramRom();
         this.programRom = Arrays.copyOf(programRomData, programRomData.length);
 
-        Optional<int[]> characterRomOptional = iNESFile.getCharacterRom();
+        Optional<byte[]> characterRomOptional = iNESFile.getCharacterRom();
         if (characterRomOptional.isEmpty()) {
             this.characterRom = null;
-            this.characterRam = new int[iNESFile.getCharacterRamSize()];
+            this.characterRam = new byte[iNESFile.getCharacterRamSize()];
         } else {
-            int[] characterRomData = characterRomOptional.get();
+            byte[] characterRomData = characterRomOptional.get();
             this.characterRom = Arrays.copyOf(characterRomData, characterRomData.length);
             this.characterRam = null;
         }
@@ -45,9 +45,9 @@ public class AXROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     public int readBytePPU(int address) {
         if (address >= CHR_ROM_START && address <= CHR_ROM_END) {
             if (this.characterRom == null) {
-                return this.characterRam[address % this.characterRam.length];
+                return (int) this.characterRam[address % this.characterRam.length] & 0xFF;
             } else {
-                return this.characterRom[address % this.characterRom.length];
+                return (int) this.characterRom[address % this.characterRom.length] & 0xFF;
             }
         } else if (address >= CIRAM_START && address <= CIRAM_MIRROR_END) {
             return this.readByteVRAM(this.mapNametableAddress(address));
@@ -62,7 +62,7 @@ public class AXROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     public void writeBytePPU(int address, int value) {
         if (address >= CHR_ROM_START && address <= CHR_ROM_END) {
             if (this.characterRam != null) {
-                this.characterRam[address % this.characterRam.length] = value & 0xFF;
+                this.characterRam[address % this.characterRam.length] = (byte) value;
             }
         } else if (address >= CIRAM_START && address <= CIRAM_MIRROR_END) {
             this.writeByteVRAM(this.mapNametableAddress(address), value);
@@ -82,7 +82,7 @@ public class AXROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public int readByte(int address) {
         if (address >= 0x8000 && address <= 0xFFFF) {
-            return this.programRom[(((this.bankSelect & 0b111) << 15) | (address & 0x7FFF)) % this.programRom.length];
+            return (int) this.programRom[(((this.bankSelect & 0b111) << 15) | (address & 0x7FFF)) % this.programRom.length] & 0xFF;
         } else {
             return -1;
         }

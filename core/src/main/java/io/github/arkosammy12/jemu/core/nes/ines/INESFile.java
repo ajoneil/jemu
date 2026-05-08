@@ -11,25 +11,29 @@ public class INESFile {
     public static final int KB_8 = 0x2000;
     public static final int KB_16 = 0x4000;
     public static final int KB_32 = KB_16 * 2;
+    public static final int KB_64 = KB_32 * 2;
+    public static final int KB_128 = KB_64 * 2;
+    public static final int KB_256 = KB_128 * 2;
+    public static final int KB_512 = KB_256 * 2;
 
     private final NametableArrangement nametableArrangement;
     private final boolean hasBattery;
     private final boolean hasAlternativeNametableLayout;
-    private final int[] programRomData;
-    private final int @Nullable [] characterRomData;
-    private final int @Nullable [] byteTrainer;
+    private final byte[] programRomData;
+    private final byte @Nullable [] characterRomData;
+    private final byte @Nullable [] byteTrainer;
 
     private final int mapperNumber;
     private final int programRamSizeBytes;
     private final int characterRamSizeBytes;
 
-    public INESFile(int[] file) {
+    public INESFile(byte[] file) {
 
         this.mapperNumber = this.getMapperNumber(file);
         this.programRamSizeBytes = this.getProgramRamSize(file);
         this.characterRamSizeBytes = this.getCharacterRamSize(file);
 
-        int flags6 = file[6] & 0xFF;
+        int flags6 = (int) file[6] & 0xFF;
         this.nametableArrangement = (flags6 & 1) != 0 ? NametableArrangement.HORIZONTAL : NametableArrangement.VERTICAL;
         this.hasBattery = (flags6 & (1 << 1)) != 0;
         this.hasAlternativeNametableLayout = (flags6 & (1 << 3)) != 0;
@@ -46,11 +50,11 @@ public class INESFile {
             throw new EmulatorException("PRG-ROM size header cannot be 0!");
         }
 
-        this.programRomData = new int[programRomSizeBytes];
+        this.programRomData = new byte[programRomSizeBytes];
         System.arraycopy(file, programRomDataBeginIndex, this.programRomData, 0, this.programRomData.length);
 
         if (hasByeTrainer) {
-            this.byteTrainer = new int[512];
+            this.byteTrainer = new byte[512];
             System.arraycopy(file, 16, this.byteTrainer, 0, this.byteTrainer.length);
         } else {
             this.byteTrainer = null;
@@ -61,41 +65,41 @@ public class INESFile {
             this.characterRomData = null;
         } else {
             int characterRomDataBeginIndex = programRomDataBeginIndex + this.programRomData.length;
-            this.characterRomData = new int[characterRomSizeBytes];
+            this.characterRomData = new byte[characterRomSizeBytes];
             System.arraycopy(file, characterRomDataBeginIndex, this.characterRomData, 0, this.characterRomData.length);
         }
 
     }
 
-    protected int getProgramRomSizeBytes(int[] file) {
-        return (file[4] & 0xFF) * KB_16;
+    protected int getProgramRomSizeBytes(byte[] file) {
+        return ((int) file[4] & 0xFF) * KB_16;
     }
 
-    protected int getCharacterRomSizeBytes(int[] file) {
-        return (file[5] & 0xFF) * KB_8;
+    protected int getCharacterRomSizeBytes(byte[] file) {
+        return ((int) file[5] & 0xFF) * KB_8;
     }
 
-    protected int getMapperNumber(int[] file) {
-        return (file[6] >>> 4) & 0xF;
+    protected int getMapperNumber(byte[] file) {
+        return ((int) file[6] >>> 4) & 0xF;
     }
 
-    protected int getProgramRamSize(int[] file) {
+    protected int getProgramRamSize(byte[] file) {
         return KB_8;
     }
 
-    protected int getCharacterRamSize(int[] file) {
-        return (file[5] & 0xFF) == 0 ? KB_8 : 0;
+    protected int getCharacterRamSize(byte[] file) {
+        return ((int) file[5] & 0xFF) == 0 ? KB_8 : 0;
     }
 
-    public int[] getProgramRom() {
+    public byte[] getProgramRom() {
         return Arrays.copyOf(this.programRomData, this.programRomData.length);
     }
 
-    public Optional<int[]> getCharacterRom() {
+    public Optional<byte[]> getCharacterRom() {
         return Optional.ofNullable(this.characterRomData == null ? null : Arrays.copyOf(this.characterRomData, this.characterRomData.length));
     }
 
-    public Optional<int[]> getByteTrainer() {
+    public Optional<byte[]> getByteTrainer() {
         return Optional.ofNullable(this.byteTrainer == null ? null : Arrays.copyOf(this.byteTrainer, this.byteTrainer.length));
     }
 
@@ -127,18 +131,18 @@ public class INESFile {
         return false;
     }
 
-    public static INESFile getINESFile(int[] file) {
+    public static INESFile getINESFile(byte[] file) {
         try {
-            int maskedByte7 = file[7] & 0x0C;
+            int maskedByte7 = (int) file[7] & 0x0C;
             boolean bytes12To15AreZero = true;
             for (int i = 12; i <= 15; i++) {
-                if (file[i] != 0) {
+                if (((int) file[i] & 0xFF) != 0) {
                     bytes12To15AreZero = false;
                     break;
                 }
             }
 
-            boolean hasByeTrainer = (file[6] & (1 << 2)) != 0;
+            boolean hasByeTrainer = (((int) file[6] & 0xFF) & (1 << 2)) != 0;
             int programRomSizeBytes = NES20File.parseNes20ProgramRomSizeBytes(file);
             int characterRomSizeBytes = NES20File.parseNes20CharacterRomSizeBytes(file);
 

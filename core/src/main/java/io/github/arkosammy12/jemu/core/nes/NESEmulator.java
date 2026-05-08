@@ -38,7 +38,7 @@ public class NESEmulator implements Emulator, NMOS6502.SystemBus {
 
     public NESEmulator(SystemHost systemHost) {
         this.systemHost = systemHost;
-        this.cartridge = NESCartridge.getCartridge(this, INESFile.getINESFile(SystemHost.byteToIntArray(this.getHost().getRom())));
+        this.cartridge = NESCartridge.getCartridge(this, INESFile.getINESFile(this.getHost().getRom()));
         this.isPAL = this.cartridge.getINESFile().isPAL();
         int apuSampleBufferSize;
         if (this.isPAL) {

@@ -11,7 +11,7 @@ public abstract class NESCartridge<E extends NESEmulator> implements Bus {
     protected final E emulator;
     protected final INESFile iNESFile;
 
-    private final int[] vRam = new int[0x800];
+    private final byte[] vRam = new byte[0x800];
 
     public NESCartridge(E emulator, INESFile iNESFile) {
         this.emulator = emulator;
@@ -39,11 +39,11 @@ public abstract class NESCartridge<E extends NESEmulator> implements Bus {
     abstract public void writeBytePPU(int address, int value);
 
     protected int readByteVRAM(int address) {
-        return this.vRam[address];
+        return (int) this.vRam[address] & 0xFF;
     }
 
     protected void writeByteVRAM(int address, int value) {
-        this.vRam[address] = value & 0xFF;
+        this.vRam[address] = (byte) value;
     }
 
     protected int mapNametableAddress(int address) {
