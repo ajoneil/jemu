@@ -24,12 +24,14 @@ public class INESFile {
     private final byte @Nullable [] byteTrainer;
 
     private final int mapperNumber;
+    private final int submapperNumber;
     private final int programRamSizeBytes;
     private final int characterRamSizeBytes;
 
     public INESFile(byte[] file) {
 
         this.mapperNumber = this.getMapperNumber(file);
+        this.submapperNumber = this.getSubmapperNumber(file);
         this.programRamSizeBytes = this.getProgramRamSize(file);
         this.characterRamSizeBytes = this.getCharacterRamSize(file);
 
@@ -83,6 +85,10 @@ public class INESFile {
         return ((int) file[6] >>> 4) & 0xF;
     }
 
+    protected int getSubmapperNumber(byte[] file) {
+        return 0;
+    }
+
     protected int getProgramRamSize(byte[] file) {
         return KB_8;
     }
@@ -105,6 +111,10 @@ public class INESFile {
 
     public int getMapperNumber() {
         return this.mapperNumber;
+    }
+
+    public int getSubmapperNumber() {
+        return this.submapperNumber;
     }
 
     public int getProgramRamSize() {

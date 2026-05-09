@@ -52,6 +52,11 @@ public class NES20File extends ExtendedINESFile {
     }
 
     @Override
+    public int getSubmapperNumber(byte[] file) {
+        return (((int) file[8] & 0xFF) >>> 4) & 0xF;
+    }
+
+    @Override
     protected int getProgramRamSize(byte[] file) {
         int flags10 = (int) file[10] & 0xFF;
         int volatileShiftCount = flags10 & 0x0F;
