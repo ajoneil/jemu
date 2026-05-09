@@ -111,7 +111,6 @@ public class RP2A03<E extends NESEmulator> implements Bus {
         if ((address >= SQ1_VOL_ADDR && address <= TRI_LINEAR_ADDR) || (address >= TRI_LO_ADDR && address <= NOISE_VOL_ADDR) || (address >= NOISE_LO_ADDR && address <= DMC_LEN_ADDR) || address == SND_CHN_ADDR || address == JOY2_ADDR) {
             this.apu.writeByte(address, value);
         } else if (address == OAMDMA_ADDR) {
-            this.internalDataBus = value & 0xFF;
             this.oamDmaSourceAddressHighByte = value & 0xFF;
             this.oamDmaTransferredBytes = 0;
         } else if (address == JOY1_ADDR) {
