@@ -177,6 +177,7 @@ public class RP2A03<E extends NESEmulator> implements Bus {
 					// Needed so DMC DMA doesn't perform its read immediately after its dummy cycle whenever there's no OAM DMA by this point
 					case ALIGNMENT -> this.dmcDmaStep = DmcDmaStep.GET;
 					case GET -> {
+                        // TODO: DMC DM bus conflicts...
 						this.apu.writeDmcDma(this.emulator.getCpuBus().readByte(this.dmcDmaAddress));
 						this.dmcDmaStep = DmcDmaStep.NONE;
 						this.dmcDmaRequestPending = false;
