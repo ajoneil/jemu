@@ -23,6 +23,8 @@ public class UXROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
 
     private int bankSelect;
 
+    private final boolean hasBusConflicts;
+
     public UXROMCartridge(E emulator, INESFile iNESFile) {
         super(emulator, iNESFile);
 
@@ -38,6 +40,11 @@ public class UXROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
             this.characterRom = Arrays.copyOf(characterRomData, characterRomData.length);
             this.characterRam = null;
         }
+
+        this.hasBusConflicts = switch (iNESFile.getSubmapperNumber()) {
+            case 0, 2 -> true;
+            default -> false;
+        };
 
     }
 
@@ -76,11 +83,7 @@ public class UXROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public int readByte(int address) {
         if (address >= 0x8000 && address <= 0xFFFF) {
-            if (address >= 0xC000) {
-                return (int) this.programRom[(this.programRom.length - 0x4000) | (address & 0x3FFF)] & 0xFF;
-            } else {
-                return (int) this.programRom[(this.bankSelect << 14) | (address & 0x3FFF)] & 0xFF;
-            }
+            return (int) this.programRom[this.mapPrgRomAddress(address) % this.programRom.length] & 0xFF;
         } else {
             return -1;
         }
@@ -89,7 +92,18 @@ public class UXROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public void writeByte(int address, int value) {
         if (address >= 0x8000 && address <= 0xFFFF) {
+            if (this.hasBusConflicts) {
+                value &= (int) this.programRom[this.mapPrgRomAddress(address) % this.programRom.length] & 0xFF;
+            }
             this.bankSelect = value & 0xF;
+        }
+    }
+
+    private int mapPrgRomAddress(int address) {
+        if (address >= 0xC000) {
+            return (this.programRom.length - 0x4000) | (address & 0x3FFF);
+        } else {
+            return (this.bankSelect << 14) | (address & 0x3FFF);
         }
     }
 

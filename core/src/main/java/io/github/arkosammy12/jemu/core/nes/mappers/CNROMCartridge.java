@@ -22,6 +22,7 @@ public class CNROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     private final byte[] characterRam;
 
     private int bankSelect;
+    private final boolean hasBusConflict;
 
     public CNROMCartridge(E emulator, INESFile iNESFile) {
         super(emulator, iNESFile);
@@ -38,6 +39,11 @@ public class CNROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
             this.characterRom = Arrays.copyOf(characterRomData, characterRomData.length);
             this.characterRam = null;
         }
+
+        this.hasBusConflict = switch (iNESFile.getSubmapperNumber()) {
+            case 0, 2 -> true;
+            default -> false;
+        };
 
     }
 
@@ -78,7 +84,7 @@ public class CNROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public int readByte(int address) {
         if (address >= 0x8000 && address <= 0xFFFF) {
-            return (int) this.programRom[(address - 0x8000) % this.programRom.length] & 0xFF;
+            return (int) this.programRom[this.mapPrgRomAddress(address) % this.programRom.length] & 0xFF;
         } else {
             return -1;
         }
@@ -87,8 +93,15 @@ public class CNROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public void writeByte(int address, int value) {
         if (address >= 0x8000 && address <= 0xFFFF) {
+            if (this.hasBusConflict) {
+                value &= (int) this.programRom[this.mapPrgRomAddress(address) % this.programRom.length] & 0xFF;
+            }
             this.bankSelect = value & 3;
         }
+    }
+
+    private int mapPrgRomAddress(int address) {
+        return address - 0x8000;
     }
 
 }

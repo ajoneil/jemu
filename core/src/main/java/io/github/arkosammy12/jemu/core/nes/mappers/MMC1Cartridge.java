@@ -113,7 +113,7 @@ public class MMC1Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     public int readByte(int address) {
         if (address >= 0x6000 && address <= 0x7FFF) {
             if (this.programRam != null && this.programRam.length > 0) {
-                return (int) this.programRam[this.mapProgRamAddress(address) % this.programRam.length] & 0xFF;
+                return (int) this.programRam[this.mapPrgRamAddress(address) % this.programRam.length] & 0xFF;
             } else {
                 return -1;
             }
@@ -128,7 +128,7 @@ public class MMC1Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     public void writeByte(int address, int value) {
         if (address >= 0x6000 && address <= 0x7FFF) {
             if (this.programRam != null && this.programRam.length > 0 && this.isProgramRamEnabled()) {
-                this.programRam[this.mapProgRamAddress(address) % this.programRam.length] = (byte) value;
+                this.programRam[this.mapPrgRamAddress(address) % this.programRam.length] = (byte) value;
             }
         } else if (address >= 0x8000 && address <= 0xFFFF) {
             if ((value & 0x80) != 0) {
@@ -219,7 +219,7 @@ public class MMC1Cartridge<E extends NESEmulator> extends NESCartridge<E> {
         };
     }
 
-    private int mapProgRamAddress(int address) {
+    private int mapPrgRamAddress(int address) {
         address &= 0x1FFF;
         int bankBits;
         if ((this.control & (1 << 4)) == 0 || address <= 0x0FFF) {
