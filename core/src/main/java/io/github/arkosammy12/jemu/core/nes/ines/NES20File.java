@@ -75,7 +75,7 @@ public class NES20File extends ExtendedINESFile {
         return nonVolatileShiftCount == 0 ? 0 : 64 << nonVolatileShiftCount;
     }
 
-
+    @Override
     protected int getCharacterRamSize(byte[] file) {
         int flags10 = (int) file[11] & 0xFF;
         int volatileShiftCount = flags10 & 0x0F;
