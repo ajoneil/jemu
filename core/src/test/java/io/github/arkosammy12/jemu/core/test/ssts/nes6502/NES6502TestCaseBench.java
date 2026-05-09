@@ -19,7 +19,7 @@ public class NES6502TestCaseBench implements NMOS6502.SystemBus {
         this.testCase = testCase;
         this.cpu = new TestNES6502(this);
         this.cpu.acceptTestCase(testCase);
-        this.bus = new FlatTestBus(0xFFFF + 1);
+        this.bus = new FlatTestBus();
         List<List<Integer>> ram = testCase.getInitialState().getRam();
         for (List<Integer> ramElement : ram) {
             this.bus.writeByte(ramElement.get(0), ramElement.get(1));

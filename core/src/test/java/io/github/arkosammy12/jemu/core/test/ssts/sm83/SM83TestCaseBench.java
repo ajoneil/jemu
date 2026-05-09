@@ -20,7 +20,7 @@ public class SM83TestCaseBench implements SM83.SystemBus {
         this.testCase = testCase;
         this.cpu = new TestSM83(this);
         this.cpu.acceptTestCase(testCase);
-        this.bus = new FlatTestBus(0xFFFF + 1);
+        this.bus = new FlatTestBus();
         List<List<Integer>> ram = testCase.getInitialState().getRam();
         for (List<Integer> ramElement : ram) {
             this.bus.writeByte(ramElement.get(0), ramElement.get(1));

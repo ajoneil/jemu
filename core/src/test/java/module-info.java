@@ -3,6 +3,7 @@ module core.test {
     requires com.google.gson;
     requires org.junit.jupiter.api;
     requires core;
+    requires it.unimi.dsi.fastutil;
 
     exports io.github.arkosammy12.jemu.core.test.tests;
 
