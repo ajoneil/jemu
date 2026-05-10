@@ -230,7 +230,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private final ActionSignal toggleRenderingSignal;
     private final ActionSignal clearVblOnPpuStatusReadSignal;
     private final ActionSignal setSprite0HItSignal;
-    private final ActionSignal refreshSpriteShifters;
+    private final ActionSignal refreshSpriteShiftersSignal;
 
     private int decayPpuDataBusCountdown;
 
@@ -292,7 +292,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                 this.setSprite0HitFlag(true);
             }
         });
-        this.refreshSpriteShifters = new ActionSignal(_ -> {
+        this.refreshSpriteShiftersSignal = new ActionSignal(_ -> {
             for (SpriteShifter shifter : this.spriteShifters) {
                 shifter.refreshXPositionCounters();
             }
@@ -533,7 +533,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         switch (this.currentDotHalf) {
             case FIRST -> {
 
-                this.refreshSpriteShifters.tick();
+                this.refreshSpriteShiftersSignal.tick();
 
                 if (this.isRenderScanline()) {
                     if (this.dotNumber == 65 || this.dotNumber == 257 || (this.dotSkipped && this.dotNumber == 1) || (!this.dotSkipped && this.dotNumber == 0)) {
@@ -563,7 +563,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
                     if (this.dotNumber == 339) {
                         if (this.isRenderingEnabled()) {
-                            this.refreshSpriteShifters.trigger(4, 0);
+                            this.refreshSpriteShiftersSignal.trigger(4, 0);
                         }
                     }
 
@@ -577,7 +577,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                         this.tickBgFetcher();
                     }
 
-                    this.refreshSpriteShifters.tick();
+                    this.refreshSpriteShiftersSignal.tick();
 
                     if (this.isVisibleScanline()) {
                         if (this.dotNumber == 0) {
