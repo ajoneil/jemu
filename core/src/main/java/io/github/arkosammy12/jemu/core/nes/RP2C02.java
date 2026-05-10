@@ -231,6 +231,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private final ActionSignal clearVblOnPpuStatusReadSignal;
     private final ActionSignal setSprite0HItSignal;
     private final ActionSignal refreshSpriteShiftersSignal;
+    // TODO: Use an action signal triggered at dot 339 of the last scanline of odd frames to signal the skipping of a dot for NTSC
 
     private int decayPpuDataBusCountdown;
 
