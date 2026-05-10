@@ -555,8 +555,9 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                     }
 
                     if (this.isPreRenderScanline()) {
-                        if (this.dotNumber == 0) {
+                        if (this.dotNumber == 1) {
                             this.setSprite0HitFlag(false);
+                            this.setSpriteOverflowFlag(false);
                         }
                     }
 
@@ -603,7 +604,6 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                     if (this.isPreRenderScanline()) {
                         if (this.dotNumber == 0) {
                             this.vBlankFlagForNMI = false;
-                            this.setSpriteOverflowFlag(false);
                         } else if (this.dotNumber == 1) {
                             this.setVBlankFlag(false);
                             if (this.ppuInit) {
