@@ -320,6 +320,11 @@ public class NMOS6502 implements Processor {
         return this.shxSkipHigh;
     }
 
+    // TODO: Output SYNC pin
+    // >The SYNC is an active-HIGH output signal that goes HIGH during
+    // >phase-1 cycles in which an op-code fetch operation is taking place. The
+    // >purpose of SYNC, therefore, is to identify op-code fetch cycles.
+
     @Override
     public int cycle() {
 
