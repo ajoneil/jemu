@@ -23,7 +23,7 @@ Multi-system emulator written in Java.
 
 ## Keybindings
 
-### CHIP-8 / CHIP-8X
+### COSMAC VIP / VIP CHIP-8 / VIP CHIP-8X
 
 | CHIP-8 key | Keyboard key |
 |------------|--------------|
