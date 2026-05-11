@@ -132,6 +132,7 @@ public final class Jemu {
                     continue;
                 }
 
+                // TODO: Formalize the syncing of the core to either audio or wall clock time
                 if (!this.currentSystem.getAudioRenderer().needsFrame()) {
                     Thread.sleep(1);
                     continue;
@@ -267,6 +268,8 @@ public final class Jemu {
     }
 
     private void initializeEmulator(EmulatorInitializer initializer) {
+        // TODO: If there was a current emulator running before initializing a new one, just reset the current one and update its loaded ROM if any
+        // TODO: Do not require a ROM to be selected to initialize it
         this.currentSystem = System.getSystemAdapter(this, initializer);
         this.getCurrentAudioRenderer().ifPresent(audioRenderer -> {
             audioRenderer.setMuted(this.mainWindow.getMainMenuBar().getSettingsMenu().getMuted());

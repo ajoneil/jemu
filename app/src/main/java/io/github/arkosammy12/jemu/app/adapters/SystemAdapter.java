@@ -9,6 +9,7 @@ import java.io.Closeable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+// TODO: Improve the adapter system. Improve the glue code for audio and video
 public interface SystemAdapter extends SystemHost, Closeable {
 
     byte[] getRom();

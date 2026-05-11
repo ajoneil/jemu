@@ -36,6 +36,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+// TODO: The big GUI feature update
 public class MainWindow implements Closeable {
 
     @Nullable

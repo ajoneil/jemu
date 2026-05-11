@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Nullable;
 import javax.sound.sampled.*;
 import java.io.Closeable;
 
+// TODO: Make this better somehow
 public abstract class AudioRenderer implements Closeable {
 
     public static final int SAMPLE_RATE = 48000;
