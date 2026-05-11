@@ -34,16 +34,16 @@ Multi-system emulator written in Java.
 
 ### Game Boy / Game Boy Color / Nintendo Entertainment System
 
-| Action      | Key           |
-|-------------|---------------|
-| D-Pad Up    | `W`           |
-| D-Pad Down  | `S`           |
-| D-Pad Left  | `A`           |
-| D-Pad Right | `D`           |
-| A           | `K`           |
-| B           | `J`           |
-| Start       | `Enter`       |
-| Select      | `Right Shift` |
+| Action      | Key         |
+|-------------|-------------|
+| D-Pad Up    | `W`         |
+| D-Pad Down  | `S`         |
+| D-Pad Left  | `A`         |
+| D-Pad Right | `D`         |
+| A           | `J`         |
+| B           | `K`         |
+| Start       | `Enter`     |
+| Select      | `Backspace` |
 
 ## Command-line usage
 
