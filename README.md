@@ -5,21 +5,47 @@ Multi-system emulator written in Java.
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Java](https://img.shields.io/badge/Java-25-blue)
 
-## Currently supported cores
+## Supported systems
 
-- [x] COSMAC-VIP: Based on the CDP1802 CPU core.
-- [x] VIP CHIP-8: COSMAC-VIP core running the CHIP-8 interpreter.
-- [x] VIP CHIP-8X: COSMAC-VIP core with the VP-590 color expansion board and the VP-595 sound expansion board running the CHIP-8X interpreter.
-- [x] Game Boy: DMG model based on the SM83 CPU core.
-- [x] Game Boy Color: CGB model based on the SM83 CPU core.
-- [ ] Nintendo Entertainment System (WIP).
-- [ ] Commodore 64 (planned).
-- [ ] Atari 2600 (planned).
-- [ ] Sega Master System (planned).
-- [ ] ZX Spectrum (planned).
-- [ ] Sega Genesis (planned).
+| System                        | CLI identifier  | Status              |
+|-------------------------------|-----------------|---------------------|
+| COSMAC VIP                    | `cosmac-vip`    | ✅ Supported         |
+| VIP CHIP-8                    | `vip-chip8`     | ✅ Supported         |
+| VIP CHIP-8X                   | `vip-chip8x`    | ✅ Supported         |
+| Game Boy (DMG)                | `gameboy`       | ✅ Supported         |
+| Game Boy Color (CGB)          | `gameboy-color` | ✅ Supported         |
+| Nintendo Entertainment System | `nes`           | 🚧 Work in progress |
+| Commodore 64                  | —               | 🗓 Planned          |
+| Atari 2600                    | —               | 🗓 Planned          |
+| Sega Master System            | —               | 🗓 Planned          |
+| ZX Spectrum                   | —               | 🗓 Planned          |
+| Sega Genesis                  | —               | 🗓 Planned          |
 
-## Command-line Usage
+## Keybindings
+
+### CHIP-8 / CHIP-8X
+
+| CHIP-8 key | Keyboard key |
+|------------|--------------|
+| `1 2 3 C`  | `1 2 3 4`    |
+| `4 5 6 D`  | `Q W E R`    |
+| `7 8 9 E`  | `A S D F`    |
+| `A 0 B F`  | `Z X C V`    |
+
+### Game Boy / Game Boy Color / Nintendo Entertainment System
+
+| Action      | Key           |
+|-------------|---------------|
+| D-Pad Up    | `W`           |
+| D-Pad Down  | `S`           |
+| D-Pad Left  | `A`           |
+| D-Pad Right | `D`           |
+| A           | `K`           |
+| B           | `J`           |
+| Start       | `Enter`       |
+| Select      | `Right Shift` |
+
+## Command-line usage
 
 If you launch **jemu** from the CLI, you can optionally pass arguments.
 
@@ -29,13 +55,12 @@ Usage:
 jemu [-hV] -r=<romPath> [-s=<system>]
 ```
 
-| Argument                                                                   | Description                                                                      | Default |
-|----------------------------------------------------------------------------|----------------------------------------------------------------------------------|---------|
-| `-r, --rom <path>`                                                         | **Required.** Path to the ROM file (absolute or relative to the JAR).            | -       |
-| `-s, --system <cosmac-vip\|vip-chip8\|vip-chip8x\|gameboy\|gameboy-color>` | Launch with desired system selected or leave unspecified to use current setting. | -       |
-| `-h, --help`                                                               | Show the help message and exit.                                                  | -       |
-| `-V, --version`                                                            | Print version information and exit.                                              | -       |
-
+| Argument                    | Description                                                                                                                                     | Default |
+|-----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|---------|
+| `-r, --rom <path>`          | **Required.** Path to the ROM file.                                                                                                             | —       |
+| `-s, --system <identifier>` | Launch with the specified system selected, or omit to use the saved setting. See [supported systems](#supported-systems) for valid identifiers. | —       |
+| `-h, --help`                | Show the help message and exit.                                                                                                                 | —       |
+| `-V, --version`             | Print version information and exit.                                                                                                             | —       |
 
 
 ## Building
