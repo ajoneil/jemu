@@ -583,7 +583,8 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
                     if (this.isVisibleScanline()) {
                         if (this.dotNumber == 0) {
-                            // TODO: Make sure this is correct
+                            // TODO: Make sure this is correct. We need to model the PPU read as taking 2 dots, where the first dot places the address on the address bus, allowing mappers to react to it
+                            // even if the read isn't actually performed. This read effectively takes place in dot 1, but this is where the address is placed on the address bus
                             this.readBytePPU(this.getBackgroundPatternByteAddress(false));
                         } else if (this.dotNumber >= 1 && this.dotNumber <= 64) {
                             this.tickSecondaryOamClear();
@@ -638,7 +639,8 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
                 } else if (this.scanlineNumber == this.vblScanline - 1) {
                     if (this.dotNumber == 0) {
-                        // TODO: Make sure this is correct
+                        // TODO: Make sure this is correct. We need to model the PPU read as taking 2 dots, where the first dot places the address on the address bus, allowing mappers to react to it
+                        // even if the read isn't actually performed. This read effectively takes place in dot 1, but this is where the address is placed on the address bus
                         this.readBytePPU(this.getBackgroundPatternByteAddress(false));
                     }
                 } else if (this.scanlineNumber == this.vblScanline) {
