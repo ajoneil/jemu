@@ -98,18 +98,23 @@ public class RP2A03<E extends NESEmulator> implements Bus {
 
     private int readByteDMA(int address) {
         int combinedAddress = this.getCombinedRicohAddress(address);
-        int readByte = -1;
+        int activatedRegisterByte = -1;
+
+        if (combinedAddress >= 0x4000 && combinedAddress <= 0x401F) {
+            activatedRegisterByte = this.readByteIO(combinedAddress);
+        }
+
+        int readByte;
         if (address >= 0x4000 && address <= 0x401F) {
-            if (combinedAddress >= 0x4000 && combinedAddress <= 0x401F) {
-                readByte = this.emulator.getCpuBus().readByte(address);
-            }
+            readByte = activatedRegisterByte;
         } else {
             readByte = this.emulator.getCpuBus().readByte(address);
-            int activatedRegisterByte = this.readByteIO(combinedAddress);
-            if (combinedAddress == JOY1_ADDR || combinedAddress == JOY2_ADDR && readByte >= 0) {
-                readByte = (activatedRegisterByte & 0x1F) | (readByte & 0xE0);
-            } else {
-                readByte = activatedRegisterByte;
+            if (activatedRegisterByte >= 0) {
+                if ((combinedAddress == JOY1_ADDR || combinedAddress == JOY2_ADDR) && readByte >= 0) {
+                    readByte = (activatedRegisterByte & 0x1F) | (readByte & 0xE0);
+                } else {
+                    readByte = activatedRegisterByte;
+                }
             }
         }
 
