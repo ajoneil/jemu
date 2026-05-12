@@ -1,9 +1,6 @@
 package io.github.arkosammy12.jemu.core.nes;
 
 import io.github.arkosammy12.jemu.core.common.Bus;
-import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
-
-import static io.github.arkosammy12.jemu.core.nes.RP2A03.*;
 
 public class NESCPUBus<E extends NESEmulator> implements Bus {
 
@@ -33,15 +30,10 @@ public class NESCPUBus<E extends NESEmulator> implements Bus {
 
     @Override
     public int readByte(int address) {
-        if (address == SND_CHN_ADDR) {
-            return this.emulator.getRicohCore().readByteIO(address);
-        }
-
         int ret = -1;
 
         if (address >= RAM_START && address <= RAM_END) {
             ret = this.ram[address & 0x7FF];
-
         }
 
         int ppuByte = this.emulator.getVideoGenerator().readByte(address);
@@ -49,9 +41,9 @@ public class NESCPUBus<E extends NESEmulator> implements Bus {
             ret = ret >= 0 ? ppuByte & ret : ppuByte;
         }
 
-        int apuIoByte = this.emulator.getRicohCore().readByteIO(address);
-        if (apuIoByte >= 0) {
-            ret = ret >= 0 ? apuIoByte & ret : apuIoByte;
+        int ricohCoreByte = this.emulator.getRicohCore().readByteRegister(address);
+        if (ricohCoreByte >= 0) {
+            ret = ret >= 0 ? ricohCoreByte & ret : ricohCoreByte;
         }
 
         int cartridgeByte = this.emulator.getCartridge().readByte(address);
@@ -76,7 +68,7 @@ public class NESCPUBus<E extends NESEmulator> implements Bus {
         }
 
         this.emulator.getVideoGenerator().writeByte(address, value);
-        this.emulator.getRicohCore().writeByteIO(address, value);
+        this.emulator.getRicohCore().writeByteRegister(address, value);
         this.emulator.getCartridge().writeByte(address, value);
     }
 

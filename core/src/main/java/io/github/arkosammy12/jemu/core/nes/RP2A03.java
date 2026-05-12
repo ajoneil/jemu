@@ -78,7 +78,7 @@ public class RP2A03<E extends NESEmulator> implements Bus {
     @Override
     public int readByte(int address) {
         if (!this.isDmaUsingExternalBusOnThisCycle()) {
-            int readByte = this.emulator.getCpuBus().readByte(address);
+            int readByte = this.readByteRicohCore(address);
             if (readByte >= 0) {
                 this.internalDataBus = readByte & 0xFF;
             }
@@ -88,12 +88,12 @@ public class RP2A03<E extends NESEmulator> implements Bus {
 
     @Override
     public void writeByte(int address, int value) {
-        this.writeByteRicohCore(address, value);
-    }
-
-    private void writeByteRicohCore(int address, int value) {
         this.internalDataBus = value;
         this.emulator.getCpuBus().writeByte(address, value);
+    }
+
+    private int readByteRicohCore(int address) {
+        return address == SND_CHN_ADDR ? this.readByteRegister(address) : this.emulator.getCpuBus().readByte(address);
     }
 
     private int readByteDMA(int address) {
@@ -101,14 +101,14 @@ public class RP2A03<E extends NESEmulator> implements Bus {
         int activatedRegisterByte = -1;
 
         if (combinedAddress >= 0x4000 && combinedAddress <= 0x401F) {
-            activatedRegisterByte = this.readByteIO(combinedAddress);
+            activatedRegisterByte = this.readByteRegister(combinedAddress);
         }
 
         int readByte;
         if (address >= 0x4000 && address <= 0x401F) {
             readByte = activatedRegisterByte;
         } else {
-            readByte = this.emulator.getCpuBus().readByte(address);
+            readByte = this.readByteRicohCore(address);
             if (activatedRegisterByte >= 0) {
                 if ((combinedAddress == JOY1_ADDR || combinedAddress == JOY2_ADDR) && readByte >= 0) {
                     readByte = (activatedRegisterByte & 0x1F) | (readByte & 0xE0);
@@ -116,7 +116,7 @@ public class RP2A03<E extends NESEmulator> implements Bus {
                     readByte = activatedRegisterByte;
                 }
             }
-        };
+        }
 
         if (readByte >= 0) {
             this.internalDataBus = readByte & 0xFF;
@@ -125,7 +125,7 @@ public class RP2A03<E extends NESEmulator> implements Bus {
         return this.internalDataBus;
     }
 
-    public int readByteIO(int address) {
+    public int readByteRegister(int address) {
         if ((address >= SQ1_VOL_ADDR && address <= TRI_LINEAR_ADDR) || (address >= TRI_LO_ADDR && address <= NOISE_VOL_ADDR) || (address >= NOISE_LO_ADDR && address <= DMC_LEN_ADDR) || address == SND_CHN_ADDR) {
             int ret = this.apu.readByte(address);
             if (address == SND_CHN_ADDR) {
@@ -143,7 +143,7 @@ public class RP2A03<E extends NESEmulator> implements Bus {
         }
     }
 
-    public void writeByteIO(int address, int value) {
+    public void writeByteRegister(int address, int value) {
         if ((address >= SQ1_VOL_ADDR && address <= TRI_LINEAR_ADDR) || (address >= TRI_LO_ADDR && address <= NOISE_VOL_ADDR) || (address >= NOISE_LO_ADDR && address <= DMC_LEN_ADDR) || address == SND_CHN_ADDR || address == JOY2_ADDR) {
             this.apu.writeByte(address, value);
         } else if (address == OAMDMA_ADDR) {
