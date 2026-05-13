@@ -14,6 +14,8 @@ import static io.github.arkosammy12.jemu.core.nes.RP2A03.*;
 // TODO: PAL implementation
 public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements Bus {
 
+    private static final double OUTPUT_GAIN = 127;
+
     private final byte[] sampleBuffer;
     private int currentSampleIndex;
 
@@ -227,7 +229,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         }
 
         double output = Math.clamp(pulseOut + tndOut, 0, 1.0);
-        this.sampleBuffer[this.currentSampleIndex] = (byte) Math.clamp((long)(this.highPassFilter(output) * 512.0), -128, 127);
+        this.sampleBuffer[this.currentSampleIndex] = (byte) Math.clamp((long)(this.highPassFilter(output) * OUTPUT_GAIN), -128, 127);
         this.currentSampleIndex = (this.currentSampleIndex + 1) % this.sampleBuffer.length;
     }
 
