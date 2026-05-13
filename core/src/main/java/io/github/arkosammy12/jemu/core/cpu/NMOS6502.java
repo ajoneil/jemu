@@ -412,6 +412,8 @@ public class NMOS6502 implements Processor {
         if (systemBus.getRDY() && this.readWriteCycle == ReadWriteCycle.READ) {
             return;
         }
+        // TODO: The RES line is most likely actually polled on every PHI2, and can hijack the CPU at any time during
+        // the execution of an instruction.
         if (systemBus.getRES()) {
             this.brkSource = BRKSource.RESET;
         } else if (this.nmiEdgeLatch) {
