@@ -35,6 +35,8 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
     private FrameCounterStepMode frameCounterStepMode = FrameCounterStepMode.STEP_4;
     private boolean frameCounterInterruptInhibitFlag;
 
+    private double capacitor;
+
     public NESAPU(E emulator, int samplesPerFrame) {
         super(emulator);
         this.sampleBuffer = new byte[samplesPerFrame];
@@ -225,8 +227,14 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         }
 
         double output = Math.clamp(pulseOut + tndOut, 0, 1.0);
-        this.sampleBuffer[this.currentSampleIndex] = (byte) (((output * 2) - 1) * 127f);
+        this.sampleBuffer[this.currentSampleIndex] = (byte) Math.clamp((long)(this.highPassFilter(output) * 512.0), -128, 127);
         this.currentSampleIndex = (this.currentSampleIndex + 1) % this.sampleBuffer.length;
+    }
+
+    private double highPassFilter(double in) {
+        double out = in - this.capacitor;
+        this.capacitor = in - out * 0.999958;
+        return out;
     }
 
     private void clockFrameCounter() {
@@ -542,7 +550,10 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         private int linear;
 
         private int timer;
-        private int sequencerStep;
+
+        // Initialize the sequencer step value to 15 in order to avoid immediately
+        // outputting a non-zero digital output and avoiding the initial start up pop
+        private int sequencerStep = 15;
 
         private boolean linearCounterReloadFlag;
         private int linearCounter;
@@ -578,7 +589,12 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         protected void clockTimer() {
             this.timer--;
             if (this.timer < 0) {
-                if (this.getLengthCounter() > 0 && this.linearCounter > 0) {
+                // Also prevent the increase of the sequencer step if the timer reload value is less than 2
+                // The hardware accurate workaround is to instead force the digital output to 7 if the timer reload value
+                // is less than 2 and allow the sequencer step to advance, but this produces noticeable pops in audio,
+                // especially at the start, due to the immediate discontinuity.
+                // We choose instead to keep the sequencer step the same to keep the triangle channel's output constant, avoiding aliasing.
+                if (this.getLengthCounter() > 0 && this.linearCounter > 0 && this.getTimerReload() >= 2) {
                     this.sequencerStep = (this.sequencerStep + 1) & 0x1F;
                 }
                 this.timer = this.getTimerReload() + 1;
@@ -598,10 +614,6 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
         @Override
         protected int getDigitalOutput() {
-            // Workaround to prevent aliasing with very high frequencies
-            if (this.getTimerReload() < 2) {
-                return 7;
-            }
             return TRIANGLE_WAVEFORM_LUT[this.sequencerStep];
         }
 
