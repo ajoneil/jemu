@@ -281,6 +281,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
             this.attributeShiftRegister.offer(0b00);
             this.spriteShifters[i] = new SpriteShifter();
         }
+        Arrays.fill(this.secondaryOAM, 0xFF);
 
         this.copyTtoVSignal = new ActionSignal(_ -> this.setV(this.getT()));
         this.toggleRenderingSignal = new ActionSignal(_ -> this.isRendering = !this.isRendering);
