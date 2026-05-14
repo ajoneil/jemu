@@ -281,6 +281,10 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
             this.attributeShiftRegister.offer(0b00);
             this.spriteShifters[i] = new SpriteShifter();
         }
+        // Deliberately initialize OAM2 with $FF to avoid fetching in-range results
+        // during the first pre-render scanline with rendering enabled, avoiding a one-frame sliver of sprites
+        // on scanline 0.
+        // This is not necessarily hardware accurate.
         Arrays.fill(this.secondaryOAM, 0xFF);
 
         this.copyTtoVSignal = new ActionSignal(_ -> this.setV(this.getT()));
