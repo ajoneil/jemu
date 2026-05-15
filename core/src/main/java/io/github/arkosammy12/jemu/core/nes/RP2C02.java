@@ -184,6 +184,15 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private static final int PAL_VBL_SCANLINE = 241;
     private static final int PAL_VISIBLE_SCANLINES = 239;
 
+    private static final int OAM2_INIT_START = 1;
+    private static final int OAM2_INIT_END = 64;
+
+    private static final int SPRITE_EVAL_START = 65;
+    private static final int SPRITE_EVAL_END = 256;
+
+    private static final int SPRITE_FETCH_START = 257;
+    private static final int SPRITE_FETCH_END = 320;
+
     private final int[][] video;
     private final int scanlinesPerFrame;
     private final int visibleScanlines;
@@ -244,6 +253,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private int bgFetcherTileNumber;
     private int bgFetcherAttributeByte;
     private int bgFetcherPatternTableLow;
+    private int bgFetcherPatternTableHigh;
 
     private int secondaryOamClearStep = 0;
 
@@ -260,6 +270,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private int spriteFetcherTileNumber;
     private int spriteFetcherAttributeByte;
     private int spriteFetcherPatternTableLow;
+    private int spriteFetcherPatternTableHigh;
 
     public RP2C02(E emulator) {
         super(emulator);
@@ -588,18 +599,15 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
                     if (this.isVisibleScanline()) {
                         if (this.dotNumber == 0) {
-                            // TODO: Make sure this is correct. We need to model the PPU read as taking 2 dots, where the first dot places the address on the address bus, allowing mappers to react to it
-                            // even if the read isn't actually performed. This read doesn't actually take place effectively. The signal that resets the pipeline arrives on the following dot,
-                            // effectively cancelling the read midway through its execution, but the address is still seen by external sources, including cartridges...
                             this.readBytePPU(this.getBackgroundPatternByteAddress(false));
-                        } else if (this.dotNumber >= 1 && this.dotNumber <= 64) {
+                        } else if (this.dotNumber >= OAM2_INIT_START && this.dotNumber <= OAM2_INIT_END) {
                             this.tickSecondaryOamClear();
-                        } else if (this.dotNumber >= 65 && this.dotNumber <= 256) {
-                            this.tickSpriteEvaluation(this.dotNumber == 65);
+                        } else if (this.dotNumber >= SPRITE_EVAL_START && this.dotNumber <= SPRITE_EVAL_END) {
+                            this.tickSpriteEvaluation();
                         }
                     }
 
-                    if (this.dotNumber >= 257 && this.dotNumber <= 320) {
+                    if (this.dotNumber >= SPRITE_FETCH_START && this.dotNumber <= SPRITE_FETCH_END) {
                         this.tickSpriteFetcher();
 
                         this.spriteEvaluationStep = 0;
@@ -609,6 +617,9 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                             this.primaryOamAddress = 0;
                             this.spriteEvaluationPrimaryOamAddressOverflowed = false;
                         }
+                    } else if (this.dotNumber == SPRITE_FETCH_END + 1) {
+                        // Extra OAM2ADDR increment that occurs 321 as a result of a timing hazard. Critical for games.
+                        this.incrementSecondaryOamAddress();
                     }
 
                     if (this.isPreRenderScanline()) {
@@ -637,17 +648,14 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                     } else if (this.dotNumber >= 321 && this.dotNumber <= 336) {
                         this.tickPixelShifter();
                         this.tickBgFetcher();
-                    } else if (this.dotNumber == 338) {
+                    } else if (this.dotNumber == 337) {
                         this.bgFetcherTileNumber = this.readBytePPU(this.getNametableFetchAddress());
-                    } else if (this.dotNumber == 340) {
+                    } else if (this.dotNumber == 339) {
                         this.readBytePPU(this.getNametableFetchAddress());
                     }
 
                 } else if (this.scanlineNumber == this.vblScanline - 1) {
                     if (this.dotNumber == 0) {
-                        // TODO: Make sure this is correct. We need to model the PPU read as taking 2 dots, where the first dot places the address on the address bus, allowing mappers to react to it
-                        // even if the read isn't actually performed. This read doesn't actually take place effectively. The signal that resets the pipeline arrives on the following dot,
-                        // effectively cancelling the read midway through its execution, but the address is still seen by external sources, including cartridges...
                         this.readBytePPU(this.getBackgroundPatternByteAddress(false));
                     }
                 } else if (this.scanlineNumber == this.vblScanline) {
@@ -811,38 +819,36 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private void tickBgFetcher() {
         switch (this.bgFetcherStep) {
             case 0 -> {
+                this.bgFetcherTileNumber = this.readBytePPU(this.getNametableFetchAddress());
                 this.bgFetcherStep = 1;
             }
             case 1 -> {
-                this.bgFetcherTileNumber = this.readBytePPU(this.getNametableFetchAddress());
                 this.bgFetcherStep = 2;
             }
             case 2 -> {
+                int V = this.getV();
+                this.bgFetcherAttributeByte = this.readBytePPU(0x23C0 | (V & 0x0C00) | ((V >>> 4) & 0x38) | ((V >>> 2) & 0x07));
                 this.bgFetcherStep = 3;
             }
             case 3 -> {
-                int V = this.getV();
-                int attributeAddress = 0x23C0 | (V & 0x0C00) | ((V >>> 4) & 0x38) | ((V >>> 2) & 0x07);
-                this.bgFetcherAttributeByte = this.readBytePPU(attributeAddress);
                 this.bgFetcherStep = 4;
             }
             case 4 -> {
+                this.bgFetcherPatternTableLow = this.readBytePPU(this.getBackgroundPatternByteAddress(false));
                 this.bgFetcherStep = 5;
             }
             case 5 -> {
-                this.bgFetcherPatternTableLow = this.readBytePPU(this.getBackgroundPatternByteAddress(false));
                 this.bgFetcherStep = 6;
             }
             case 6 -> {
+                this.bgFetcherPatternTableHigh = this.readBytePPU(this.getBackgroundPatternByteAddress(true));
                 this.bgFetcherStep = 7;
             }
             case 7 -> {
-                int bgFetcherPatternTableHigh = this.readBytePPU(this.getBackgroundPatternByteAddress(true));
-
                 if (this.isRenderingEnabled()) {
                     for (int i = 0; i < 8; i++) {
                         int bit = 7 - i;
-                        int hi = (bgFetcherPatternTableHigh >>> bit) & 1;
+                        int hi = (this.bgFetcherPatternTableHigh >>> bit) & 1;
                         int lo = (this.bgFetcherPatternTableLow >>> bit) & 1;
                         this.backgroundShiftRegister.set(i + 8, (hi << 1) | lo);
                     }
@@ -928,12 +934,12 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     }
 
     // Assumes called once per full dot, on the second half
-    private void tickSpriteEvaluation(boolean firstDot) {
+    private void tickSpriteEvaluation() {
         switch (this.spriteEvaluationStep) {
             case 0 -> { // Read cycle
                 this.spriteEvaluationOriginalPrimaryOamAddressOverflowed = this.spriteEvaluationPrimaryOamAddressOverflowed;
                 this.oamBuffer = this.primaryOAM[this.primaryOamAddress];
-                if (firstDot && this.isRenderingEnabled()) {
+                if (this.dotNumber == SPRITE_EVAL_START && this.isRenderingEnabled()) {
                     this.sprite0OnNextScanline = this.isSpriteYInRange(this.oamBuffer);
                 }
                 if (this.spriteEvaluationOamReadingCounter > 0) {
@@ -976,54 +982,64 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     }
 
     // Assumes called once per full dot, on the second half
+    // TODO: Make this half-dot stepped (and the bg fetcher, sprite eval and oam2init tickers)
     private void tickSpriteFetcher() {
         switch (this.spriteFetcherStep) {
             case 0 -> {
+                this.bgFetcherTileNumber = this.readBytePPU(this.getNametableFetchAddress());
+
+                if (this.dotNumber != SPRITE_FETCH_START) {
+                    this.incrementSecondaryOamAddress(); // First dot half
+                }
+                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress]; // Second dot half
                 this.spriteFetcherStep = 1;
             }
             case 1 -> {
-                // TODO: Check parity of unused nametable fetch read
-                this.bgFetcherTileNumber = this.readBytePPU(this.getNametableFetchAddress());
+                this.spriteFetcherYPosition = this.oamBuffer;
 
-                this.spriteFetcherYPosition = this.secondaryOAM[this.secondaryOamAddress];
-                this.incrementSecondaryOamAddress();
+                this.incrementSecondaryOamAddress(); // First dot half
+                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress]; // Second dot half
                 this.spriteFetcherStep = 2;
             }
             case 2 -> {
+                this.bgFetcherTileNumber = this.readBytePPU(this.getNametableFetchAddress());
+
+                this.spriteFetcherTileNumber = this.oamBuffer;
+
+                this.incrementSecondaryOamAddress(); // First dot half
+                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress]; // Second dot half
                 this.spriteFetcherStep = 3;
             }
             case 3 -> {
-                // TODO: Check parity of unused nametable fetch read
-                this.bgFetcherTileNumber = this.readBytePPU(this.getNametableFetchAddress());
+                this.spriteFetcherAttributeByte = this.oamBuffer;
 
-                this.spriteFetcherTileNumber = this.secondaryOAM[this.secondaryOamAddress];
-                this.incrementSecondaryOamAddress();
+                this.incrementSecondaryOamAddress(); // First dot half
+                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress]; // Second dot half
                 this.spriteFetcherStep = 4;
             }
             case 4 -> {
+                this.spriteFetcherPatternTableLow = this.readBytePPU(this.getSpritePatternByteAddress(false));
+
+                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress];
                 this.spriteFetcherStep = 5;
             }
             case 5 -> {
-                this.spriteFetcherAttributeByte = this.secondaryOAM[this.secondaryOamAddress];
-                this.incrementSecondaryOamAddress();
-
-                this.spriteFetcherPatternTableLow = this.readBytePPU(this.getSpritePatternByteAddress(false));
+                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress];
                 this.spriteFetcherStep = 6;
             }
             case 6 -> {
+                this.spriteFetcherPatternTableHigh = this.readBytePPU(this.getSpritePatternByteAddress(true));
+
+                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress];
                 this.spriteFetcherStep = 7;
             }
             case 7 -> {
-                int xPosition = this.secondaryOAM[this.secondaryOamAddress];
-                this.incrementSecondaryOamAddress();
-
-                int spriteFetcherPatternTableHigh = this.readBytePPU(this.getSpritePatternByteAddress(true));
-
+                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress];
+                int spriteFetcherXPosition = this.oamBuffer;
                 if (this.isRenderingEnabled()) {
                     boolean inRange = this.isSpriteYInRange(this.spriteFetcherYPosition);
-                    this.spriteShifters[this.spriteShifterInitIndex].initialize(inRange ? this.spriteFetcherPatternTableLow : 0, inRange ? spriteFetcherPatternTableHigh : 0, xPosition, this.spriteFetcherAttributeByte);
+                    this.spriteShifters[this.spriteShifterInitIndex].initialize(inRange ? this.spriteFetcherPatternTableLow : 0, inRange ? this.spriteFetcherPatternTableHigh : 0, spriteFetcherXPosition, this.spriteFetcherAttributeByte);
                 }
-
                 this.spriteShifterInitIndex = (this.spriteShifterInitIndex + 1);
                 this.spriteFetcherStep = 0;
             }
@@ -1035,13 +1051,12 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     }
 
     private int getBackgroundPatternByteAddress(boolean highBitPlane) {
-        return ((this.getV() >>> 12) & 0b111) | (highBitPlane ? (1 << 3) : 0) | ((this.bgFetcherTileNumber & 0xFF) << 4) | this.getBackgroundPatternTableAddress();
+        return (((this.ppuControl & (1 << 4)) != 0 ? 0x1000 : 0x0000)) | ((this.getV() >>> 12) & 0b111) | (highBitPlane ? (1 << 3) : 0) | ((this.bgFetcherTileNumber & 0xFF) << 4);
     }
 
     private int getSpritePatternByteAddress(boolean highBitPlane) {
         int spriteY = this.scanlineNumber - this.spriteFetcherYPosition;
-        int spriteAttributes = this.spriteFetcherAttributeByte;
-        boolean yFlip = (spriteAttributes & (1 << 7)) != 0;
+        boolean yFlip = (this.spriteFetcherAttributeByte & (1 << 7)) != 0;
         if (this.getSpriteSize()) {
             int tileNumber = this.spriteFetcherTileNumber & 0xFE;
             int patternTable = this.spriteFetcherTileNumber & 1;
@@ -1051,20 +1066,12 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
             }
             return (patternTable << 12) | (tileNumber << 4) | (highBitPlane ? 1 << 3 : 0) | ((spriteYInRange & 0b1000) << 1) | (spriteYInRange & 0b111);
         } else {
-            return this.get8x8SpritePatternTableAddress() | ((yFlip ? ~spriteY : spriteY) & 0b111) | (highBitPlane ? 1 << 3 : 0) | (this.spriteFetcherTileNumber << 4);
+            return ((this.ppuControl & (1 << 3)) != 0 ? 0x1000 : 0x0000) | ((yFlip ? ~spriteY : spriteY) & 0b111) | (highBitPlane ? 1 << 3 : 0) | (this.spriteFetcherTileNumber << 4);
         }
     }
 
     private int getVRAMAddressIncrement() {
         return (this.ppuControl & (1 << 2)) != 0 ? 32 : 1;
-    }
-
-    private int get8x8SpritePatternTableAddress() {
-        return (this.ppuControl & (1 << 3)) != 0 ? 0x1000 : 0x0000;
-    }
-
-    private int getBackgroundPatternTableAddress() {
-        return (this.ppuControl & (1 << 4)) != 0 ? 0x1000 : 0x0000;
     }
 
     private boolean getSpriteSize() {
@@ -1123,6 +1130,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         }
     }
 
+
     private int readBytePPU(int address) {
         address &= 0x3FFF;
         int ret = this.emulator.getCartridge().readBytePPU(address);
@@ -1131,6 +1139,8 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         }
         return ret;
     }
+
+
 
     private void writeBytePPU(int address, int value) {
         address &= 0x3FFF;
