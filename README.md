@@ -84,5 +84,5 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Special thanks
 
-- Matt Sutton(sutton.matthew at gmail): Fix OAM DMA + DMC DMA timings on the NES core.
+- Matt Sutton(sutton.matthew at gmail): Significant accuracy improvements to the NES core.
 
