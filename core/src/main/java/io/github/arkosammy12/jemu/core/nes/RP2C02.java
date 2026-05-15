@@ -727,6 +727,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     }
 
     // Assumes called once per full dot, on the second half
+    // TODO: Half-dot step this
     private void tickPixelShifter() {
 
         int paletteRamIndex;
@@ -816,6 +817,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     }
 
     // Assumes called once per full dot, on the second half
+    // TODO: Half-dot step this
     private void tickBgFetcher() {
         switch (this.bgFetcherStep) {
             case 0 -> {
@@ -866,6 +868,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     }
 
     // Assumes called once per full dot, on the second half
+    // TODO: Half-dot step this
     private void tickSecondaryOamClear() {
         switch (this.secondaryOamClearStep) {
             case 0 -> {
@@ -934,6 +937,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     }
 
     // Assumes called once per full dot, on the second half
+    // TODO: Half-dot step this
     private void tickSpriteEvaluation() {
         switch (this.spriteEvaluationStep) {
             case 0 -> { // Read cycle
@@ -982,7 +986,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     }
 
     // Assumes called once per full dot, on the second half
-    // TODO: Make this half-dot stepped (and the bg fetcher, sprite eval and oam2init tickers)
+    // TODO: Half-dot step this
     private void tickSpriteFetcher() {
         switch (this.spriteFetcherStep) {
             case 0 -> {
