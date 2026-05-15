@@ -14,7 +14,7 @@ import static io.github.arkosammy12.jemu.core.nes.NESCPUBus.PPU_START;
 // TODO: PAL implementation
 public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements Bus {
 
-    public static final int[] PALETTE_2C02G_WIKI = {
+    private static final int[] PALETTE_2C02G_WIKI = {
             0x62, 0x62, 0x62, 0x00, 0x1c, 0x95, 0x19, 0x04, 0xac, 0x42, 0x00, 0x9d,
             0x61, 0x00, 0x6b, 0x6e, 0x00, 0x25, 0x65, 0x05, 0x00, 0x49, 0x1e, 0x00,
             0x22, 0x37, 0x00, 0x00, 0x49, 0x00, 0x00, 0x4f, 0x00, 0x00, 0x48, 0x16,
@@ -427,8 +427,8 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                 if (this.getW()) {
                     int T = (this.getT() & ~0xFF) | (value & 0xFF);
                     this.setT(T);
-                    // Copying of t to v is continuous during the write
                     this.setV(T);
+                    // Copying of t to v is continuous during the write
                     this.copyTtoVSignal.trigger(3, 0);
                 } else {
                     this.setT(((this.getT() & ~0x3F00) | ((value & 0b00111111) << 8)) & ~(1 << 14));
