@@ -26,7 +26,7 @@ public class NES20File extends ExtendedINESFile {
 
     public static int parseNes20CharacterRomSizeBytes(byte[] file) {
         int characterRomLsb = (int) file[5] & 0xFF;
-        int characterRomMsb = (int) file[9] & 0x0F;
+        int characterRomMsb = (((int) file[9] & 0xFF) >>> 4) & 0x0F;
         if (characterRomMsb == 0xF) {
             int multiplier = (characterRomLsb & 0b11) * 2 + 1;
             int exponent = (characterRomMsb >>> 2) & 0b111111;
