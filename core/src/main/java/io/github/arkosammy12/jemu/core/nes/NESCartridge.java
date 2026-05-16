@@ -24,9 +24,9 @@ public abstract class NESCartridge<E extends NESEmulator> implements Bus {
         return switch (mapperNumber) {
             case 0 -> new NROMCartridge<>(emulator, iNESFile);
             case 1 -> new MMC1Cartridge<>(emulator, iNESFile);
-            case 2 -> new UXROMCartridge<>(emulator, iNESFile);
+            case 2 -> new UNROMCartridge<>(emulator, iNESFile);
             case 3 -> new CNROMCartridge<>(emulator, iNESFile);
-            case 7 -> new AXROMCartridge<>(emulator, iNESFile);
+            case 7 -> new ANROMCartridge<>(emulator, iNESFile);
             case 9 -> new MMC2Cartridge<>(emulator, iNESFile);
             case 218 -> new INESMapper218Cartridge<>(emulator, iNESFile);
             default -> throw new EmulatorException("Unimplemented iNES mapper number %d!".formatted(mapperNumber));
