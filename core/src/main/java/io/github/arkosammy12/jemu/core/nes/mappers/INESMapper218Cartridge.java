@@ -12,12 +12,12 @@ import static io.github.arkosammy12.jemu.core.nes.RP2C02.CIRAM_MIRROR_END;
 import static io.github.arkosammy12.jemu.core.nes.RP2C02.PALETTE_RAM_MIRROR_END;
 import static io.github.arkosammy12.jemu.core.nes.RP2C02.PALETTE_RAM_START;
 
-public class INESMapper218<E extends NESEmulator> extends NESCartridge<E> {
+public class INESMapper218Cartridge<E extends NESEmulator> extends NESCartridge<E> {
 
     private final byte[] programRom;
     private final CIRAMWiring ciramWiring;
 
-    public INESMapper218(E emulator, INESFile iNESFile) {
+    public INESMapper218Cartridge(E emulator, INESFile iNESFile) {
         super(emulator, iNESFile);
 
         byte[] programRomData = iNESFile.getProgramRom();
