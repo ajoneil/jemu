@@ -37,7 +37,7 @@ public final class Jemu {
     private final Thread uiEventListenerThread;
 
     private MainWindow mainWindow;
-    private boolean running = true;
+    private volatile boolean running = true;
 
     public Jemu(String[] args) {
         try {
