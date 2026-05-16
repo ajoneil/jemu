@@ -8,7 +8,7 @@ public class CDP1802 implements Processor {
 
     private final SystemBus systemBus;
     private State currentState = State.S1_RESET;
-    private boolean longInstruction = false;
+    private boolean s1ExecuteSecondCycle = false;
     private boolean idling = false;
 
     private int accumulator; // D
@@ -163,7 +163,7 @@ public class CDP1802 implements Processor {
             }
             case S0_FETCH -> S1_EXECUTE;
             case S1_EXECUTE -> {
-                if (this.longInstruction) {
+                if (this.s1ExecuteSecondCycle) {
                     yield S1_EXECUTE;
                 } else {
                     if (systemBus.getDMAOUT()) {
@@ -507,24 +507,24 @@ public class CDP1802 implements Processor {
             case 0xC -> {
                 switch (getN()) {
                     case 0x0 -> { // C0: LBR | M(R(P)) → R(P). 1, M(R(P) + 1) → R(P).0
-                        if (!this.longInstruction) {
-                            this.longInstruction = true;
+                        if (!this.s1ExecuteSecondCycle) {
+                            this.s1ExecuteSecondCycle = true;
                             setB(this.systemBus.getBus().readByte(getR(getP())));
                             setR(getP(), getR(getP()) + 1);
                         } else {
-                            this.longInstruction = false;
+                            this.s1ExecuteSecondCycle = false;
                             int lowByte = this.systemBus.getBus().readByte(getR(getP()));
                             setR1(getP(), getB());
                             setR0(getP(), lowByte);
                         }
                     }
                     case 0x1 -> { // C1: LBQ | IF Q = 1, M(R(P)) → R(P).1, M(R(P) + 1) → R(P).0, ELSE R(P) + 2 → R(P)
-                        if (!this.longInstruction) {
-                            this.longInstruction = true;
+                        if (!this.s1ExecuteSecondCycle) {
+                            this.s1ExecuteSecondCycle = true;
                             setB(this.systemBus.getBus().readByte(getR(getP())));
                             setR(getP(), getR(getP()) + 1);
                         } else {
-                            this.longInstruction = false;
+                            this.s1ExecuteSecondCycle = false;
                             int lowByte = this.systemBus.getBus().readByte(getR(getP()));
                             if (getQ()) {
                                 setR1(getP(), getB());
@@ -535,12 +535,12 @@ public class CDP1802 implements Processor {
                         }
                     }
                     case 0x2 -> { // C2: LBZ | IF D = 0, M(R(P)) → R(P).1, M(R(P) + 1) → R(P).0, ELSE R(P) + 2 → R(P)
-                        if (!this.longInstruction) {
-                            this.longInstruction = true;
+                        if (!this.s1ExecuteSecondCycle) {
+                            this.s1ExecuteSecondCycle = true;
                             setB(this.systemBus.getBus().readByte(getR(getP())));
                             setR(getP(), getR(getP()) + 1);
                         } else {
-                            this.longInstruction = false;
+                            this.s1ExecuteSecondCycle = false;
                             int lowByte = this.systemBus.getBus().readByte(getR(getP()));
                             if (getD() == 0) {
                                 setR1(getP(), getB());
@@ -551,12 +551,12 @@ public class CDP1802 implements Processor {
                         }
                     }
                     case 0x3 -> { // C3: LBDF | IF DF = 1, M(R(P)) → R(P).1, M(R(P) + 1) → R(P).0, ELSE R(P) + 2 → R(P)
-                        if (!this.longInstruction) {
-                            this.longInstruction = true;
+                        if (!this.s1ExecuteSecondCycle) {
+                            this.s1ExecuteSecondCycle = true;
                             setB(this.systemBus.getBus().readByte(getR(getP())));
                             setR(getP(), getR(getP()) + 1);
                         } else {
-                            this.longInstruction = false;
+                            this.s1ExecuteSecondCycle = false;
                             int lowByte = this.systemBus.getBus().readByte(getR(getP()));
                             if (getDF()) {
                                 setR1(getP(), getB());
@@ -567,42 +567,42 @@ public class CDP1802 implements Processor {
                         }
                     }
                     case 0x4 -> { // C4: NOP | NO OPERATION
-                        this.longInstruction = !this.longInstruction;
+                        this.s1ExecuteSecondCycle = !this.s1ExecuteSecondCycle;
                         this.systemBus.getBus().readByte(getR(getP())); // Dummy read for accurate bus activity
                     }
                     case 0x5 -> { // C5: LSNQ | IF Q = 0, R(P) + 2 → R(P), ELSE CONTINUE
-                        this.longInstruction = !this.longInstruction;
+                        this.s1ExecuteSecondCycle = !this.s1ExecuteSecondCycle;
                         this.systemBus.getBus().readByte(getR(getP())); // Dummy read for accurate bus activity
                         if (!getQ()) {
                             setR(getP(), getR(getP()) + 1);
                         }
                     }
                     case 0x6 -> { // LSNZ | IF D Not 0, R(P) + 2 → R(P), ELSE CONTINUE
-                        this.longInstruction = !this.longInstruction;
+                        this.s1ExecuteSecondCycle = !this.s1ExecuteSecondCycle;
                         this.systemBus.getBus().readByte(getR(getP())); // Dummy read for accurate bus activity
                         if (getD() != 0) {
                             setR(getP(), getR(getP()) + 1);
                         }
                     }
                     case 0x7 -> { // C7: LSNF | IF DF = 0, R(P) + 2 → R(P), ELSE CONTINUE
-                        this.longInstruction = !this.longInstruction;
+                        this.s1ExecuteSecondCycle = !this.s1ExecuteSecondCycle;
                         this.systemBus.getBus().readByte(getR(getP())); // Dummy read for accurate bus activity
                         if (!getDF()) {
                             setR(getP(), getR(getP()) + 1);
                         }
                     }
                     case 0x8 -> { // C8: NLBR | R(P) + 2 → R(P)
-                        this.longInstruction = !this.longInstruction;
+                        this.s1ExecuteSecondCycle = !this.s1ExecuteSecondCycle;
                         this.systemBus.getBus().readByte(getR(getP())); // Dummy read for accurate bus activity
                         setR(getP(), getR(getP()) + 1);
                     }
                     case 0x9 -> { // C9: LBNQ | IF Q = 0, M(R(P)) → R(P).1, M(R(P) + 1) → R(P).0, ELSE R(P) + 2 → R(P)
-                        if (!this.longInstruction) {
-                            this.longInstruction = true;
+                        if (!this.s1ExecuteSecondCycle) {
+                            this.s1ExecuteSecondCycle = true;
                             setB(this.systemBus.getBus().readByte(getR(getP())));
                             setR(getP(), getR(getP()) + 1);
                         } else {
-                            this.longInstruction = false;
+                            this.s1ExecuteSecondCycle = false;
                             int lowByte = this.systemBus.getBus().readByte(getR(getP()));
                             if (!getQ()) {
                                 setR1(getP(), getB());
@@ -613,12 +613,12 @@ public class CDP1802 implements Processor {
                         }
                     }
                     case 0xA -> { // CA: LBNZ | IF D Not 0, M(R(P)) → R(P).1, M(R(P) + 1) → R(P).0, ELSE R(P) + 2 → R(P)
-                        if (!this.longInstruction) {
-                            this.longInstruction = true;
+                        if (!this.s1ExecuteSecondCycle) {
+                            this.s1ExecuteSecondCycle = true;
                             setB(this.systemBus.getBus().readByte(getR(getP())));
                             setR(getP(), getR(getP()) + 1);
                         } else {
-                            this.longInstruction = false;
+                            this.s1ExecuteSecondCycle = false;
                             int lowByte = this.systemBus.getBus().readByte(getR(getP()));
                             if (getD() != 0) {
                                 setR1(getP(), getB());
@@ -629,12 +629,12 @@ public class CDP1802 implements Processor {
                         }
                     }
                     case 0xB -> { // CB: LBNF | IF DF = 0, M(R(P)) → R(P).1, M(R(P) + 1) → R(P).0, ELSE
-                        if (!this.longInstruction) {
-                            this.longInstruction = true;
+                        if (!this.s1ExecuteSecondCycle) {
+                            this.s1ExecuteSecondCycle = true;
                             setB(this.systemBus.getBus().readByte(getR(getP())));
                             setR(getP(), getR(getP()) + 1);
                         } else {
-                            this.longInstruction = false;
+                            this.s1ExecuteSecondCycle = false;
                             int lowByte = this.systemBus.getBus().readByte(getR(getP()));
                             if (!getDF()) {
                                 setR1(getP(), getB());
@@ -645,28 +645,28 @@ public class CDP1802 implements Processor {
                         }
                     }
                     case 0xC -> { // CC: LSIE | IF IE = 1, R(P) + 2 → R(P), ELSE CONTINUE
-                        this.longInstruction = !this.longInstruction;
+                        this.s1ExecuteSecondCycle = !this.s1ExecuteSecondCycle;
                         this.systemBus.getBus().readByte(getR(getP())); // Dummy read for accurate bus activity
                         if (getIE()) {
                             setR(getP(), getR(getP()) + 1);
                         }
                     }
                     case 0xD -> { // CD: LSQ | IF Q = 1, R(P) + 2 → R(P), ELSE CONTINUE
-                        this.longInstruction = !this.longInstruction;
+                        this.s1ExecuteSecondCycle = !this.s1ExecuteSecondCycle;
                         this.systemBus.getBus().readByte(getR(getP())); // Dummy read for accurate bus activity
                         if (getQ()) {
                             setR(getP(), getR(getP()) + 1);
                         }
                     }
                     case 0xE -> { // CE: LSZ | IF D = 0, R(P) + 2 → R(P), ELSE CONTINUE
-                        this.longInstruction = !this.longInstruction;
+                        this.s1ExecuteSecondCycle = !this.s1ExecuteSecondCycle;
                         this.systemBus.getBus().readByte(getR(getP())); // Dummy read for accurate bus activity
                         if (getD() == 0) {
                             setR(getP(), getR(getP()) + 1);
                         }
                     }
                     case 0xF -> { // CF: LSDF | IF DF = 1, R(P) + 2 → R(P), ELSE CONTINUE
-                        this.longInstruction = !this.longInstruction;
+                        this.s1ExecuteSecondCycle = !this.s1ExecuteSecondCycle;
                         this.systemBus.getBus().readByte(getR(getP())); // Dummy read for accurate bus activity
                         if (getDF()) {
                             setR(getP(), getR(getP()) + 1);
