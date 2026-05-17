@@ -45,7 +45,7 @@ jobs:
         run: |
           VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           JPACKAGE_VERSION=$(echo $VERSION | sed 's/^0\./1./')
-          mvn -B org.panteleyev:jpackage-maven-plugin:1.7.4:jpackage -pl app -Djpackage.app.version=$JPACKAGE_VERSION
+          mvn -B org.panteleyev:jpackage-maven-plugin:1.7.4:jpackage -pl app -DappVersion=$JPACKAGE_VERSION
 
       - name: Package with jpackage (Linux/Windows)
         if: matrix.os != 'macos-latest'
