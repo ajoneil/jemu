@@ -11,6 +11,7 @@ public final class MavenProperties {
     public static final String VERSION;
     public static final String ARTIFACT_ID;
     public static final String BUILD_DATE;
+    public static final String AUTHOR;
 
     static {
         Properties props = new Properties();
@@ -22,6 +23,7 @@ public final class MavenProperties {
         VERSION = props.getProperty("version", "unknown");
         ARTIFACT_ID = props.getProperty("artifact.id", "jemu");
         BUILD_DATE = props.getProperty("build.date", "unknown");
+        AUTHOR = props.getProperty("author", "unknown");
     }
 
     private MavenProperties() {}

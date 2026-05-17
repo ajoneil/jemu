@@ -15,6 +15,7 @@
         <!-- Change this too for MacOS! -->
         <jpackage.version.macos>1.0.0</jpackage.version.macos>
         <maven.build.timestamp.format>yyyy-MM-dd, HH:mm:ss</maven.build.timestamp.format>
+        <author>James Villarreal (ArkoSammy12)</author>
     </properties>
 
     <groupId>io.github.arkosammy12</groupId>

@@ -69,7 +69,7 @@ public final class Jemu {
 
             HelpMenu helpMenu = this.mainWindow.getMainMenuBar().getHelpMenu();
             helpMenu.setProjectName(MavenProperties.ARTIFACT_ID);
-            helpMenu.setAuthorString(Version.BUILD_USER_NAME);
+            helpMenu.setAuthorString(MavenProperties.AUTHOR);
             helpMenu.setVersionString(MavenProperties.VERSION);
             helpMenu.setCommitIDString(Version.COMMIT_ID);
             helpMenu.setBuildDateString(MavenProperties.BUILD_DATE);

@@ -9,6 +9,10 @@
         <version>0.1.0</version>
     </parent>
 
+    <properties>
+        <maven.build.timestamp.format>yyyy-MM-dd, HH:mm:ss</maven.build.timestamp.format>
+    </properties>
+
     <artifactId>app</artifactId>
 
     <dependencies>
