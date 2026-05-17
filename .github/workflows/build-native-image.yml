@@ -47,11 +47,19 @@ jobs:
           mvn -B clean package
           mvn -B org.panteleyev:jpackage-maven-plugin:1.7.4:jpackage -pl app
 
-      - name: Zip artifact
+      - name: Zip artifact (Linux/macOS)
+        if: matrix.os != 'windows-latest'
         shell: bash
         run: |
           cd target/dist
           zip -r ../../jemu-${{ matrix.name }}-${{ env.ARCH }}.zip .
+
+      - name: Zip artifact (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cd target/dist
+          7z a ..\..\jemu-${{ matrix.name }}-${{ env.ARCH }}.zip .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v5.0.0
