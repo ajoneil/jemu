@@ -764,7 +764,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                         }
 
                         if (i == 0 && this.sprite0OnThisScanline && pixelColor != 0 && spriteColor != 0 && this.dotNumber != 256) {
-                            this.setSprite0HItSignal.trigger(1, 0);
+                            this.setSprite0HItSignal.trigger(6, 0);
                         }
 
                         if (!foundOpaqueSpritePixel && spriteColor != 0) {
