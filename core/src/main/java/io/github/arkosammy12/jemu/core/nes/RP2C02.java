@@ -396,7 +396,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
             return;
         }
          */
-        address = 0x2000 + (address & 7);
+        address = 0x2000 | (address & 7);
         switch (address) {
             case PPUCTRL_ADDR -> {
                 this.ppuControl = value & 0xFC;
