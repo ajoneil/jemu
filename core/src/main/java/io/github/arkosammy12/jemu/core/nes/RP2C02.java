@@ -787,6 +787,10 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
         }
 
+        if (!this.isVisibleDot() || !this.isVisibleScanline()) {
+            return;
+        }
+
         int paletteByte = this.paletteRam[paletteRamIndex];
         if (this.useGrayscaleColors()) {
             paletteByte &= 0x30;
@@ -796,10 +800,8 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         int red = PALETTE_2C02G_WIKI[videoColorIndex];
         int green = PALETTE_2C02G_WIKI[videoColorIndex + 1];
         int blue = PALETTE_2C02G_WIKI[videoColorIndex + 2];
-        int argb = 0xFF000000 | (red << 16) | (green << 8) | blue;
-        if (this.isVisibleDot() && this.isVisibleScanline()) {
-            this.video[this.dotNumber - 1][this.scanlineNumber] = argb;
-        }
+        int argb = (red << 16) | (green << 8) | blue;
+        this.video[this.dotNumber - 1][this.scanlineNumber] = argb;
     }
 
     private int shiftBackgroundRegister(int select) {

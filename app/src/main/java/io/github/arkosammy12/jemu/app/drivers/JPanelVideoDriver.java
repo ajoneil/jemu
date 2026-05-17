@@ -120,11 +120,11 @@ public class JPanelVideoDriver extends JPanel implements VideoDriver, Closeable 
 
     private void renderFrame() {
         int[] pixels = ((DataBufferInt) bufferedImage.getRaster().getDataBuffer()).getData();
-        synchronized (renderBufferLock) {
+        synchronized (this.renderBufferLock) {
             for (int y = 0; y < displayHeight; y++) {
                 int base = y * displayWidth;
                 for (int x = 0; x < displayWidth; x++) {
-                    pixels[base + x] = renderBuffer[x][y];
+                    pixels[base + x] = 0xFF000000 | renderBuffer[x][y];
                 }
             }
         }

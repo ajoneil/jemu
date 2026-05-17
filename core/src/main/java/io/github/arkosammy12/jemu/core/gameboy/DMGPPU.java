@@ -33,10 +33,10 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     private static final int SCANLINES_PER_FRAME = 154;
 
     private static final int[] DMG_PALETTE = {
-            0xFF9BBC0F,
-            0xFF8BAC0F,
-            0xFF306230,
-            0xFF0F380F
+            0x9BBC0F,
+            0x8BAC0F,
+            0x306230,
+            0x0F380F
     };
 
     protected final byte[] vRam = new byte[0x2000];
@@ -119,7 +119,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     }
 
     protected int getLcdOffColor() {
-        return 0xFF9BBC0F;
+        return 0x9BBC0F;
     }
 
     @Override

@@ -105,7 +105,7 @@ public class CDP1861<E extends CosmacVIPEmulator> extends VideoGenerator<E> {
                 break;
             }
             for (int j = 0; j < 4; j++) {
-                this.displayBuffer[(col * 4) + j][row] = (value & mask) != 0 ? 0xFFFFFFFF : 0xFF000000;
+                this.displayBuffer[(col * 4) + j][row] = (value & mask) != 0 ? 0xFFFFFF : 0x000000;
             }
         }
     }

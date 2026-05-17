@@ -5,10 +5,10 @@ import java.util.Arrays;
 public class  VP590<E extends CosmacVIPEmulator> extends CDP1861<E> {
 
     private static final int[] BACKGROUND_COLORS = {
-            0xFF000080,
-            0xFF000000,
-            0xFF008000,
-            0XFF800000
+            0x000080,
+            0x000000,
+            0x008000,
+            0X800000
     };
 
     private final byte[] colorRam = new byte[256];
@@ -54,7 +54,7 @@ public class  VP590<E extends CosmacVIPEmulator> extends CDP1861<E> {
         }
         int dmaIndex = (int) ((this.cycles % MACHINE_CYCLES_PER_SCANLINE) - DMAO_BEGIN);
         int colStart = dmaIndex * 8;
-        int color = 0xFF000000;
+        int color = 0;
         int backgroundColor;
         if (this.colorRamModified) {
             backgroundColor = BACKGROUND_COLORS[backgroundColorIndex];
@@ -69,8 +69,8 @@ public class  VP590<E extends CosmacVIPEmulator> extends CDP1861<E> {
                 color |= 0x0000FF;
             }
         } else {
-            backgroundColor = 0xFF000080;
-            color |= 0xFFFFFF;
+            backgroundColor = 0x000080;
+            color = 0xFFFFFF;
         }
         for (int i = 0, mask = 0x80; i < 8; i++, mask >>>= 1) {
             int col = colStart + i;

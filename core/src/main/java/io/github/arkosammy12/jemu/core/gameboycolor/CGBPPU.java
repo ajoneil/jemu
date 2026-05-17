@@ -34,7 +34,7 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
     }
 
     protected int getLcdOffColor() {
-        return 0xFFFFFFFF;
+        return 0xFFFFFF;
     }
 
     public Mode getMode() {
@@ -420,7 +420,7 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
         int r8 = ((r5 << 3) | (r5 >>> 2)) & 0xFF;
         int g8 = ((g5 << 3) | (g5 >>> 2)) & 0xFF;
         int b8 = ((b5 << 3) | (b5 >>> 2)) & 0xFF;
-        return (0xFF << 24) | (r8 << 16) | (g8 << 8) | b8;
+        return (r8 << 16) | (g8 << 8) | b8;
     }
 
     private boolean getBgPaletteAddressAutoIncrement() {
@@ -522,7 +522,7 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
 
     private enum VRAMBank {
         BANK_0,
-        BANK_1;
+        BANK_1
     }
 
 }
