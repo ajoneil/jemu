@@ -80,6 +80,7 @@
                 <version>1.7.4</version>
                 <configuration>
                     <name>jemu</name>
+                    <appVersion>${project.version}</appVersion>
                     <type>APP_IMAGE</type>
                     <mainJar>${project.parent.build.finalName}.jar</mainJar>
                     <input>${project.parent.build.directory}</input>
