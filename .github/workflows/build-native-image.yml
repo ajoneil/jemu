@@ -42,12 +42,8 @@ jobs:
           mvn -B clean package
           mvn -B org.panteleyev:jpackage-maven-plugin:1.7.4:jpackage -pl app
 
-      - name: Get version
-        id: get_version
-        run: echo "VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_OUTPUT
-
       - name: Upload artifact
         uses: actions/upload-artifact@v5.0.0
         with:
-          name: jemu-${{ matrix.name }}-${{ runner.arch }}-${{ steps.get_version.outputs.VERSION }}
+          name: jemu-${{ matrix.name }}-${{ runner.arch }}
           path: target/dist/
