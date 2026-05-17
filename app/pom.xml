@@ -52,7 +52,7 @@
                 </os>
             </activation>
             <properties>
-                <jpackage.version>1-${project.version}</jpackage.version>
+                <jpackage.version>1.${project.version}</jpackage.version>
             </properties>
         </profile>
     </profiles>
