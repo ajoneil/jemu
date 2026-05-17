@@ -11,10 +11,15 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.name>jemu</project.name>
         <jpackage.version>${project.version}</jpackage.version>
+
+        <!-- Change this too for MacOS! -->
+        <jpackage.version.macos>1.0.0</jpackage.version.macos>
     </properties>
 
     <groupId>io.github.arkosammy12</groupId>
     <artifactId>jemu</artifactId>
+
+    <!-- Change this for everything else (and in the child submodules too of course) -->
     <version>0.1.0</version>
     <packaging>pom</packaging>
     <modules>
