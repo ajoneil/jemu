@@ -3,7 +3,7 @@ package io.github.arkosammy12.jemu.frontend.gui.swing.menus;
 import com.formdev.flatlaf.util.SystemInfo;
 import io.github.arkosammy12.jemu.frontend.gui.swing.MainWindow;
 import io.github.arkosammy12.jemu.frontend.gui.swing.MenuBarMenu;
-import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
@@ -12,20 +12,26 @@ import java.net.URI;
 
 public class HelpMenu extends MenuBarMenu {
 
-    @Nullable
-    private String projectName;
+    @NotNull
+    private String projectName = "unknown";
 
-    @Nullable
-    private String authorName;
+    @NotNull
+    private String authorString = "unknown";
 
-    @Nullable
-    private String versionString;
+    @NotNull
+    private String versionString = "unknown";
 
-    @Nullable
-    private String projectSourceLink;
+    @NotNull
+    private String commitIDString = "unknown";
 
-    @Nullable
-    private String projectBugReportLink;
+    @NotNull
+    private String buildDateString = "unknown";
+
+    @NotNull
+    private String projectSourceLink = "unknown";
+
+    @NotNull
+    private String projectBugReportLink = "unknown";
 
     public HelpMenu(MainWindow mainWindow) {
 
@@ -34,11 +40,14 @@ public class HelpMenu extends MenuBarMenu {
 
         Runnable showAboutDialog = () -> {
 
-            String name = this.projectName == null ? "{project}" : this.projectName;
-            String author = this.authorName == null ? "{author}" : this.authorName;
-            String version = this.versionString == null ? "{version}" : this.versionString;
+            String message = """
+                    Version: %s
+                    Build Date: %s
+                    Commit ID: %s
+                    Author: %s
+                    """.formatted(this.versionString, this.buildDateString, this.commitIDString, this.authorString);
 
-            mainWindow.showDialog("About %s".formatted(this.projectName), "%s\nVersion %s\n\nBy %s".formatted(name, version, author), MainWindow.DialogType.INFORMATION);
+            mainWindow.showDialog("About - %s".formatted(this.projectName), message, MainWindow.DialogType.INFORMATION);
 
         };
 
@@ -91,23 +100,31 @@ public class HelpMenu extends MenuBarMenu {
 
     }
 
-    public void setAuthorName(@Nullable String authorName) {
-        this.authorName = authorName;
-    }
-
-    public void setProjectName(@Nullable String projectName) {
+    public void setProjectName(@NotNull String projectName) {
         this.projectName = projectName;
     }
 
-    public void setVersionString(@Nullable String versionString) {
+    public void setAuthorString(@NotNull String authorString) {
+        this.authorString = authorString;
+    }
+
+    public void setVersionString(@NotNull String versionString) {
         this.versionString = versionString;
     }
 
-    public void setProjectSourceLink(@Nullable String projectSourceLink) {
+    public void setCommitIDString(@NotNull String commitIdString) {
+        this.commitIDString = commitIdString;
+    }
+
+    public void setBuildDateString(@NotNull String buildDateString) {
+        this.buildDateString = buildDateString;
+    }
+
+    public void setProjectSourceLink(@NotNull String projectSourceLink) {
         this.projectSourceLink = projectSourceLink;
     }
 
-    public void setProjectBugReportLink(@Nullable String projectBugReportLink) {
+    public void setProjectBugReportLink(@NotNull String projectBugReportLink) {
         this.projectBugReportLink = projectBugReportLink;
     }
 

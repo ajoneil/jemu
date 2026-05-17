@@ -5,7 +5,7 @@ import io.github.arkosammy12.jemu.app.adapters.SystemAdapter;
 import io.github.arkosammy12.jemu.app.io.CLIArgs;
 import io.github.arkosammy12.jemu.app.io.initializers.EmulatorInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
-import io.github.arkosammy12.jemu.app.util.Version;
+import io.github.arkosammy12.jemu.app.util.MavenProperties;
 import io.github.arkosammy12.jemu.frontend.gui.swing.commands.*;
 import io.github.arkosammy12.jemu.frontend.gui.swing.events.Event;
 import io.github.arkosammy12.jemu.frontend.gui.swing.events.MuteEvent;
@@ -57,7 +57,7 @@ public final class Jemu {
                 Logger.error("Uncaught exception in thread {}: {}", thread.getName(), throwable, throwable.getStackTrace());
             });
 
-            this.mainWindow = new MainWindow("jemu " + Version.VERSION, APP_DIR, Arrays.stream(System.values()).toList());
+            this.mainWindow = new MainWindow("jemu " + MavenProperties.VERSION, APP_DIR, Arrays.stream(System.values()).toList());
             this.mainWindow.setClosingHook(() -> {
                 this.running = false;
                 try {
@@ -68,9 +68,11 @@ public final class Jemu {
             });
 
             HelpMenu helpMenu = this.mainWindow.getMainMenuBar().getHelpMenu();
-            helpMenu.setAuthorName("ArkoSammy12");
-            helpMenu.setProjectName("jemu");
-            helpMenu.setVersionString(Version.VERSION);
+            helpMenu.setProjectName(MavenProperties.ARTIFACT_ID);
+            helpMenu.setAuthorString(Version.BUILD_USER_NAME);
+            helpMenu.setVersionString(MavenProperties.VERSION);
+            helpMenu.setCommitIDString(Version.COMMIT_ID);
+            helpMenu.setBuildDateString(MavenProperties.BUILD_DATE);
             helpMenu.setProjectSourceLink("https://github.com/ArkoSammy12/jemu");
             helpMenu.setProjectBugReportLink("https://github.com/ArkoSammy12/jemu/issues");
 

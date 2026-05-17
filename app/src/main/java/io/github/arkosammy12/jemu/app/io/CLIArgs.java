@@ -1,7 +1,7 @@
 package io.github.arkosammy12.jemu.app.io;
 
 import io.github.arkosammy12.jemu.app.util.System;
-import io.github.arkosammy12.jemu.app.util.Version;
+import io.github.arkosammy12.jemu.app.util.MavenProperties;
 import picocli.CommandLine;
 
 import java.nio.file.Path;
@@ -10,7 +10,7 @@ import java.util.Optional;
 @CommandLine.Command(
         name = "jemu",
         mixinStandardHelpOptions = true,
-        versionProvider = Version.Provider.class,
+        versionProvider = MavenProperties.Provider.class,
         description = "Initializes jemu with the desired settings and starts emulation."
 )
 public final class CLIArgs {
