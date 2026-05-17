@@ -28,5 +28,5 @@ jobs:
           tag_name: dev-${{ github.sha }}
           name: Dev Build ${{ github.sha }}
           prerelease: true
-          generate_release_notes: true
+          body: ""
           files: artifacts/*
