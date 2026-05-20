@@ -273,14 +273,14 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     public void observePPUAddress(int address) {
         if (address != this.previousPPUAddress) {
             if ((address & A12) != 0 && (this.previousPPUAddress & A12) == 0 && this.cyclesDown >= 4) {
-                if (this.irqCounter == 0 || this.irqReload) {
+                if (this.irqCounter <= 0 || this.irqReload) {
                     this.irqCounter = this.irqCounterReload;
                     this.irqReload = false;
                 } else {
                     this.irqCounter--;
                 }
 
-                if (this.irqCounter == 0 && this.irqEnabled) {
+                if (this.irqCounter <= 0 && this.irqEnabled) {
                     this.setIRQSignal.trigger(4, 0);
                 }
             }
