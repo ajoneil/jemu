@@ -105,7 +105,7 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
         } else if (address >= PALETTE_RAM_START && address <= PALETTE_RAM_MIRROR_END) {
             return address & 0xFF;
         } else {
-            throw new EmulatorException("Invalid NES MMC1 cartridge PPU read address $%04X!".formatted(address));
+            throw new EmulatorException("Invalid NES MMC3 cartridge PPU read address $%04X!".formatted(address));
         }
     }
 
@@ -121,7 +121,7 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
         } else if (address >= PALETTE_RAM_START && address <= PALETTE_RAM_MIRROR_END) {
 
         } else {
-            throw new EmulatorException("Invalid NES MMC1 cartridge PPU write address $%04X!".formatted(address));
+            throw new EmulatorException("Invalid NES MMC3 cartridge PPU write address $%04X!".formatted(address));
         }
     }
 
