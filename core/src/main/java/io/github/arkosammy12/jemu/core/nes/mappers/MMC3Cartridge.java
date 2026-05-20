@@ -5,6 +5,7 @@ import io.github.arkosammy12.jemu.core.nes.NESCartridge;
 import io.github.arkosammy12.jemu.core.nes.NESEmulator;
 import io.github.arkosammy12.jemu.core.nes.ines.INESFile;
 import io.github.arkosammy12.jemu.core.nes.ines.NES20File;
+import io.github.arkosammy12.jemu.core.util.ActionSignal;
 
 import java.util.Arrays;
 import java.util.Optional;
@@ -47,6 +48,8 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     private int previousPPUAddress;
     private int cyclesDown = 3;
 
+    private final ActionSignal setIRQSignal;
+
     public MMC3Cartridge(E emulator, INESFile iNESFile) {
         super(emulator, iNESFile);
 
@@ -79,6 +82,8 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
         } else {
             this.nametableArrangementSupplier = () -> this.nametableArrangement;
         }
+
+        this.setIRQSignal = new ActionSignal(_ -> this.irqSignal = true);
     }
 
     @Override
@@ -191,6 +196,7 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
         } else {
             this.cyclesDown = 0;
         }
+        this.setIRQSignal.tick();
     }
 
     private boolean isPrgRamEnabled() {
@@ -271,7 +277,8 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
                 }
 
                 if (this.irqCounter == 0 && this.irqEnabled) {
-                    this.irqSignal = true;
+                    this.setIRQSignal.trigger(1, 0);
+                    //this.irqSignal = true;
                 }
             }
             this.previousPPUAddress = address & 0xFFFF;
