@@ -29,14 +29,20 @@ public class NES6502TestCaseBench implements NMOS6502.SystemBus {
     public void runTest() {
         List<List<Object>> cycles = this.testCase.getCycles();
 
-        this.cpu.cycle();
-        this.cpu.cycle();
+        for (int i = 0; i < cycles.size(); i++) {
+            List<Object> cycle = cycles.get(i);
+            this.cpu.cycle();
+            this.cpu.cycle();
 
-        for (List<Object> cycle : cycles) {
-            this.cpu.cycle();
-            this.cpu.cycle();
-            // TODO: Test bus values
+            NMOS6502.ReadWriteCycle readWriteCycle = cycle.get(2).equals("read") ? NMOS6502.ReadWriteCycle.READ : NMOS6502.ReadWriteCycle.WRITE;
+            assertEquals(((Number) cycle.get(0)).intValue(), this.bus.getLastAddress(), "Test name: %s. Field: Bus access address. Cycle: %s".formatted(testCase.getName(), i));
+            assertEquals(((Number) cycle.get(1)).intValue(), this.bus.getLastValue(), "Test name: %s. Field: Bus access value. Cycle: %s".formatted(testCase.getName(), i));
+            assertEquals(readWriteCycle, this.cpu.getReadWriteCycle(), "Test name: %s. Field: Bus access type. Cycle %s".formatted(testCase.getName(), i));
+
         }
+
+        this.cpu.cycle();
+        this.cpu.cycle();
 
         NES6502TestState finalState = this.testCase.getFinalState();
 
