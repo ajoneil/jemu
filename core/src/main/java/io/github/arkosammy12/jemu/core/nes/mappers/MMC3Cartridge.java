@@ -45,7 +45,7 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     private boolean irqReload;
     private boolean irqSignal;
     private int previousPPUAddress;
-    private int cyclesDown;
+    private int cyclesDown = 3;
 
     public MMC3Cartridge(E emulator, INESFile iNESFile) {
         super(emulator, iNESFile);
@@ -166,6 +166,7 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
             if ((address & 1) == 0) {
                 this.irqCounterReload = value & 0xFF;
             } else {
+                this.irqCounter = 0;
                 this.irqReload = true;
             }
         } else if (address >= 0xE000 && address <= 0xFFFF) {
