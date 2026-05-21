@@ -96,6 +96,9 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     protected int spriteFifoTileDataLow;
     protected int spriteFifoTileDataHigh;
 
+    private boolean armOamBugRead;
+    private boolean armOamBugWrite;
+
     public DMGPPU(E emulator) {
         super(emulator);
         this.lcd = new int[this.getImageWidth()][this.getImageHeight()];
@@ -125,6 +128,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     @Override
     public int readByte(int address) {
         if (address >= OAM_START && address <= OAM_END) {
+            this.checkArmOamBugRead(address);
             int ppuMode = this.getPpuMode();
             if (Mode.MODE_0_HBLANK.matchesValue(ppuMode) || Mode.MODE_1_VBLANK.matchesValue(ppuMode) || !this.getLcdPpuEnable()) {
                 return (int) this.oam[address - OAM_START] & 0xFF;
@@ -159,6 +163,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     @Override
     public void writeByte(int address, int value) {
         if (address >= OAM_START && address <= OAM_END) {
+            this.checkArmOamBugWrite(address);
             int ppuMode = this.getPpuMode();
             if (Mode.MODE_0_HBLANK.matchesValue(ppuMode) || Mode.MODE_1_VBLANK.matchesValue(ppuMode) || !this.getLcdPpuEnable()) {
               this.oam[address - OAM_START] = (byte) value;
@@ -202,6 +207,18 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         }
     }
 
+    public void checkArmOamBugRead(int address) {
+        if (address >= OAM_START && address <= OAM_END && this.getLcdPpuEnable()) {
+            this.armOamBugRead = true;
+        }
+    }
+
+    public void checkArmOamBugWrite(int address) {
+        if (address >= OAM_START && address <= OAM_END && this.getLcdPpuEnable()) {
+            this.armOamBugWrite = true;
+        }
+    }
+
     private void onLcdOn() {
         this.enablePixelWritesDelay = 2;
         this.scanlineCycle = 4;
@@ -210,6 +227,8 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     private void onLcdOff() {
         this.enablePixelWrites = false;
         this.enablePixelWritesDelay = -1;
+        this.armOamBugRead = false;
+        this.armOamBugWrite = false;
         for (int[] ints : this.lcd) {
             Arrays.fill(ints, this.getLcdOffColor());
         }
@@ -217,13 +236,13 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     }
 
     public void cycle() {
-        this.cycleDot();
-        this.cycleDot();
-        this.cycleDot();
-        this.cycleDot();
+        this.cycleDot(0);
+        this.cycleDot(1);
+        this.cycleDot(2);
+        this.cycleDot(3);
     }
 
-    private void cycleDot() {
+    private void cycleDot(int tCycle) {
         if (!this.getLcdPpuEnable()) {
             return;
         }
@@ -234,6 +253,17 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             case MODE_1_VBLANK -> this.onVBlank();
             case MODE_2_OAM_SCAN -> this.onOamScan();
             case MODE_3_DRAWING -> this.onDrawing();
+        }
+
+        if (tCycle == 2) {
+            // TODO: Reincorporate once passing all oam bug tests from blargg's
+            if (this.armOamBugRead) {
+                //this.doOamBugRead();
+            } else if (this.armOamBugWrite) {
+                //this.doOamBugWrite();
+            }
+            this.armOamBugRead = false;
+            this.armOamBugWrite = false;
         }
 
         this.scanlineCycle++;
@@ -426,10 +456,10 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     // During sprite fetching, the PPU fetches the attribute and tile index bytes at once.
     // Store only the X and Y bytes in the sprite buffer alongside the OAM index from which to calculate the attribute and tile index bytes fetch addresses.
     private void tickOamScan() {
-        int spriteY = this.getOamByte(0xFE00 + (this.scannedEntries * 4));
-        int spriteX = this.getOamByte(0xFE00 + (this.scannedEntries * 4) + 1);
-        int tileIndex = this.getOamByte(0xFE00 + (this.scannedEntries * 4) + 2);
-        int spriteAttributes = this.getOamByte(0xFE00 + (this.scannedEntries * 4) + 3);
+        int spriteY = this.getOAMByte(0xFE00 + (this.scannedEntries * 4));
+        int spriteX = this.getOAMByte(0xFE00 + (this.scannedEntries * 4) + 1);
+        int tileIndex = this.getOAMByte(0xFE00 + (this.scannedEntries * 4) + 2);
+        int spriteAttributes = this.getOAMByte(0xFE00 + (this.scannedEntries * 4) + 3);
         for (int i = 0; i < 10; i++) {
             if (this.spriteBuffer[i] == null) {
                 if ((this.scanlineNumber + 16 >= spriteY) && (this.scanlineNumber + 16 < spriteY + (this.getObjectSize() ? 16 : 8))) {
@@ -439,6 +469,49 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             }
         }
         this.scannedEntries++;
+    }
+
+    private void doOamBugRead() {
+        int cur = ((this.scannedEntries / 2) + 1) * 8;
+        if (cur < 8 || cur >= 160 || !Mode.MODE_2_OAM_SCAN.matchesValue(this.currentMode.getValue())) {
+            return;
+        }
+        int prev = cur - 8;
+        int rowGroup = cur & 0x18;
+        if (rowGroup == 0x08 || rowGroup == 0x18) {
+            this.oam[prev] = (byte) ((this.getOAMByteFromIndex(prev) | (this.getOAMByteFromIndex(cur) & this.getOAMByteFromIndex(prev + 4))) & 0xFF);
+            this.oam[prev + 1] = (byte) ((this.getOAMByteFromIndex(prev + 1) | (this.getOAMByteFromIndex(cur + 1) & this.getOAMByteFromIndex(prev + 5))) & 0xFF);
+            for (int i = 0; i <= 7; i++) {
+                this.oam[cur + i] = this.oam[prev + i];
+            }
+        } else if (rowGroup == 0x10 && cur < 0x98) {
+            int prev2 = cur - 16;
+            this.oam[prev] = (byte) (((this.getOAMByteFromIndex(prev) & (this.getOAMByteFromIndex(prev2) | this.getOAMByteFromIndex(cur) | this.getOAMByteFromIndex(prev + 4))) | (this.getOAMByteFromIndex(prev2) & this.getOAMByteFromIndex(cur) & this.getOAMByteFromIndex(prev + 4))) & 0xFF);
+            this.oam[prev + 1] = (byte) (((this.getOAMByteFromIndex(prev + 1) & (this.getOAMByteFromIndex(prev2 + 1) | this.getOAMByteFromIndex(cur + 1) | this.getOAMByteFromIndex(prev + 5))) | (this.getOAMByteFromIndex(prev2 + 1) & this.getOAMByteFromIndex(cur + 1) & this.getOAMByteFromIndex(prev + 5))) & 0xFF);
+            for (int i = 0; i <= 7; i++) {
+                this.oam[prev2 + i] = this.oam[prev + i];
+                this.oam[cur + i] = this.oam[prev + i];
+            }
+        } else if (rowGroup == 0x00 && cur < 0x98) {
+            // TODO: Implement
+        }
+    }
+
+    private void doOamBugWrite() {
+        int cur = ((this.scannedEntries / 2) + 1) * 8;
+        if (cur < 8 || cur >= 160 || !Mode.MODE_2_OAM_SCAN.matchesValue(this.currentMode.getValue())) {
+            return;
+        }
+        int prev = cur - 8;
+        this.oam[cur] = (byte) (bitwiseMajority(this.getOAMByteFromIndex(cur), this.getOAMByteFromIndex(prev), this.getOAMByteFromIndex(prev + 4)) & 0xFF);
+        this.oam[cur + 1] = (byte) (bitwiseMajority(this.getOAMByteFromIndex(cur + 1), this.getOAMByteFromIndex(prev + 1),  this.getOAMByteFromIndex(prev + 5)) & 0xFF);
+        for (int i = 2; i <= 7; i++) {
+            this.oam[cur + i] = this.oam[prev + i];
+        }
+    }
+
+    private static int bitwiseMajority(int x, int y, int z) {
+        return (x & y) | (x & z) | (y & z);
     }
 
     private void onDrawing() {
@@ -513,7 +586,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                     int tileMapIndex = tileX + (tileY * 32);
                     tileMapIndex &= 0x3FF;
                     int address = tileMapBase + tileMapIndex;
-                    this.bgFifoCurrentTileNumber = this.getVRamByte(address);
+                    this.bgFifoCurrentTileNumber = this.getVRAMByte(address);
                 } else {
                     int tileMapBase = this.getBackgroundTileMap() ? 0x9C00 : 0x9800;
                     int tileX = ((this.pixelX + this.scrollX) >> 3) & 0x1F;
@@ -521,7 +594,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                     int tileMapIndex = tileX + (tileY * 32);
                     tileMapIndex &= 0x3FF;
                     int address = tileMapBase + tileMapIndex;
-                    this.bgFifoCurrentTileNumber = this.getVRamByte(address);
+                    this.bgFifoCurrentTileNumber = this.getVRAMByte(address);
                 }
                 this.bgFifoStep = 2;
             }
@@ -551,7 +624,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                     }
 
                     this.bgFifoTileDataEffectiveAddress = effectiveAddress;
-                    this.bgFifoTileDataLow = this.getVRamByte(effectiveAddress);
+                    this.bgFifoTileDataLow = this.getVRAMByte(effectiveAddress);
 
                     this.bgFifoStep = 4;
                 }
@@ -560,7 +633,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 this.bgFifoStep = 5;
             }
             case 5 -> {
-                this.bgFifoTileDataHigh = this.getVRamByte((this.bgFifoTileDataEffectiveAddress + 1) & 0xFFFF);
+                this.bgFifoTileDataHigh = this.getVRAMByte((this.bgFifoTileDataEffectiveAddress + 1) & 0xFFFF);
                 if (this.backgroundFifo.isEmpty()) {
                     this.pushBgPixels();
                     this.bgFifoStep = 0;
@@ -626,14 +699,14 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 int offset = yFlip ? (width - row) * 2 : row * 2;
                 this.spriteFifoTileDataEffectiveAddress = (0x8000 + tileIndex * 16 + offset) & 0xFFFF;
 
-                this.spriteFifoTileDataLow = this.getVRamByte(this.spriteFifoTileDataEffectiveAddress);
+                this.spriteFifoTileDataLow = this.getVRAMByte(this.spriteFifoTileDataEffectiveAddress);
                 this.spriteFifoStep = 4;
             }
             case 4 -> {
                 this.spriteFifoStep = 5;
             }
             case 5 -> {
-                this.spriteFifoTileDataHigh = this.getVRamByte((this.spriteFifoTileDataEffectiveAddress + 1) & 0xFFFF);
+                this.spriteFifoTileDataHigh = this.getVRAMByte((this.spriteFifoTileDataEffectiveAddress + 1) & 0xFFFF);
 
                 int spriteEntry = this.spriteBuffer[this.spriteFifoCurrentEntryIndex];
                 int spriteX = getSpriteXFromSpriteEntry(spriteEntry);
@@ -789,7 +862,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         this.ppuStatus = Processor.clearBit(this.ppuStatus, 0b100);
     }
 
-    public void writeOamDma(int address, int value) {
+    public void writeOAMDMA(int address, int value) {
         if (address >= OAM_START && address <= OAM_END) {
             this.oam[address - OAM_START] = (byte) value;
         } else {
@@ -797,7 +870,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         }
     }
 
-    private int getOamByte(int address) {
+    private int getOAMByte(int address) {
         if (address >= OAM_START && address <= OAM_END) {
             return (int) this.oam[address - OAM_START] & 0xFF;
         } else {
@@ -805,7 +878,15 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         }
     }
 
-    protected int getVRamByte(int address) {
+    private int getOAMByteFromIndex(int index) {
+        if (index >= 0 && index < this.oam.length) {
+            return (int) this.oam[index] & 0xFF;
+        } else {
+            throw new EmulatorException("Invalid GameBoy OAM index %d!".formatted(index));
+        }
+    }
+
+    protected int getVRAMByte(int address) {
         if (address >= VRAM_START && address <= VRAM_END) {
             return (int) this.vram[address - VRAM_START] & 0xFF;
         } else {

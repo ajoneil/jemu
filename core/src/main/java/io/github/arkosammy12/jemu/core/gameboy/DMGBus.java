@@ -202,7 +202,7 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
         if (this.oamTransferInProgress) {
             int sourceAddress = (this.oamDmaControl << 8) | (this.oamTransferredBytes);
             int oamByte = this.readByteOAMDMA(sourceAddress);
-            this.emulator.getVideoGenerator().writeOamDma(0xFE00 | this.oamTransferredBytes, oamByte);
+            this.emulator.getVideoGenerator().writeOAMDMA(0xFE00 | this.oamTransferredBytes, oamByte);
             this.oamTransferredBytes++;
             if (this.oamTransferredBytes > 0x9F) {
                 this.oamTransferInProgress = false;

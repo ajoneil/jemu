@@ -305,6 +305,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
     private void fetch() {
         setIR(this.systemBus.getBus().readByte(getPC()));
         if (!this.haltBug) {
+            systemBus.onIDUWrite(getPC());
             setPC(getPC() + 1);
         }
         this.haltBug = false;
@@ -583,6 +584,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                                         switch (machineCycleIndex) {
                                             case 0 -> {
                                                 systemBus.getBus().writeByte(getHL(), getA());
+                                                systemBus.onIDUWrite(getHL());
                                                 setHL(getHL() + 1);
                                                 machineCycleIndex = 1;
                                             }
@@ -595,6 +597,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                                         switch (machineCycleIndex) {
                                             case 0 -> {
                                                 systemBus.getBus().writeByte(getHL(), getA());
+                                                systemBus.onIDUWrite(getHL());
                                                 setHL(getHL() - 1);
                                                 machineCycleIndex = 1;
                                             }
@@ -635,6 +638,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                                         switch (machineCycleIndex) {
                                             case 0 -> {
                                                 setZ(systemBus.getBus().readByte(getHL()));
+                                                systemBus.onIDURead(getHL());
                                                 setHL(getHL() + 1);
                                                 machineCycleIndex = 1;
                                             }
@@ -648,6 +652,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                                         switch (machineCycleIndex) {
                                             case 0 -> {
                                                 setZ(systemBus.getBus().readByte(getHL()));
+                                                systemBus.onIDURead(getHL());
                                                 setHL(getHL() - 1);
                                                 machineCycleIndex = 1;
                                             }
@@ -666,6 +671,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                             case 0 -> { // INC rp[p]
                                 switch (machineCycleIndex) {
                                     case 0 -> {
+                                        systemBus.onIDUWrite(getRP(p));
                                         setRP(p, getRP(p) + 1);
                                         machineCycleIndex = 1;
                                     }
@@ -677,6 +683,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                             case 1 -> { // DEC rp[p]
                                 switch (machineCycleIndex) {
                                     case 0 -> {
+                                        systemBus.onIDUWrite(getRP(p));
                                         setRP(p, getRP(p) - 1);
                                         machineCycleIndex = 1;
                                     }
@@ -697,6 +704,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                                 case 1 -> {
                                     int result = getZ() + 1;
                                     this.systemBus.getBus().writeByte(getHL(), result);
+                                    systemBus.onIDUWrite(getZ());
                                     setFZ((result & 0xFF) == 0);
                                     setFN(false);
                                     setFH((getZ() & 0xF) + 1 > 0xF);
@@ -2106,6 +2114,10 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
         boolean isButtonHeld();
 
         void onStopInstruction(boolean resetDiv);
+
+        void onIDURead(int originalValue);
+
+        void onIDUWrite(int originalValue);
 
     }
 

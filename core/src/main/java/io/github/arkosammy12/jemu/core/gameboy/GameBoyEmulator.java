@@ -152,6 +152,11 @@ public class GameBoyEmulator implements Emulator, SM83.SystemBus {
     }
 
     @Override
+    public int getIF() {
+        return this.bus.getIF();
+    }
+
+    @Override
     public void setIF(int value) {
         this.bus.setIF(value);
     }
@@ -169,9 +174,13 @@ public class GameBoyEmulator implements Emulator, SM83.SystemBus {
     }
 
     @Override
-    public int getIF() {
-        return this.bus.getIF();
+    public void onIDURead(int originalValue) {
+        this.ppu.checkArmOamBugRead(originalValue);
     }
 
+    @Override
+    public void onIDUWrite(int originalValue) {
+        this.ppu.checkArmOamBugWrite(originalValue);
+    }
 
 }

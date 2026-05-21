@@ -116,6 +116,14 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
         }
     }
 
+    public void checkArmOamBugRead(int address) {
+        // No oam bug on CGB
+    }
+
+    public void checkArmOamBugWrite(int address) {
+        // No oam bug on CGB
+    }
+
     @Override
     protected void onHBlankStart() {
         super.onHBlankStart();
@@ -142,7 +150,7 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
                     tileMapIndex &= 0x3FF;
                     int address = tileMapBase + tileMapIndex;
                     this.bgFifoTileNumberPointer = address;
-                    this.bgFifoCurrentTileNumber = this.getVRamByte(address);
+                    this.bgFifoCurrentTileNumber = this.getVRAMByte(address);
                 } else {
                     int tileMapBase = this.getBackgroundTileMap() ? 0x9C00 : 0x9800;
                     int tileX = ((this.pixelX + this.scrollX) >> 3) & 0x1F;
@@ -151,7 +159,7 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
                     tileMapIndex &= 0x3FF;
                     int address = tileMapBase + tileMapIndex;
                     this.bgFifoTileNumberPointer = address;
-                    this.bgFifoCurrentTileNumber = this.getVRamByte(address);
+                    this.bgFifoCurrentTileNumber = this.getVRAMByte(address);
                 }
                 this.bgFifoStep = 2;
             }
@@ -512,7 +520,7 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
     private int getVRAMByte(int address, VRAMBank bank) {
         if (address >= VRAM_START && address <= VRAM_END) {
             return switch (bank) {
-                case BANK_0 -> super.getVRamByte(address);
+                case BANK_0 -> super.getVRAMByte(address);
                 case BANK_1 -> (int) this.vramBank1[address - VRAM_START] & 0xFF;
             };
         } else {
