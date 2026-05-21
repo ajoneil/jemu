@@ -305,7 +305,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
     private void fetch() {
         setIR(this.systemBus.getBus().readByte(getPC()));
         if (!this.haltBug) {
-            systemBus.onIDUWrite(getPC());
+            systemBus.onIDURead(getPC());
             setPC(getPC() + 1);
         }
         this.haltBug = false;
