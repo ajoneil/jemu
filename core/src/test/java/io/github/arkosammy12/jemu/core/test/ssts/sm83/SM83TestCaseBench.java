@@ -109,4 +109,14 @@ public class SM83TestCaseBench implements SM83.SystemBus {
 
     }
 
+    @Override
+    public void onIDURead(int originalValue) {
+
+    }
+
+    @Override
+    public void onIDUWrite(int originalValue) {
+
+    }
+
 }
