@@ -17,9 +17,9 @@ import static io.github.arkosammy12.jemu.core.nes.RP2C02.PALETTE_RAM_START;
 
 public class CNROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
 
-    private final byte[] programRom;
-    private final byte[] characterRom;
-    private final byte[] characterRam;
+    private final byte[] programRAM;
+    private final byte[] characterROM;
+    private final byte[] characterRAM;
 
     private int bankSelect;
     private final boolean hasBusConflict;
@@ -28,16 +28,16 @@ public class CNROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
         super(emulator, iNESFile);
 
         byte[] programRomData = iNESFile.getProgramRom();
-        this.programRom = Arrays.copyOf(programRomData, programRomData.length);
+        this.programRAM = Arrays.copyOf(programRomData, programRomData.length);
 
         Optional<byte[]> characterRomOptional = iNESFile.getCharacterRom();
         if (characterRomOptional.isEmpty()) {
-            this.characterRom = null;
-            this.characterRam = new byte[iNESFile.getCharacterRamSize()];
+            this.characterROM = null;
+            this.characterRAM = new byte[iNESFile.getCharacterRamSize()];
         } else {
             byte[] characterRomData = characterRomOptional.get();
-            this.characterRom = Arrays.copyOf(characterRomData, characterRomData.length);
-            this.characterRam = null;
+            this.characterROM = Arrays.copyOf(characterRomData, characterRomData.length);
+            this.characterRAM = null;
         }
 
         this.hasBusConflict = switch (iNESFile.getSubmapperNumber()) {
@@ -50,10 +50,10 @@ public class CNROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public int readBytePPU(int address) {
         if (address >= CHR_ROM_START && address <= CHR_ROM_END) {
-            if (this.characterRom == null) {
-                return (int) this.characterRam[address % this.characterRam.length] & 0xFF;
+            if (this.characterROM == null) {
+                return (int) this.characterRAM[address % this.characterRAM.length] & 0xFF;
             } else {
-                return (int) this.characterRom[(((this.bankSelect << 13) | address)) % this.characterRom.length] & 0xFF;
+                return (int) this.characterROM[(((this.bankSelect << 13) | address)) % this.characterROM.length] & 0xFF;
             }
         } else if (address >= CIRAM_START && address <= CIRAM_MIRROR_END) {
             return this.readByteVRAM(this.mapNametableAddress(address));
@@ -67,8 +67,8 @@ public class CNROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public void writeBytePPU(int address, int value) {
         if (address >= CHR_ROM_START && address <= CHR_ROM_END) {
-            if (this.characterRam != null) {
-                this.characterRam[address % this.characterRam.length] = (byte) value;
+            if (this.characterRAM != null) {
+                this.characterRAM[address % this.characterRAM.length] = (byte) value;
             }
         } else if (address >= CIRAM_START && address <= CIRAM_MIRROR_END) {
             this.writeByteVRAM(this.mapNametableAddress(address), value);
@@ -84,7 +84,7 @@ public class CNROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public int readByte(int address) {
         if (address >= 0x8000 && address <= 0xFFFF) {
-            return (int) this.programRom[this.mapPrgRomAddress(address) % this.programRom.length] & 0xFF;
+            return (int) this.programRAM[this.mapPrgRomAddress(address) % this.programRAM.length] & 0xFF;
         } else {
             return -1;
         }
@@ -94,7 +94,7 @@ public class CNROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     public void writeByte(int address, int value) {
         if (address >= 0x8000 && address <= 0xFFFF) {
             if (this.hasBusConflict) {
-                value &= (int) this.programRom[this.mapPrgRomAddress(address) % this.programRom.length] & 0xFF;
+                value &= (int) this.programRAM[this.mapPrgRomAddress(address) % this.programRAM.length] & 0xFF;
             }
             this.bankSelect = value & 3;
         }

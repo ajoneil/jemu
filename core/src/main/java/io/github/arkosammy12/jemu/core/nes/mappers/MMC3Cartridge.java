@@ -18,20 +18,20 @@ import static io.github.arkosammy12.jemu.core.nes.RP2C02.PALETTE_RAM_START;
 
 public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
 
-    private static final int A12 = 1 << 12;
+    protected static final int A12 = 1 << 12;
 
-    private final byte[] programRom;
-    private final byte[] programRam;
-    private final byte[] characterRom;
-    private final byte[] characterRam;
+    private final byte[] programROM;
+    protected final byte[] programRAM;
+    private final byte[] characterROM;
+    private final byte[] characterRAM;
 
     private final Supplier<NametableArrangement> nametableArrangementSupplier;
 
-    private int bankSelect;
+    protected int bankSelect;
     private NametableArrangement nametableArrangement = NametableArrangement.HORIZONTAL;
-    private int prgRamProtect;
-    private int irqCounterReload;
-    private boolean irqEnabled;
+    protected int prgRamProtect;
+    protected int irqCounterReload;
+    protected boolean irqEnabled;
 
     private int R0;
     private int R1;
@@ -42,40 +42,40 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     private int R6;
     private int R7;
 
-    private int irqCounter;
-    private boolean irqReload;
+    protected int irqCounter;
+    protected boolean irqReload;
     private boolean irqSignal;
-    private int previousPPUAddress;
-    private int cyclesDown = 3;
+    protected int previousPPUAddress;
+    protected int cyclesDown = 3;
 
-    private final ActionSignal setIRQSignal;
+    protected final ActionSignal setIRQSignal;
 
     public MMC3Cartridge(E emulator, INESFile iNESFile) {
         // TODO: Use submapper for IRQ behavior and MMC6
         super(emulator, iNESFile);
 
         byte[] programRomData = iNESFile.getProgramRom();
-        this.programRom = Arrays.copyOf(programRomData, programRomData.length);
+        this.programROM = Arrays.copyOf(programRomData, programRomData.length);
 
         int programRamSize = iNESFile.getProgramRamSize();
         if (iNESFile instanceof NES20File nes20File) {
             programRamSize += nes20File.getNonVolatileProgramRamSizeBytes();
         }
 
-        this.programRam = programRamSize > 0 ? new byte[programRamSize] : null;
+        this.programRAM = programRamSize > 0 ? new byte[programRamSize] : null;
 
         Optional<byte[]> characterRomOptional = iNESFile.getCharacterRom();
         if (characterRomOptional.isEmpty()) {
-            this.characterRom = null;
+            this.characterROM = null;
             int characterRamSize = iNESFile.getCharacterRamSize();
             if (iNESFile instanceof NES20File nes20File) {
                 characterRamSize += nes20File.getNonVolatileCharacterRamSizeBytes();
             }
-            this.characterRam = new byte[characterRamSize];
+            this.characterRAM = new byte[characterRamSize];
         } else {
             byte[] characterRomData = characterRomOptional.get();
-            this.characterRom = Arrays.copyOf(characterRomData, characterRomData.length);
-            this.characterRam = null;
+            this.characterROM = Arrays.copyOf(characterRomData, characterRomData.length);
+            this.characterRAM = null;
         }
 
         if (iNESFile.hasAlternativeNametableLayout()) {
@@ -96,10 +96,10 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     public int readBytePPU(int address) {
         this.observePPUAddress(address);
         if (address >= 0x0000 && address <= 0x1FFF) {
-            if (this.characterRom == null) {
-                return (int) this.characterRam[this.mapChrAddress(address) % this.characterRam.length] & 0xFF;
+            if (this.characterROM == null) {
+                return (int) this.characterRAM[this.mapChrAddress(address) % this.characterRAM.length] & 0xFF;
             } else {
-                return (int) this.characterRom[this.mapChrAddress(address) % this.characterRom.length] & 0xFF;
+                return (int) this.characterROM[this.mapChrAddress(address) % this.characterROM.length] & 0xFF;
             }
         } else if (address >= CIRAM_START && address <= CIRAM_MIRROR_END) {
             return this.readByteVRAM(this.mapNametableAddress(address));
@@ -114,8 +114,8 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     public void writeBytePPU(int address, int value) {
         this.observePPUAddress(address);
         if (address >= 0x0000 && address <= 0x1FFF) {
-            if (this.characterRam != null) {
-                this.characterRam[this.mapChrAddress(address) % this.characterRam.length] = (byte) value;
+            if (this.characterRAM != null) {
+                this.characterRAM[this.mapChrAddress(address) % this.characterRAM.length] = (byte) value;
             }
         } else if (address >= CIRAM_START && address <= CIRAM_MIRROR_END) {
             this.writeByteVRAM(this.mapNametableAddress(address), value);
@@ -134,13 +134,13 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public int readByte(int address) {
         if (address >= 0x6000 && address <= 0x7FFF) {
-            if (this.programRam != null && this.isPrgRamEnabled()) {
-                return (int) this.programRam[(address - 0x6000) % this.programRam.length] & 0xFF;
+            if (this.programRAM != null && this.isPrgRamEnabled()) {
+                return (int) this.programRAM[this.mapPrgRamAddress(address) % this.programRAM.length] & 0xFF;
             } else {
                 return -1;
             }
         } else if (address >= 0x8000 && address <= 0xFFFF) {
-            return (int) this.programRom[this.mapPrgRomAddress(address) % this.programRom.length] & 0xFF;
+            return (int) this.programROM[this.mapPrgRomAddress(address) % this.programROM.length] & 0xFF;
         } else {
             return -1;
         }
@@ -149,8 +149,8 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public void writeByte(int address, int value) {
         if (address >= 0x6000 && address <= 0x7FFF) {
-            if (this.programRam != null && this.allowPrgRamWrites() && this.isPrgRamEnabled()) {
-                this.programRam[(address - 0x6000) % this.programRam.length] = (byte) value;
+            if (this.programRAM != null && this.allowPrgRamWrites() && this.isPrgRamEnabled()) {
+                this.programRAM[this.mapPrgRamAddress(address) % this.programRAM.length] = (byte) value;
             }
         } else if (address >= 0x8000 && address <= 0x9FFF) {
             if ((address & 1) == 0) {
@@ -204,11 +204,11 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
         this.setIRQSignal.tick();
     }
 
-    private boolean isPrgRamEnabled() {
+    protected boolean isPrgRamEnabled() {
         return (this.prgRamProtect & (1 << 7)) != 0;
     }
 
-    private boolean allowPrgRamWrites() {
+    protected boolean allowPrgRamWrites() {
         return (this.prgRamProtect & (1 << 6)) == 0;
     }
 
@@ -270,6 +270,12 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
         }
     }
 
+    protected int mapPrgRamAddress(int address) {
+        return address & 0x1FFF;
+    }
+
+
+    // If making changes to this, also change in MMC6 if needed
     @Override
     public void observePPUAddress(int address) {
         if (address != this.previousPPUAddress) {

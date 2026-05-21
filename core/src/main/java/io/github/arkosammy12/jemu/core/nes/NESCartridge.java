@@ -31,7 +31,13 @@ public abstract class NESCartridge<E extends NESEmulator> implements Bus {
             case 1 -> new MMC1Cartridge<>(emulator, iNESFile);
             case 2 -> new UNROMCartridge<>(emulator, iNESFile);
             case 3 -> new CNROMCartridge<>(emulator, iNESFile);
-            case 4 -> new MMC3Cartridge<>(emulator, iNESFile);
+            case 4 -> {
+                if (iNESFile.getSubmapperNumber() == 1) {
+                    yield new MMC6Cartridge<>(emulator, iNESFile);
+                } else {
+                    yield new MMC3Cartridge<>(emulator, iNESFile);
+                }
+            }
             case 7 -> new ANROMCartridge<>(emulator, iNESFile);
             case 9 -> new MMC2Cartridge<>(emulator, iNESFile);
             case 10 -> new MMC4Cartridge<>(emulator, iNESFile);

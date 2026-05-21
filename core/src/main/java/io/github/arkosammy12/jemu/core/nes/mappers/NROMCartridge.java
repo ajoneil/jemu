@@ -13,28 +13,28 @@ import static io.github.arkosammy12.jemu.core.nes.ines.INESFile.KB_8;
 
 public class NROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
 
-    private final byte[] programRom;
-    private final byte[] programRam;
-    private final byte[] characterRom;
-    private final byte[] characterRam;
+    private final byte[] programROM;
+    private final byte[] programRAM;
+    private final byte[] characterROM;
+    private final byte[] characterRAM;
 
     public NROMCartridge(E emulator, INESFile iNESFile) {
         super(emulator, iNESFile);
 
         int programRamSize = Math.clamp((long) iNESFile.getProgramRamSize(), 0, KB_8);
-        this.programRam = programRamSize > 0 ? new byte[programRamSize] : null;
+        this.programRAM = programRamSize > 0 ? new byte[programRamSize] : null;
 
         byte[] programRomData = iNESFile.getProgramRom();
-        this.programRom = Arrays.copyOf(programRomData, programRomData.length);
+        this.programROM = Arrays.copyOf(programRomData, programRomData.length);
 
         Optional<byte[]> characterRomOptional = iNESFile.getCharacterRom();
         if (characterRomOptional.isEmpty()) {
-            this.characterRom = null;
-            this.characterRam = new byte[iNESFile.getCharacterRamSize()];
+            this.characterROM = null;
+            this.characterRAM = new byte[iNESFile.getCharacterRamSize()];
         } else {
             byte[] characterRomData = characterRomOptional.get();
-            this.characterRom = Arrays.copyOf(characterRomData, characterRomData.length);
-            this.characterRam = null;
+            this.characterROM = Arrays.copyOf(characterRomData, characterRomData.length);
+            this.characterRAM = null;
         }
 
     }
@@ -42,10 +42,10 @@ public class NROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public int readBytePPU(int address) {
         if (address >= CHR_ROM_START && address <= CHR_ROM_END) {
-            if (this.characterRom == null) {
-                return (int) this.characterRam[(address - CHR_ROM_START) % this.characterRam.length] & 0xFF;
+            if (this.characterROM == null) {
+                return (int) this.characterRAM[(address & 0x1FFF) % this.characterRAM.length] & 0xFF;
             } else {
-                return (int) this.characterRom[(address - CHR_ROM_START) % this.characterRom.length] & 0xFF;
+                return (int) this.characterROM[(address & 0x1FFF) % this.characterROM.length] & 0xFF;
             }
         } else if (address >= CIRAM_START && address <= CIRAM_MIRROR_END) {
             return this.readByteVRAM(this.mapNametableAddress(address));
@@ -59,8 +59,8 @@ public class NROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public void writeBytePPU(int address, int value) {
         if (address >= CHR_ROM_START && address <= CHR_ROM_END) {
-            if (this.characterRam != null) {
-                this.characterRam[(address - CHR_ROM_START) % this.characterRam.length] = (byte) value;
+            if (this.characterRAM != null) {
+                this.characterRAM[(address & 0x1FFF) % this.characterRAM.length] = (byte) value;
             }
         } else if (address >= CIRAM_START && address <= CIRAM_MIRROR_END) {
             this.writeByteVRAM(this.mapNametableAddress(address), value);
@@ -74,13 +74,13 @@ public class NROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public int readByte(int address) {
         if (address >= 0x6000 && address <= 0x7FFF) {
-            if (this.programRam != null) {
-                return (int) this.programRam[(address - 0x6000) % this.programRam.length] & 0xFF;
+            if (this.programRAM != null) {
+                return (int) this.programRAM[(address & 0x1FFF) % this.programRAM.length] & 0xFF;
             } else {
                 return -1;
             }
         } else if (address >= 0x8000 && address <= 0xFFFF) {
-            return (int) this.programRom[(address - 0x8000) % this.programRom.length] & 0xFF;
+            return (int) this.programROM[(address & 0x7FFF) % this.programROM.length] & 0xFF;
         } else {
             return -1;
         }
@@ -89,8 +89,8 @@ public class NROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public void writeByte(int address, int value) {
         if (address >= 0x6000 && address <= 0x7FFF) {
-            if (this.programRam != null) {
-                this.programRam[(address - 0x6000) % this.programRam.length] = (byte) value;
+            if (this.programRAM != null) {
+                this.programRAM[(address & 0x1FFF) % this.programRAM.length] = (byte) value;
             }
         }
     }
