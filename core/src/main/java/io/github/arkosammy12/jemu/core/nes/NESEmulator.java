@@ -28,7 +28,6 @@ public class NESEmulator implements Emulator, NMOS6502.SystemBus {
     private final int iterationsPerFrame;
     private final Runnable runCycleFunction;
 
-    private final int masterClockFrequency;
     private final int framerate;
 
     private final int cpuSubCycleDivisor;
@@ -47,38 +46,34 @@ public class NESEmulator implements Emulator, NMOS6502.SystemBus {
             tvSystem = TVSystem.NTSC;
         }
         this.tvSystem = tvSystem;
-        int apuSampleBufferSize;
         boolean deriveCyclesFromMasterClock;
         switch (this.tvSystem) {
             case NTSC -> {
-                this.masterClockFrequency = NTSC_MASTER_CLOCK_FREQUENCY_HZ;
                 this.framerate = NTSC_FRAMERATE;
                 // Calculated based on fixed ratio
                 this.iterationsPerFrame = NTSC_MASTER_CLOCK_FREQUENCY_HZ / NTSC_CPU_CLOCK_DIVISOR / NTSC_FRAMERATE;
                 this.cpuSubCycleDivisor = NTSC_CPU_CLOCK_DIVISOR / 2;
                 this.ppuSubCycleDivisor = NTSC_PPU_CLOCK_DIVISOR / 2;
-                apuSampleBufferSize = this.iterationsPerFrame;
                 deriveCyclesFromMasterClock = false;
+
+                this.ricohCore = new RP2A03<>(this, this.iterationsPerFrame);
+                this.ppu = new RP2C02<>(this);
             }
             case PAL -> {
-                this.masterClockFrequency = PAL_MASTER_CLOCK_FREQUENCY_HZ;
                 this.framerate = PAL_FRAMERATE;
                 // Doubling master clock frequency to account of half-cycle stepping
                 this.iterationsPerFrame = (PAL_MASTER_CLOCK_FREQUENCY_HZ * 2) / PAL_FRAMERATE;
                 this.cpuSubCycleDivisor = PAL_CPU_CLOCK_DIVISOR;
                 this.ppuSubCycleDivisor = PAL_PPU_CLOCK_DIVISOR;
-                apuSampleBufferSize = (PAL_MASTER_CLOCK_FREQUENCY_HZ * 2) / PAL_CPU_CLOCK_DIVISOR / PAL_FRAMERATE;
                 deriveCyclesFromMasterClock = true;
 
-                // TODO: PAL support
-                throw new EmulatorException("PAL NES system not supported");
+                this.ricohCore = new RP2A07<>(this, (PAL_MASTER_CLOCK_FREQUENCY_HZ) / PAL_CPU_CLOCK_DIVISOR / PAL_FRAMERATE);
+                this.ppu = new RP2C07<>(this);
             }
             case DENDY -> throw new EmulatorException("Dendy NES system not supported");
             default -> throw new EmulatorException("%S NES system not supported".formatted(this.tvSystem));
         }
 
-        this.ricohCore = new RP2A03<>(this, apuSampleBufferSize);
-        this.ppu = new RP2C02<>(this);
         this.cpuBus = new NESCPUBus<>(this);
 
         if (deriveCyclesFromMasterClock) {
@@ -149,6 +144,10 @@ public class NESEmulator implements Emulator, NMOS6502.SystemBus {
 
     public NESCartridge<?> getCartridge() {
         return this.cartridge;
+    }
+
+    public TVSystem getTVSystem() {
+        return this.tvSystem;
     }
 
     @Override

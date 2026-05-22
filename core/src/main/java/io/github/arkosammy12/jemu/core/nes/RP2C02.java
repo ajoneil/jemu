@@ -11,7 +11,6 @@ import java.util.LinkedList;
 import static io.github.arkosammy12.jemu.core.nes.NESCPUBus.PPU_END;
 import static io.github.arkosammy12.jemu.core.nes.NESCPUBus.PPU_START;
 
-// TODO: PAL implementation
 public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements Bus {
 
     private static final int[] PALETTE_2C02G_WIKI = {
@@ -179,11 +178,6 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private static final int NTSC_VBL_SCANLINE = 241;
     private static final int NTSC_VISIBLE_SCANLINES = 240;
 
-    // TODO: https://forums.nesdev.org/viewtopic.php?p=304638#p304638
-    private static final int PAL_SCANLINES_PER_FRAME = 312;
-    private static final int PAL_VBL_SCANLINE = 241;
-    private static final int PAL_VISIBLE_SCANLINES = 239;
-
     private static final int OAM2_INIT_START = 1;
     private static final int OAM2_INIT_END = 64;
 
@@ -194,11 +188,11 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private static final int SPRITE_FETCH_END = 320;
 
     private final int[][] video;
+    private final int[] palette;
     private final int scanlinesPerFrame;
     private final int visibleScanlines;
     private final int vblScanline;
     private final boolean doOddFrameDotSkipping;
-    private final int dotsPerFrame;
 
     private final int[] primaryOAM = new int[256];
     private final int[] secondaryOAM = new int[32];
@@ -274,12 +268,13 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
     public RP2C02(E emulator) {
         super(emulator);
-        // TODO: PAL support
-        this.scanlinesPerFrame = NTSC_SCANLINES_PER_FRAME;
-        this.visibleScanlines = NTSC_VISIBLE_SCANLINES;
-        this.vblScanline = NTSC_VBL_SCANLINE;
-        this.doOddFrameDotSkipping = true;
-        this.dotsPerFrame = this.scanlinesPerFrame * DOTS_PER_SCANLINE;
+
+        this.scanlinesPerFrame = this.getScanlinesPerFrame();
+        this.visibleScanlines = this.getVisibleScanlines();
+        this.vblScanline = this.getVblScanline();
+        this.doOddFrameDotSkipping = this.doDotSkipping();
+        this.palette = this.getPalette();
+
         this.video = new int[WIDTH][this.visibleScanlines];
 
         for (int i = 0; i < 16; i++) {
@@ -321,6 +316,26 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     @Override
     public int getImageHeight() {
         return this.visibleScanlines;
+    }
+
+    protected int getScanlinesPerFrame() {
+        return NTSC_SCANLINES_PER_FRAME;
+    }
+
+    protected int getVisibleScanlines() {
+        return NTSC_VISIBLE_SCANLINES;
+    }
+
+    protected int getVblScanline() {
+        return NTSC_VBL_SCANLINE;
+    }
+
+    protected boolean doDotSkipping() {
+        return true;
+    }
+
+    protected int[] getPalette() {
+        return PALETTE_2C02G_WIKI;
     }
 
     @Override
@@ -809,9 +824,9 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         }
 
         int videoColorIndex = ((this.getEmphasisBits() << 6) | (paletteByte & 0b111111)) * 3;
-        int red = PALETTE_2C02G_WIKI[videoColorIndex];
-        int green = PALETTE_2C02G_WIKI[videoColorIndex + 1];
-        int blue = PALETTE_2C02G_WIKI[videoColorIndex + 2];
+        int red = this.palette[videoColorIndex];
+        int green = this.palette[videoColorIndex + 1];
+        int blue = this.palette[videoColorIndex + 2];
         int argb = (red << 16) | (green << 8) | blue;
         this.video[this.dotNumber - 1][this.scanlineNumber] = argb;
     }

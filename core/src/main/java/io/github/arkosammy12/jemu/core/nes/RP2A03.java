@@ -5,7 +5,6 @@ import io.github.arkosammy12.jemu.core.cpu.NES6502;
 
 import static io.github.arkosammy12.jemu.core.nes.RP2C02.OAMDATA_ADDR;
 
-// TODO: PAL implementation
 public class RP2A03<E extends NESEmulator> implements Bus {
 
     public static final int SQ1_VOL_ADDR = 0x4000;
@@ -451,4 +450,5 @@ public class RP2A03<E extends NESEmulator> implements Bus {
 		ALIGNMENT,
 		GET
 	}
+
 }

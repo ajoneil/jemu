@@ -11,20 +11,21 @@ import java.util.Optional;
 
 import static io.github.arkosammy12.jemu.core.nes.RP2A03.*;
 
-// TODO: PAL implementation
 public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements Bus {
 
     private static final double OUTPUT_GAIN = 127;
     private static final double CAPACITOR_CONSTANT = 0.999958;
 
+    private final E emulator;
+
     private final byte[] sampleBuffer;
     private int currentSampleIndex;
 
-    private final PulseChannel1 pulseChannel1 = new PulseChannel1();
-    private final PulseChannel2 pulseChannel2 = new PulseChannel2();
-    private final TriangleChannel triangleChannel = new TriangleChannel();
-    private final NoiseChannel noiseChannel = new NoiseChannel();
-    private final DMCChannel dmcChannel = new DMCChannel();
+    private final PulseChannel1 pulseChannel1;
+    private final PulseChannel2 pulseChannel2;
+    private final TriangleChannel triangleChannel;
+    private final NoiseChannel noiseChannel;
+    private final DMCChannel dmcChannel;
 
     private int frameCounterCycleCounter;
 
@@ -32,6 +33,8 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
     private final ActionSignal clockHalfFrameSignal;
     private final ActionSignal clockQuarterFrameSignal;
     private final ActionSignal clearFrameInterruptFlagSignal;
+
+    private final Runnable frameCounterClocker;
 
     private boolean frameInterruptFlag;
     private boolean frameInterruptFlagForIRQSignal;
@@ -42,6 +45,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
     public NESAPU(E emulator, int samplesPerFrame) {
         super(emulator);
+        this.emulator = emulator;
         this.sampleBuffer = new byte[samplesPerFrame];
 
         this.frameCounterControlUpdateSignal = new ActionSignal(newJoy2Value -> {
@@ -60,6 +64,127 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
             this.frameInterruptFlag = false;
             this.frameInterruptFlagForIRQSignal = false;
         });
+
+        this.pulseChannel1 = new PulseChannel1();
+        this.pulseChannel2 = new PulseChannel2();
+        this.triangleChannel = new TriangleChannel();
+        this.noiseChannel = new NoiseChannel();
+        this.dmcChannel = new DMCChannel();
+
+        if (emulator.getTVSystem() == NESEmulator.TVSystem.PAL) {
+            this.frameCounterClocker = () -> {
+                switch (this.frameCounterStepMode) {
+                    case STEP_4 -> {
+                        switch (this.getCurrentApuHalfCycleType()) {
+                            case GET -> {
+                                switch (this.frameCounterCycleCounter) {
+                                    case 16626 -> {
+                                        this.forceSetFrameCounterIRQFlag();
+                                        this.frameInterruptFlagForIRQSignal = !this.frameCounterInterruptInhibitFlag;
+                                    }
+                                    case 16627 -> {
+                                        this.trySetFrameCounterIRQFlag();
+                                        this.frameCounterCycleCounter = 0;
+                                    }
+                                }
+                            }
+                            case PUT -> {
+                                switch (this.frameCounterCycleCounter) {
+                                    case 4156 - 2, 12469 - 2 -> this.signalQuarterFrameClock();
+                                    case 8313 - 1 -> {
+                                        this.signalQuarterFrameClock();
+                                        this.signalHalfFrameClock();
+                                    }
+                                    case 16626 - 1 -> {
+                                        this.signalQuarterFrameClock();
+                                        this.signalHalfFrameClock();
+                                        this.forceSetFrameCounterIRQFlag();
+                                    }
+                                    case 16626 -> this.trySetFrameCounterIRQFlag();
+                                }
+                                this.frameCounterCycleCounter++;
+                            }
+                        }
+                    }
+                    case STEP_5 -> {
+                        switch (this.getCurrentApuHalfCycleType()) {
+                            case GET -> {
+                                if (this.frameCounterCycleCounter == 20783) {
+                                    this.frameCounterCycleCounter = 0;
+                                }
+                            }
+                            case PUT -> {
+                                switch (this.frameCounterCycleCounter) {
+                                    case 4156, 12469 -> this.signalQuarterFrameClock();
+                                    case 8313 - 1, 20782 - 1 -> {
+                                        this.signalQuarterFrameClock();
+                                        this.signalHalfFrameClock();
+                                    }
+                                }
+                                this.frameCounterCycleCounter++;
+                            }
+                        }
+                    }
+                }
+            };
+        } else {
+            this.frameCounterClocker = () -> {
+                switch (this.frameCounterStepMode) {
+                    case STEP_4 -> {
+                        switch (this.getCurrentApuHalfCycleType()) {
+                            case GET -> {
+                                switch (this.frameCounterCycleCounter) {
+                                    case 14914 -> {
+                                        this.forceSetFrameCounterIRQFlag();
+                                        this.frameInterruptFlagForIRQSignal = !this.frameCounterInterruptInhibitFlag;
+                                    }
+                                    case 14915 -> {
+                                        this.trySetFrameCounterIRQFlag();
+                                        this.frameCounterCycleCounter = 0;
+                                    }
+                                }
+                            }
+                            case PUT -> {
+                                switch (this.frameCounterCycleCounter) {
+                                    case 3728 - 2, 11185 - 2 -> this.signalQuarterFrameClock();
+                                    case 7456 - 1 -> {
+                                        this.signalQuarterFrameClock();
+                                        this.signalHalfFrameClock();
+                                    }
+                                    case 14914 - 1 -> {
+                                        this.signalQuarterFrameClock();
+                                        this.signalHalfFrameClock();
+                                        this.forceSetFrameCounterIRQFlag();
+                                    }
+                                    case 14914 -> this.trySetFrameCounterIRQFlag();
+                                }
+                                this.frameCounterCycleCounter++;
+                            }
+                        }
+                    }
+                    case STEP_5 -> {
+                        switch (this.getCurrentApuHalfCycleType()) {
+                            case GET -> {
+                                if (this.frameCounterCycleCounter == 18641) {
+                                    this.frameCounterCycleCounter = 0;
+                                }
+                            }
+                            case PUT -> {
+                                switch (this.frameCounterCycleCounter) {
+                                    case 3728, 11185 -> this.signalQuarterFrameClock();
+                                    case 7456 - 1, 18640 - 1 -> {
+                                        this.signalQuarterFrameClock();
+                                        this.signalHalfFrameClock();
+                                    }
+                                }
+                                this.frameCounterCycleCounter++;
+                            }
+                        }
+                    }
+                }
+            };
+        }
+
     }
 
     @Override
@@ -83,7 +208,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         int samplesPerFrame = audioDriver.getSamplesPerFrame();
 
         byte[] out = new byte[samplesPerFrame];
-        double step = (double) this.sampleBuffer.length / samplesPerFrame;
+        double step = (double) this.sampleBuffer.length / (double) samplesPerFrame;
         double pos = 0.0;
 
         for (int i = 0; i < samplesPerFrame; i++) {
@@ -195,7 +320,13 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         this.frameCounterControlUpdateSignal.tick();
         this.clearFrameInterruptFlagSignal.tick();
 
-        this.clockFrameCounter();
+        this.frameCounterClocker.run();
+
+        this.pulseChannel1.onAPUHalfCycle();
+        this.pulseChannel2.onAPUHalfCycle();
+        this.triangleChannel.onAPUHalfCycle();
+        this.noiseChannel.onAPUHalfCycle();
+        this.dmcChannel.onAPUHalfCycle();
 
         this.triangleChannel.clockTimer();
         // Clock the noise and dmc channels' timers in both APU halves to line up with the CPU cycles period amount
@@ -234,63 +365,6 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         double out = in - this.capacitor;
         this.capacitor = in - out * CAPACITOR_CONSTANT;
         return out;
-    }
-
-    private void clockFrameCounter() {
-        // TODO: PAL implementation with different apu cycle totals for signals
-        switch (this.frameCounterStepMode) {
-            case STEP_4 -> {
-                switch (this.getCurrentApuHalfCycleType()) {
-                    case GET -> {
-                        switch (this.frameCounterCycleCounter) {
-                            case 14914 -> {
-                                this.forceSetFrameCounterIRQFlag();
-                                this.frameInterruptFlagForIRQSignal = !this.frameCounterInterruptInhibitFlag;
-                            }
-                            case 14915 -> {
-                                this.trySetFrameCounterIRQFlag();
-                                this.frameCounterCycleCounter = 0;
-                            }
-                        }
-                    }
-                    case PUT -> {
-                        switch (this.frameCounterCycleCounter) {
-                            case 3728 - 2, 11185 - 2 -> this.signalQuarterFrameClock();
-                            case 7456 - 1 -> {
-                                this.signalQuarterFrameClock();
-                                this.signalHalfFrameClock();
-                            }
-                            case 14914 - 1 -> {
-                                this.signalQuarterFrameClock();
-                                this.signalHalfFrameClock();
-                                this.forceSetFrameCounterIRQFlag();
-                            }
-                            case 14914 -> this.trySetFrameCounterIRQFlag();
-                        }
-                        this.frameCounterCycleCounter++;
-                    }
-                }
-            }
-            case STEP_5 -> {
-                switch (this.getCurrentApuHalfCycleType()) {
-                    case GET -> {
-                        if (this.frameCounterCycleCounter == 18641) {
-                            this.frameCounterCycleCounter = 0;
-                        }
-                    }
-                    case PUT -> {
-                        switch (this.frameCounterCycleCounter) {
-                            case 3728, 11185 -> this.signalQuarterFrameClock();
-                            case 7456 - 1, 18640 - 1 -> {
-                                this.signalQuarterFrameClock();
-                                this.signalHalfFrameClock();
-                            }
-                        }
-                        this.frameCounterCycleCounter++;
-                    }
-                }
-            }
-        }
     }
 
     private void signalHalfFrameClock() {
@@ -355,6 +429,10 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
             return this.enabled;
         }
 
+        protected void onAPUHalfCycle() {
+
+        }
+
     }
 
     private abstract static class WaveformChannel extends AudioChannel {
@@ -369,9 +447,15 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         protected int hi;
 
         private int lengthCounter;
+        private boolean lengthCounterReloadPending;
+        private int lengthCounterReloadValue;
+        private boolean haltFlagPending;
+
+        // TODO: Delay on the halt flag. Writes to $4000 and equivalent for pulse1, pulse2, triangle and noise have a delay when changing the halt flag
 
         protected void setVolume(int value) {
             this.volume = value & 0xFF;
+            this.haltFlagPending = true;
         }
 
         protected void setLO(int value) {
@@ -381,7 +465,8 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         protected void setHI(int value) {
             this.hi = value & 0xFF;
             if (this.isEnabled()) {
-                this.lengthCounter = LENGTH_COUNTER_LUT[this.getLengthCounterLoad()];
+                this.lengthCounterReloadPending = true;
+                this.lengthCounterReloadValue = LENGTH_COUNTER_LUT[this.getLengthCounterLoad()];
             }
         }
 
@@ -402,13 +487,35 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         }
 
         protected void clockLength() {
+            boolean didClock = false;
             if (this.lengthCounter > 0 && !this.haltLengthCounter()) {
                 this.lengthCounter--;
+                didClock = true;
+            }
+
+            if (this.haltFlagPending) {
+                this.haltFlagPending = false;
+            }
+
+            if (this.lengthCounterReloadPending) {
+                this.lengthCounterReloadPending = false;
+                if (!didClock || this.lengthCounter == 0) {
+                    this.lengthCounter = this.lengthCounterReloadValue;
+                }
             }
         }
 
         protected int getLengthCounter() {
             return this.lengthCounter;
+        }
+
+        @Override
+        protected void onAPUHalfCycle() {
+            if (this.lengthCounterReloadPending) {
+                this.lengthCounterReloadPending = false;
+                this.lengthCounter = this.lengthCounterReloadValue;
+            }
+            this.haltFlagPending = false;
         }
 
     }
@@ -634,12 +741,16 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
     }
 
-    private static class NoiseChannel extends WaveformChannel {
+    private class NoiseChannel extends WaveformChannel {
 
-        // TODO: PAL support
         private static final int[] NTSC_TIMER_PERIOD_LUT = {
                 // Values are in CPU cycles!
                 4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068
+        };
+
+        private static final int[] PAL_TIMER_PERIOD_LUT = {
+                // Values are in CPU cycles!
+                4, 8, 14, 30, 60, 88, 118, 148, 188, 236, 354, 472, 708,  944, 1890, 3778
         };
 
         private final int[] cpuCyclesPeriodLut;
@@ -655,7 +766,11 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         protected NoiseChannel() {
             // Value on power-up
             this.lfsr = 1;
-            this.cpuCyclesPeriodLut = NTSC_TIMER_PERIOD_LUT;
+            if (emulator.getTVSystem() == NESEmulator.TVSystem.PAL) {
+                this.cpuCyclesPeriodLut = PAL_TIMER_PERIOD_LUT;
+            } else {
+                this.cpuCyclesPeriodLut = NTSC_TIMER_PERIOD_LUT;
+            }
         }
 
         private boolean getConstantVolumeFlag() {
@@ -723,10 +838,14 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
     private class DMCChannel extends AudioChannel {
 
-        // TODO: Add PAL support
         private static final int[] NTSC_RATE_PERIOD_LUT = {
-            // Values are in CPU cycles!
-            428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106,  84,  72,  54
+                // Values are in CPU cycles!
+                428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106,  84,  72,  54
+        };
+
+        private static final int[] PAL_RATE_PERIOD_LUT = {
+                // Values are in CPU cycles!
+                398, 354, 316, 298, 276, 236, 210, 198, 176, 148, 132, 118,  98,  78,  66,  50
         };
 
         private final int[] ratePeriodLut;
@@ -753,7 +872,11 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 		private int pendingImplicitDmaAddress;
 
         protected DMCChannel() {
-            this.ratePeriodLut = NTSC_RATE_PERIOD_LUT;
+            if (emulator.getTVSystem() == NESEmulator.TVSystem.PAL) {
+                this.ratePeriodLut = PAL_RATE_PERIOD_LUT;
+            } else {
+                this.ratePeriodLut = NTSC_RATE_PERIOD_LUT;
+            }
         }
 
         @Override
