@@ -15,7 +15,7 @@ import static io.github.arkosammy12.jemu.core.nes.RP2C02.CIRAM_START;
 import static io.github.arkosammy12.jemu.core.nes.RP2C02.PALETTE_RAM_MIRROR_END;
 import static io.github.arkosammy12.jemu.core.nes.RP2C02.PALETTE_RAM_START;
 
-public class UNROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
+public class UxROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
 
     private final byte[] programROM;
     private final byte[] characterROM;
@@ -25,7 +25,7 @@ public class UNROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
 
     private final boolean hasBusConflicts;
 
-    public UNROMCartridge(E emulator, INESFile iNESFile) {
+    public UxROMCartridge(E emulator, INESFile iNESFile) {
         super(emulator, iNESFile);
 
         byte[] programRomData = iNESFile.getProgramRom();
