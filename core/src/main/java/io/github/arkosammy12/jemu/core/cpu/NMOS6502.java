@@ -45,6 +45,7 @@ public class NMOS6502 implements Processor {
     private ReadWriteCycle readWriteCycle = ReadWriteCycle.READ;
     protected boolean cpuHalted;
     private int lastAddress;
+    private boolean sync;
 
     private boolean oldNMI;
     private boolean nmiEdgeLatch;
@@ -52,6 +53,7 @@ public class NMOS6502 implements Processor {
     protected BRKSource brkSource = null;
     private int brkVector = IRQ_BRK_VECTOR;
     private boolean pushB;
+    private boolean syncOnThisPHI1;
 
     public NMOS6502(SystemBus systemBus) {
         this.systemBus = systemBus;
@@ -69,11 +71,15 @@ public class NMOS6502 implements Processor {
         return this.lastAddress;
     }
 
-    private void setBrkVector(int vector) {
+    public boolean getSYNC() {
+        return this.sync;
+    }
+
+    private void setBRKVector(int vector) {
         this.brkVector = vector & 0xFFFF;
     }
 
-    private int getBrkVector() {
+    private int getBRKVector() {
         return this.brkVector;
     }
 
@@ -320,15 +326,6 @@ public class NMOS6502 implements Processor {
         return this.shxSkipHigh;
     }
 
-    // TODO: Output SYNC pin
-    // >The SYNC is an active-HIGH output signal that goes HIGH during
-    // >phase-1 cycles in which an op-code fetch operation is taking place. The
-    // >purpose of SYNC, therefore, is to identify op-code fetch cycles.
-    // The plan is to set it to true by placing explicilt calls in every instruction handler
-    // in each PHI1 of the fetch cycle.
-    // Then we clear it on the PHI1 following the PHI2 of the fetch cycle, unless we are halted
-    // due to RDY.
-
     @Override
     public int cycle() {
 
@@ -343,6 +340,7 @@ public class NMOS6502 implements Processor {
 
         if (this.firstSubCycle) {
             this.firstSubCycle = false;
+            onFetchCyclePHI1();
             this.onSubCycleEnd(originalSubCycleIndex, originalInstructionRegister, originalDisablePCWrites, originalBrkSource, originalBrkVector, originalPushB);
             return 0;
         }
@@ -393,23 +391,37 @@ public class NMOS6502 implements Processor {
     }
 
     private void onSubCycleEnd(int originalSubCycleIndex, int originalInstructionRegister, boolean originalDisablePCWrites, BRKSource originalBrkSource, int originalBrkVector, boolean originalPushB) {
-        if (this.phase == Phase.PHI_2) {
-            boolean currentNMI = systemBus.getNMI();
-            if (!this.oldNMI && currentNMI) {
-                this.nmiEdgeLatch = true;
+        switch (this.phase) {
+            case PHI_1 -> {
+                if (this.syncOnThisPHI1) {
+                    this.syncOnThisPHI1 = false;
+                    this.sync = true;
+                } else if (!this.cpuHalted) {
+                    this.sync = false;
+                }
             }
-            this.oldNMI = currentNMI;
-            this.cpuHalted = systemBus.getRDY() && this.readWriteCycle == ReadWriteCycle.READ;
-            if (this.cpuHalted) {
-                setIR(originalInstructionRegister);
-                this.subCycleIndex = originalSubCycleIndex;
-                this.disablePCWrites = originalDisablePCWrites;
-                this.brkSource = originalBrkSource;
-                setBrkVector(originalBrkVector);
-                this.pushB = originalPushB;
+            case PHI_2 -> {
+                boolean currentNMI = systemBus.getNMI();
+                if (!this.oldNMI && currentNMI) {
+                    this.nmiEdgeLatch = true;
+                }
+                this.oldNMI = currentNMI;
+                this.cpuHalted = systemBus.getRDY() && this.readWriteCycle == ReadWriteCycle.READ;
+                if (this.cpuHalted) {
+                    setIR(originalInstructionRegister);
+                    this.subCycleIndex = originalSubCycleIndex;
+                    this.disablePCWrites = originalDisablePCWrites;
+                    this.brkSource = originalBrkSource;
+                    setBRKVector(originalBrkVector);
+                    this.pushB = originalPushB;
+                }
             }
         }
         this.phase = this.phase.getOpposite();
+    }
+
+    private void onFetchCyclePHI1() {
+        this.syncOnThisPHI1 = true;
     }
 
     protected void pollInterrupts() {
@@ -497,7 +509,7 @@ public class NMOS6502 implements Processor {
                             this.pushB = false;
                         }
 
-                        setBrkVector(brkVector);
+                        setBRKVector(brkVector);
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -517,7 +529,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 9;
                     }
                     case 9 -> {
-                        setAddressLow(readByte(getBrkVector()));
+                        setAddressLow(readByte(getBRKVector()));
                         subCycleIndex = 10;
                     }
                     case 10 -> {
@@ -527,13 +539,15 @@ public class NMOS6502 implements Processor {
                     }
                     case 11 -> {
                         this.disablePCWrites = false;
-                        setAddressHigh(readByte((getBrkVector() + 1) & 0xFFFF));
+                        setAddressHigh(readByte((getBRKVector() + 1) & 0xFFFF));
                         // Does not poll interrupts
                         subCycleIndex = 12;
                     }
                     case 12 -> {
                         setPC(getAddress());
                         brkSource = null;
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -587,6 +601,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -659,6 +675,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 14;
                     }
                     case 14 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 15;
                     }
                     case 15 -> {
@@ -693,6 +710,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -738,6 +757,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -785,6 +805,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -812,6 +833,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 4 -> {
                         setS(getS() - 1);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -836,6 +859,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -860,6 +885,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -898,6 +925,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 6;
                     }
                     case 6 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -937,6 +965,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -990,6 +1020,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -1045,6 +1076,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -1113,6 +1145,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -1187,6 +1221,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 14;
                     }
                     case 14 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 15;
                     }
                     case 15 -> {
@@ -1229,6 +1264,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -1282,6 +1319,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -1337,6 +1375,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -1357,6 +1396,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 2 -> {
                         setFC(false);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -1411,6 +1452,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -1479,6 +1522,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -1536,6 +1580,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -1599,6 +1645,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -1664,6 +1711,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -1719,6 +1767,8 @@ public class NMOS6502 implements Processor {
                     case 10 -> {
                         setPC(getAddress());
                         setS(getS() - 2);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -1772,6 +1822,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -1845,6 +1897,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 14;
                     }
                     case 14 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 15;
                     }
                     case 15 -> {
@@ -1875,6 +1928,8 @@ public class NMOS6502 implements Processor {
                         setFV((getOperand() & (1 << 6)) != 0);
                         setFN((getOperand() & (1 << 7)) != 0);
                         setFZ((getOperand() & getA()) == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -1906,6 +1961,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -1952,6 +2009,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -2000,6 +2058,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -2037,6 +2096,8 @@ public class NMOS6502 implements Processor {
                         setP(getOperand());
                         setFB(false);
                         setFM(true);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -2061,6 +2122,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -2086,6 +2149,8 @@ public class NMOS6502 implements Processor {
                         setFC(originalHighBit);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -2127,6 +2192,8 @@ public class NMOS6502 implements Processor {
                         setFV((getOperand() & (1 << 6)) != 0);
                         setFN((getOperand() & (1 << 7)) != 0);
                         setFZ((getOperand() & getA()) == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -2166,6 +2233,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -2220,6 +2289,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -2276,6 +2346,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -2344,6 +2415,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -2419,6 +2492,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 14;
                     }
                     case 14 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 15;
                     }
                     case 15 -> {
@@ -2461,6 +2535,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -2515,6 +2591,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -2571,6 +2648,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -2591,6 +2669,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 2 ->  {
                         setFC(true);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -2645,6 +2725,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -2714,6 +2796,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -2771,6 +2854,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -2835,6 +2920,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -2901,6 +2987,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -2961,6 +3048,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 10 -> {
                         setPC(getAddress());
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -3014,6 +3103,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -3086,6 +3177,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 14;
                     }
                     case 14 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 15;
                     }
                     case 15 -> {
@@ -3120,6 +3212,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -3165,6 +3259,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -3212,6 +3307,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -3239,6 +3335,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 4 -> {
                         setS(getS() - 1);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -3263,6 +3361,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -3287,6 +3387,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN(false);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -3313,6 +3415,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -3341,6 +3445,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 4 -> {
                         setPC(getAddress());
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -3380,6 +3486,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -3433,6 +3541,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -3488,6 +3597,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -3556,6 +3666,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -3630,6 +3742,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 14;
                     }
                     case 14 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 15;
                     }
                     case 15 -> {
@@ -3672,6 +3785,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -3725,6 +3840,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -3780,6 +3896,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -3800,6 +3917,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 2 ->  {
                         setFI(false);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -3854,6 +3973,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -3922,6 +4043,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -3979,6 +4101,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -4042,6 +4166,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -4107,6 +4232,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -4163,6 +4289,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 10 -> {
                         setPC(getPC() + 1);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -4213,6 +4341,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 10 -> {
                         adc();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -4283,6 +4413,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 14;
                     }
                     case 14 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 15;
                     }
                     case 15 -> {
@@ -4314,6 +4445,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 4 -> {
                         adc();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -4360,6 +4493,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -4405,6 +4539,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -4442,6 +4577,8 @@ public class NMOS6502 implements Processor {
                         setA(getOperand());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 ->  {
@@ -4463,6 +4600,8 @@ public class NMOS6502 implements Processor {
                     case 2 -> {
                         setPC(getPC() + 1);
                         adc();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -4488,6 +4627,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -4515,6 +4656,8 @@ public class NMOS6502 implements Processor {
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
                         setFV(((getFC() ? 1 : 0) ^ ((getA() >>> 5) & 1)) != 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -4558,6 +4701,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 8 -> {
                         setPC(getAddress());
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -4594,6 +4739,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 6 -> {
                         adc();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -4648,6 +4795,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -4701,6 +4849,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -4766,6 +4915,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 10 -> {
                         adc();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -4838,6 +4989,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 14;
                     }
                     case 14 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 15;
                     }
                     case 15 -> {
@@ -4877,6 +5029,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 6 -> {
                         adc();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -4931,6 +5085,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -4984,6 +5139,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -5004,6 +5160,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 2 -> {
                         setFI(true);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -5055,6 +5213,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 8 -> {
                         adc();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -5121,6 +5281,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -5175,6 +5336,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 8 -> {
                         adc();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -5239,6 +5402,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -5302,6 +5466,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -5359,6 +5524,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -5408,6 +5574,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -5435,6 +5602,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 4;
                     }
                     case 4 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -5462,6 +5630,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 4;
                     }
                     case 4 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -5489,6 +5658,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 4;
                     }
                     case 4 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -5516,6 +5686,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 4;
                     }
                     case 4 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -5538,6 +5709,8 @@ public class NMOS6502 implements Processor {
                         setY(getY() - 1);
                         setFN((getY() & 0x80) != 0);
                         setFZ(getY() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -5560,6 +5733,8 @@ public class NMOS6502 implements Processor {
                         setA(getX());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -5586,6 +5761,8 @@ public class NMOS6502 implements Processor {
                         setA(result);
                         setFN((result & 0x80) != 0);
                         setFZ(result == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -5621,6 +5798,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 6;
                     }
                     case 6 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -5656,6 +5834,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 6;
                     }
                     case 6 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -5691,6 +5870,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 6;
                     }
                     case 6 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -5726,6 +5906,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 6;
                     }
                     case 6 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -5785,6 +5966,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -5862,6 +6044,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 11;
                     }
                     case 11 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 12;
                     }
                     case 12 -> {
@@ -5897,6 +6080,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 6;
                     }
                     case 6 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -5932,6 +6116,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 6;
                     }
                     case 6 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -5967,6 +6152,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 6;
                     }
                     case 6 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -6002,6 +6188,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 6;
                     }
                     case 6 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -6024,6 +6211,8 @@ public class NMOS6502 implements Processor {
                         setA(getY());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -6070,6 +6259,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -6090,6 +6280,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 2 -> {
                         setS(getX());
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -6153,6 +6345,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -6215,6 +6408,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -6262,6 +6456,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -6324,6 +6519,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -6384,6 +6580,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -6412,6 +6609,8 @@ public class NMOS6502 implements Processor {
                         setY(getOperand());
                         setFN((getY() & 0x80) != 0);
                         setFZ(getY() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -6464,6 +6663,8 @@ public class NMOS6502 implements Processor {
                         setA(getOperand());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -6487,6 +6688,8 @@ public class NMOS6502 implements Processor {
                         setX(getOperand());
                         setFN((getX() & 0x80) != 0);
                         setFZ(getX() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -6540,6 +6743,8 @@ public class NMOS6502 implements Processor {
                         setX(getOperand());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -6570,6 +6775,8 @@ public class NMOS6502 implements Processor {
                         setY(getOperand());
                         setFN((getY() & 0x80) != 0);
                         setFZ(getY() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -6600,6 +6807,8 @@ public class NMOS6502 implements Processor {
                         setA(getOperand());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -6630,6 +6839,8 @@ public class NMOS6502 implements Processor {
                         setX(getOperand());
                         setFN((getX() & 0x80) != 0);
                         setFZ(getX() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -6661,6 +6872,8 @@ public class NMOS6502 implements Processor {
                         setX(getOperand());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -6683,6 +6896,8 @@ public class NMOS6502 implements Processor {
                         setY(getA());
                         setFN((getY() & 0x80) != 0);
                         setFZ(getY() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -6706,6 +6921,8 @@ public class NMOS6502 implements Processor {
                         setA(getOperand());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -6728,6 +6945,8 @@ public class NMOS6502 implements Processor {
                         setX(getA());
                         setFN((getX() & 0x80) != 0);
                         setFZ(getX() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -6753,6 +6972,8 @@ public class NMOS6502 implements Processor {
                         setX(value);
                         setFN((value & 0x80) != 0);
                         setFZ(value == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -6791,6 +7012,8 @@ public class NMOS6502 implements Processor {
                         setY(getOperand());
                         setFN((getY() & 0x80) != 0);
                         setFZ(getY() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -6829,6 +7052,8 @@ public class NMOS6502 implements Processor {
                         setA(getOperand());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -6867,6 +7092,8 @@ public class NMOS6502 implements Processor {
                         setX(getOperand());
                         setFN((getX() & 0x80) != 0);
                         setFZ(getX() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -6906,6 +7133,8 @@ public class NMOS6502 implements Processor {
                         setX(getOperand());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -6975,6 +7204,8 @@ public class NMOS6502 implements Processor {
                         setA(getOperand());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -7040,6 +7271,8 @@ public class NMOS6502 implements Processor {
                         setX(getOperand());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -7078,6 +7311,8 @@ public class NMOS6502 implements Processor {
                         setY(getOperand());
                         setFN((getY() & 0x80) != 0);
                         setFZ(getY() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -7116,6 +7351,8 @@ public class NMOS6502 implements Processor {
                         setA(getOperand());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -7157,6 +7394,8 @@ public class NMOS6502 implements Processor {
                         setX(getOperand());
                         setFN((getX() & 0x80) != 0);
                         setFZ(getX() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -7199,6 +7438,8 @@ public class NMOS6502 implements Processor {
                         setX(getOperand());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -7219,6 +7460,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 2 -> {
                         setFV(false);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -7274,6 +7517,8 @@ public class NMOS6502 implements Processor {
                         setA(getOperand());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -7296,6 +7541,8 @@ public class NMOS6502 implements Processor {
                         setX(getS());
                         setFN((getX() & 0x80) != 0);
                         setFZ(getX() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -7354,6 +7601,8 @@ public class NMOS6502 implements Processor {
                         setS(value);
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -7409,6 +7658,8 @@ public class NMOS6502 implements Processor {
                         setY(getOperand());
                         setFN((getY() & 0x80) != 0);
                         setFZ(getY() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -7464,6 +7715,8 @@ public class NMOS6502 implements Processor {
                         setA(getOperand());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -7519,6 +7772,8 @@ public class NMOS6502 implements Processor {
                         setX(getOperand());
                         setFN((getX() & 0x80) != 0);
                         setFZ(getX() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -7575,6 +7830,8 @@ public class NMOS6502 implements Processor {
                         setX(getOperand());
                         setFN((getA() & 0x80) != 0);
                         setFZ(getA() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -7603,6 +7860,8 @@ public class NMOS6502 implements Processor {
                         setFC(getY() >= getOperand());
                         setFN(((getY() - getOperand()) & 0x80) != 0);
                         setFZ(getY() == getOperand());
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -7655,6 +7914,8 @@ public class NMOS6502 implements Processor {
                         setFC(getA() >= getOperand());
                         setFN(((getA() - getOperand()) & 0x80) != 0);
                         setFZ(getA() == getOperand());
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -7725,6 +7986,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 14;
                     }
                     case 14 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 15;
                     }
                     case 15 -> {
@@ -7755,6 +8017,8 @@ public class NMOS6502 implements Processor {
                         setFC(getY() >= getOperand());
                         setFN(((getY() - getOperand()) & 0x80) != 0);
                         setFZ(getY() == getOperand());
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -7785,6 +8049,8 @@ public class NMOS6502 implements Processor {
                         setFC(getA() >= getOperand());
                         setFN(((getA() - getOperand()) & 0x80) != 0);
                         setFZ(getA() == getOperand());
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -7829,6 +8095,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -7874,6 +8141,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -7896,6 +8164,8 @@ public class NMOS6502 implements Processor {
                         setY(getY() + 1);
                         setFN((getY() & 0x80) != 0);
                         setFZ(getY() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -7919,6 +8189,8 @@ public class NMOS6502 implements Processor {
                         setFC(getA() >= getOperand());
                         setFN(((getA() - getOperand()) & 0x80) != 0);
                         setFZ(getA() == getOperand());
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -7941,6 +8213,8 @@ public class NMOS6502 implements Processor {
                         setX(getX() - 1);
                         setFN((getX() & 0x80) != 0);
                         setFZ(getX() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -7966,6 +8240,8 @@ public class NMOS6502 implements Processor {
                         setX(anx - getOperand());
                         setFN((getX() & 0x80) != 0);
                         setFZ(getX() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -8004,6 +8280,8 @@ public class NMOS6502 implements Processor {
                         setFC(getY() >= getOperand());
                         setFN(((getY() - getOperand()) & 0x80) != 0);
                         setFZ(getY() == getOperand());
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -8042,6 +8320,8 @@ public class NMOS6502 implements Processor {
                         setFC(getA() >= getOperand());
                         setFN(((getA() - getOperand()) & 0x80) != 0);
                         setFZ(getA() == getOperand());
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -8094,6 +8374,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -8147,6 +8428,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -8216,6 +8498,8 @@ public class NMOS6502 implements Processor {
                         setFC(getA() >= getOperand());
                         setFN(((getA() - getOperand()) & 0x80) != 0);
                         setFZ(getA() == getOperand());
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -8290,6 +8574,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 14;
                     }
                     case 14 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 15;
                     }
                     case 15 -> {
@@ -8331,6 +8616,8 @@ public class NMOS6502 implements Processor {
                         setFC(getA() >= getOperand());
                         setFN(((getA() - getOperand()) & 0x80) != 0);
                         setFZ(getA() == getOperand());
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -8383,6 +8670,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -8436,6 +8724,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -8456,6 +8745,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 2 -> {
                         setFD(false);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -8511,6 +8802,8 @@ public class NMOS6502 implements Processor {
                         setFC(getA() >= getOperand());
                         setFN(((getA() - getOperand()) & 0x80) != 0);
                         setFZ(getA() == getOperand());
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -8579,6 +8872,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -8637,6 +8931,8 @@ public class NMOS6502 implements Processor {
                         setFC(getA() >= getOperand());
                         setFN(((getA() - getOperand()) & 0x80) != 0);
                         setFZ(getA() == getOperand());
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -8701,6 +8997,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -8766,6 +9063,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -8792,6 +9090,8 @@ public class NMOS6502 implements Processor {
                     case 2 -> {
                         setPC(getPC() + 1);
                         cpx();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -8842,6 +9142,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 10 -> {
                         sbc();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -8909,6 +9211,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 14;
                     }
                     case 14 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 15;
                     }
                     case 15 -> {
@@ -8937,6 +9240,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 4 -> {
                         cpx();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -8965,6 +9270,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 4 -> {
                         sbc();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 5;
                     }
                     case 5 -> {
@@ -9007,6 +9314,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -9049,6 +9357,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 8;
                     }
                     case 8 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -9071,6 +9380,8 @@ public class NMOS6502 implements Processor {
                         setX(getX() + 1);
                         setFN((getX() & 0x80) != 0);
                         setFZ(getX() == 0);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -9113,6 +9424,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 6 -> {
                         cpx();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -9149,6 +9462,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 6 -> {
                         sbc();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -9199,6 +9514,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -9249,6 +9565,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -9316,6 +9633,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 10 -> {
                         sbc();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -9387,6 +9706,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 14;
                     }
                     case 14 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 15;
                     }
                     case 15 -> {
@@ -9426,6 +9746,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 6 -> {
                         sbc();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 7;
                     }
                     case 7 -> {
@@ -9476,6 +9798,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -9526,6 +9849,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 10;
                     }
                     case 10 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 11;
                     }
                     case 11 -> {
@@ -9546,6 +9870,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 2 -> {
                         setFD(true);
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 3;
                     }
                     case 3 -> {
@@ -9599,6 +9925,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 8 -> {
                         sbc();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -9664,6 +9992,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -9720,6 +10049,8 @@ public class NMOS6502 implements Processor {
                     }
                     case 8 -> {
                         sbc();
+
+                        onFetchCyclePHI1();
                         subCycleIndex = 9;
                     }
                     case 9 -> {
@@ -9782,6 +10113,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -9844,6 +10176,7 @@ public class NMOS6502 implements Processor {
                         subCycleIndex = 12;
                     }
                     case 12 -> {
+                        onFetchCyclePHI1();
                         subCycleIndex = 13;
                     }
                     case 13 -> {
@@ -9865,7 +10198,7 @@ public class NMOS6502 implements Processor {
                 pollInterrupts();
                 if (condition) {
                     int base = (getPC() + 1) & 0xFFFF;
-                    setAddress((base + (byte) getOperand()) & 0xFFFF);
+                    setAddress((base + getOperand()) & 0xFFFF);
                     setBoundaryCrossed(getAddressHigh() != ((base >>> 8) & 0xFF));
                 }
 
@@ -9876,6 +10209,7 @@ public class NMOS6502 implements Processor {
                 if (condition) {
                     subCycleIndex = 3;
                 } else {
+                    onFetchCyclePHI1();
                     subCycleIndex = 7;
                 }
             }
@@ -9886,6 +10220,7 @@ public class NMOS6502 implements Processor {
             case 4 -> {
                 setPCL(getAddressLow());
                 if (!getBoundaryCrossed()) {
+                    onFetchCyclePHI1();
                     subCycleIndex = 7;
                 } else {
                     subCycleIndex = 5;
@@ -9898,6 +10233,7 @@ public class NMOS6502 implements Processor {
             }
             case 6 -> {
                 setPCH(getAddressHigh());
+                onFetchCyclePHI1();
                 subCycleIndex = 7;
             }
             case 7 -> {
@@ -10028,6 +10364,7 @@ public class NMOS6502 implements Processor {
                 subCycleIndex = 4;
             }
             case 4 -> {
+                onFetchCyclePHI1();
                 subCycleIndex = 5;
             }
             case 5 -> {
@@ -10054,6 +10391,8 @@ public class NMOS6502 implements Processor {
                 setFC((result & 0x80) != 0);
                 setFN((result & 0x80) != 0);
                 setFZ(result == 0);
+
+                onFetchCyclePHI1();
                 subCycleIndex = 3;
             }
             case 3 -> {
@@ -10090,6 +10429,7 @@ public class NMOS6502 implements Processor {
                 subCycleIndex = 6;
             }
             case 6 -> {
+                onFetchCyclePHI1();
                 subCycleIndex = 7;
             }
             case 7 -> {
@@ -10110,6 +10450,7 @@ public class NMOS6502 implements Processor {
                 subCycleIndex = 2;
             }
             case 2 -> {
+                onFetchCyclePHI1();
                 subCycleIndex = 3;
             }
             case 3 -> {
@@ -10161,6 +10502,7 @@ public class NMOS6502 implements Processor {
                 subCycleIndex = 8;
             }
             case 8 -> {
+                onFetchCyclePHI1();
                 subCycleIndex = 9;
             }
             case 9 -> {
@@ -10182,6 +10524,8 @@ public class NMOS6502 implements Processor {
             }
             case 2 -> {
                 setPC(getPC() + 1);
+
+                onFetchCyclePHI1();
                 subCycleIndex = 3;
             }
             case 3 -> {
@@ -10204,6 +10548,8 @@ public class NMOS6502 implements Processor {
             case 2 -> {
                 setPC(getPC() + 1);
                 sbc();
+
+                onFetchCyclePHI1();
                 subCycleIndex = 3;
             }
             case 3 -> {
