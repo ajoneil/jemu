@@ -5,8 +5,6 @@ import io.github.arkosammy12.jemu.core.common.Processor;
 
 public class SM83<S extends SM83.SystemBus> implements Processor {
 
-    public static final int INSTRUCTION_FINISHED_FLAG = 1;
-
     public static final int JOYP_BIT = 4;
     public static final int SERIAL_BIT = 3;
     public static final int TIMER_BIT = 2;
@@ -40,6 +38,11 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
     private int programCounter; // PC, 16 bits
     private int stackPointer; // SP, 16 bits
     private int instructionRegister; // IR, 8 bits
+    private int x;
+    private int y;
+    private int z;
+    private int p;
+    private int q;
 
     private boolean interruptMasterEnable;
     private boolean enableInterrupts;
@@ -91,6 +94,11 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
 
     protected void setIR(int value) {
         this.instructionRegister = value & 0xFF;
+        this.x = getX(this.instructionRegister);
+        this.y = getY(this.instructionRegister);
+        this.z = getZ(this.instructionRegister);
+        this.p = getP(this.instructionRegister);
+        this.q = getQ(this.instructionRegister);
     }
 
     public int getIR() {
@@ -261,15 +269,12 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
 
     // TODO: Make T-cycle stepped
     public int cycle() {
-        int flags = 0;
-
         if (getEI()) {
             setEI(false);
             setIME(true);
         }
 
         if (this.machineCycleIndex >= 0) {
-            boolean servicedInterrupt = this.servicingInterrupt;
             if (this.servicingInterrupt) {
                 this.serviceInterrupt();
             } else if (this.opcodeIsPrefixed) {
@@ -279,19 +284,22 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
             }
             if (this.machineCycleIndex < 0) {
                 this.opcodeIsPrefixed = false;
-                if (!servicedInterrupt) {
-                    flags |= INSTRUCTION_FINISHED_FLAG;
-                }
             }
         }
-        return flags;
+
+        return 0;
     }
 
     public void nextState() {
         if (this.machineCycleIndex < 0) {
-            this.fetch();
+            setIR(this.systemBus.getBus().readByte(getPC()));
+            if (!this.haltBug) {
+                systemBus.onIDURead(getPC());
+                setPC(getPC() + 1);
+            }
+            this.haltBug = false;
 
-            if (!this.opcodeIsPrefixed && checkInterrupts()) {
+            if (!this.opcodeIsPrefixed && getIME() && interruptsPending()) {
                 this.servicingInterrupt = true;
                 machineCycleIndex = 0;
             } else if (getIR() == PREFIX && !this.opcodeIsPrefixed) {
@@ -300,15 +308,6 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                 machineCycleIndex = 0;
             }
         }
-    }
-
-    private void fetch() {
-        setIR(this.systemBus.getBus().readByte(getPC()));
-        if (!this.haltBug) {
-            systemBus.onIDURead(getPC());
-            setPC(getPC() + 1);
-        }
-        this.haltBug = false;
     }
 
     private void serviceInterrupt() {
@@ -345,29 +344,13 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
         }
     }
 
-    private boolean checkInterrupts() {
-        return getIME() && interruptsPending();
-    }
-
     protected boolean interruptsPending() {
         return (systemBus.getIE() & systemBus.getIF() & 0x1F) != 0;
     }
 
     private static int getInterruptMask(int IF, int IE) {
         int intersection = IF & IE & 0x1F;
-        if ((intersection & VBLANK_MASK) != 0) {
-            return VBLANK_MASK;
-        } else if ((intersection & LCD_MASK) != 0) {
-            return LCD_MASK;
-        } else if ((intersection & TIMER_MASK) != 0) {
-            return TIMER_MASK;
-        } else if ((intersection & SERIAL_MASK) != 0) {
-            return SERIAL_MASK;
-        } else if ((intersection & JOYP_MASK) != 0) {
-            return JOYP_MASK;
-        } else {
-           return 0;
-        }
+        return intersection & -intersection;
     }
 
     private static int getInterruptVector(int servicingInterruptMask) {
@@ -382,12 +365,6 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
     }
 
     protected void execute() {
-        int x = getX(getIR());
-        int y = getY(getIR());
-        int z = getZ(getIR());
-        int p = getP(getIR());
-        int q = getQ(getIR());
-
         switch (x) {
             case 0 -> {
                 switch (z) {
@@ -471,7 +448,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                                         machineCycleIndex = 1;
                                     }
                                     case 1 -> {
-                                        int e = (byte) getZ();
+                                        int e = (int) (byte) getZ();
                                         setWZ(getPC() + e);
                                         machineCycleIndex = 2;
                                     }
@@ -496,7 +473,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                                         machineCycleIndex = TERMINATE_INSTRUCTION;
                                     }
                                     case 2 -> { // cc == true
-                                        int e = (byte) getZ();
+                                        int e = (int) (byte) getZ();
                                         setWZ(getPC() + e);
                                         machineCycleIndex = 3;
                                     }
@@ -1620,9 +1597,6 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
     }
 
     private void executePrefixed() {
-        int x = getX(getIR());
-        int y = getY(getIR());
-        int z = getZ(getIR());
         switch (x) {
             case 0 -> {
                 switch (y) { // rot[y] r[z]
