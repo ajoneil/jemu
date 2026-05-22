@@ -7,5 +7,6 @@ public class RP2A07<E extends NESEmulator> extends RP2A03<E> {
     }
 
     // TODO: Proper DMA halt behavior with the SYNC pin. https://forums.nesdev.org/viewtopic.php?t=25939
+    // TODO: Different controller clocking behavior.
 
 }
