@@ -7,7 +7,7 @@ public interface Version {
     //String REMOTE_ORIGIN_URL = "${git.remote.origin.url}";
     //String VERSION = "${git.build.version}";
 
-    String COMMIT_ID = "${git.commit.id.full}";
+    String COMMIT_ID = "${git.commit.id}";
     //String COMMIT_ID_ABBREV = "${git.commit.id.abbrev}";
     //String DESCRIBE = "${git.commit.id.describe}";
     //String DESCRIBE_SHORT = "${git.commit.id.describe-short}";
