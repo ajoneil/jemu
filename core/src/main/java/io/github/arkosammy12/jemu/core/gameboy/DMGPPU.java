@@ -859,7 +859,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     }
 
     private void clearLyEqualsLycFlag() {
-        this.ppuStatus = Processor.clearBit(this.ppuStatus, 0b100);
+        this.ppuStatus &= ~0b100;
     }
 
     public void writeOAMDMA(int address, int value) {

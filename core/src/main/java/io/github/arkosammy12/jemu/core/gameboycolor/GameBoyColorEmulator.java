@@ -152,9 +152,7 @@ public class GameBoyColorEmulator extends GameBoyEmulator implements CGBSM83.Sys
     public void onStopInstructionWithSpeedSwitch(boolean resetDiv) {
         this.onStopInstruction(resetDiv);
         if (this.isSwitchSpeedArmed()) {
-            this.key1 ^= 0x80;
-            this.key1 &= ~1;
-            this.key1 &= 0xFF;
+            this.key1 = (this.key1 ^ 0x80) & 0xFE;
         }
     }
 

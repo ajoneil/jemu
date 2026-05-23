@@ -10,7 +10,7 @@
     </parent>
 
     <properties>
-        <maven.build.timestamp.format>yyyy-MM-dd, HH:mm:ss</maven.build.timestamp.format>
+        <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ss</maven.build.timestamp.format>
     </properties>
 
     <artifactId>app</artifactId>

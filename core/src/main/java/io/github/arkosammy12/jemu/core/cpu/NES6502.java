@@ -14,13 +14,12 @@ public class NES6502 extends NMOS6502 {
     }
 
     @Override
-    protected void addOrSubCarry(boolean subtract) {
+    protected void addOrSubCarry(int operand) {
         int a = getA();
-        int m = subtract ? getOperand() ^ 0xFF : getOperand();
         int c = getFC() ? 1 : 0;
 
-        int binarySum = a + m + c;
-        setFV(((~(a ^ m)) & (a ^ binarySum) & 0x80) != 0);
+        int binarySum = a + operand + c;
+        setFV(((~(a ^ operand)) & (a ^ binarySum) & 0x80) != 0);
 
         int result = binarySum;
         setFC(binarySum > 0xFF);

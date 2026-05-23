@@ -122,9 +122,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
     }
 
     protected void setAF(int value) {
-        this.AF = value & 0xFFFF;
-        // Make sure the lower 4 bits are always 0
-        this.AF &= ~0b00001111;
+        this.AF = value & 0xFFF0;
     }
 
     public int getAF() {
@@ -164,35 +162,35 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
     }
 
     protected void setFZ(boolean value) {
-        setAF(value ? Processor.setBit(getAF(), Z_MASK) : Processor.clearBit(getAF(), Z_MASK));
+        setAF(value ? getAF() | Z_MASK : getAF() & ~Z_MASK);
     }
 
     public boolean getFZ() {
-        return Processor.testBit(getAF(), Z_MASK);
+        return (getAF() & Z_MASK) != 0;
     }
 
     protected void setFN(boolean value) {
-        setAF(value ? Processor.setBit(getAF(), N_MASK) : Processor.clearBit(getAF(), N_MASK));
+        setAF(value ? getAF() | N_MASK : getAF() & ~N_MASK);
     }
 
     public boolean getFN() {
-        return Processor.testBit(getAF(), N_MASK);
+        return (getAF() & N_MASK) != 0;
     }
 
     protected void setFH(boolean value) {
-        setAF(value ? Processor.setBit(getAF(), H_MASK) : Processor.clearBit(getAF(), H_MASK));
+        setAF(value ? getAF() | H_MASK : getAF() & ~H_MASK);
     }
 
     public boolean getFH() {
-        return Processor.testBit(getAF(), H_MASK);
+        return (getAF() & H_MASK) != 0;
     }
 
     protected void setFC(boolean value) {
-        setAF(value ? Processor.setBit(getAF(), C_MASK) : Processor.clearBit(getAF(), C_MASK));
+        setAF(value ? getAF() | C_MASK : getAF() & ~C_MASK);
     }
 
     public boolean getFC() {
-        return Processor.testBit(getAF(), C_MASK);
+        return (getAF() & C_MASK) != 0;
     }
 
     protected void setB(int value) {
@@ -267,7 +265,6 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
         return this.WZ & 0xFF;
     }
 
-    // TODO: Make T-cycle stepped
     public int cycle() {
         if (getEI()) {
             setEI(false);
@@ -336,7 +333,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                 int IF = getW();
                 int IE = getZ();
                 int interruptMask = getInterruptMask(IF, IE);
-                systemBus.setIF(Processor.clearBit(IF, interruptMask));
+                systemBus.setIF(systemBus.getIF() & ~interruptMask);
                 setPC(getInterruptVector(interruptMask));
                 this.servicingInterrupt = false;
                 machineCycleIndex = TERMINATE_INSTRUCTION;
@@ -1093,7 +1090,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                                         setFC(result > 0xFF);
 
                                         // Temporarily store the sign extension on the W register
-                                        setW(Processor.getBit(7, Z) != 0 ? 0xFF : 0x00);
+                                        setW((Z & 0x80) != 0 ? 0xFF : 0x00);
 
                                         machineCycleIndex = 2;
                                     }
@@ -1143,7 +1140,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                                         machineCycleIndex = 2;
                                     }
                                     case 2 -> {
-                                        int adj = Processor.getBit(7, getZ()) != 0 ? 0xFF : 0x00;
+                                        int adj = (getZ() & 0x80) != 0 ? 0xFF : 0x00;
                                         int result = ((getSP() & 0xFF00) >>> 8) + adj + (getFC() ? 1 : 0);
                                         setH(result);
                                         machineCycleIndex = TERMINATE_INSTRUCTION;
@@ -1803,7 +1800,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                             machineCycleIndex = 1;
                         }
                         case 1 -> {
-                            systemBus.getBus().writeByte(getHL(), Processor.clearBit(getZ(), 1 << y));
+                            systemBus.getBus().writeByte(getHL(), getZ() & (~(1 << 7)));
                             machineCycleIndex = 2;
                         }
                         case 2 -> {
@@ -1811,7 +1808,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                         }
                     }
                 } else { // RES y, r[z]
-                    setR(z, Processor.clearBit(getR(z), 1 << y));
+                    setR(z, getR(z) & (~(1 << y)));
                     machineCycleIndex = TERMINATE_INSTRUCTION;
                 }
             }
@@ -2052,7 +2049,7 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
     }
 
     private void bit(int index, int operand) {
-        setFZ(Processor.getBit(index, operand) == 0);
+        setFZ((operand & (1 << index)) == 0);
         setFN(false);
         setFH(true);
     }
