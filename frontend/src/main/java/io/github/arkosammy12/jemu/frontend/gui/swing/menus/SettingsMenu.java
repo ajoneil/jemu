@@ -48,10 +48,6 @@ public class SettingsMenu extends MenuBarMenu {
         this.muteButton.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_M, InputEvent.CTRL_DOWN_MASK, true));
         this.muteButton.setSelected(this.muted);
 
-        JRadioButtonMenuItem showInfoBarButton = new JRadioButtonMenuItem("Show status bar");
-        showInfoBarButton.setSelected(true);
-        showInfoBarButton.addChangeListener(_ -> mainWindow.setStatusBarEnabled(showInfoBarButton.isSelected()));
-
         JRadioButtonMenuItem resetOnFileSelect = new JRadioButtonMenuItem("Reset on file select");
         resetOnFileSelect.setSelected(true);
         resetOnFileSelect.addChangeListener(_ -> this.resetOnFileSelect = resetOnFileSelect.isSelected());
@@ -59,12 +55,10 @@ public class SettingsMenu extends MenuBarMenu {
         this.getJMenu().add(volumeMenu);
         this.getJMenu().add(muteButton);
         this.getJMenu().addSeparator();
-        this.getJMenu().add(showInfoBarButton);
         this.getJMenu().add(resetOnFileSelect);
 
         mainWindow.registerSettingProperty(new SerializedEntry("settings.volume", () -> String.valueOf(this.volumeSlider.getValue()), s -> tryParseInt(s).ifPresent(this.volumeSlider::setValue)));
         mainWindow.registerSettingProperty(new SerializedEntry("settings.muted", () -> String.valueOf(this.muteButton.isSelected()), s -> this.muteButton.setSelected(Boolean.parseBoolean(s))));
-        mainWindow.registerSettingProperty(new SerializedEntry("settings.show_status_bar", () -> String.valueOf(showInfoBarButton.isSelected()), s -> showInfoBarButton.setSelected(Boolean.parseBoolean(s))));
         mainWindow.registerSettingProperty(new SerializedEntry("settings.reset_on_file_select", () -> String.valueOf(resetOnFileSelect.isSelected()), s -> resetOnFileSelect.setSelected(Boolean.parseBoolean(s))));
 
     }

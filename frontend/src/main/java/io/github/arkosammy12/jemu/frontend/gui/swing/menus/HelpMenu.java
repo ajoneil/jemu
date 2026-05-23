@@ -73,9 +73,6 @@ public class HelpMenu extends MenuBarMenu {
         sourceItem.setMnemonic(KeyEvent.VK_S);
         sourceItem.addActionListener(_ -> {
             try {
-                if (this.projectSourceLink == null) {
-                    throw new IllegalStateException("No project source link specified!");
-                }
                 Desktop.getDesktop().browse(new URI(this.projectSourceLink));
             } catch (Exception ex) {
                 mainWindow.showDialog("Unable to open source link", ex.getMessage(), MainWindow.DialogType.ERROR);
@@ -86,9 +83,6 @@ public class HelpMenu extends MenuBarMenu {
         reportItem.setMnemonic(KeyEvent.VK_R);
         reportItem.addActionListener(_ -> {
             try {
-                if (this.projectBugReportLink == null) {
-                    throw new IllegalStateException("No project bug report link specified!");
-                }
                 Desktop.getDesktop().browse(new URI(this.projectBugReportLink));
             } catch (Exception ex) {
                 mainWindow.showDialog("Unable to open bug report link", ex.getMessage(), MainWindow.DialogType.ERROR);
@@ -102,6 +96,10 @@ public class HelpMenu extends MenuBarMenu {
 
     public void setProjectName(@NotNull String projectName) {
         this.projectName = projectName;
+    }
+
+    public @NotNull String getProjectName() {
+        return this.projectName;
     }
 
     public void setAuthorString(@NotNull String authorString) {

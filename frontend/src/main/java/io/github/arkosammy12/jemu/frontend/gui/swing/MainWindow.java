@@ -49,7 +49,7 @@ public class MainWindow implements Closeable {
     private SystemViewport systemViewport;
 
     @Nullable
-    private StatusBar statusBar;
+    private TitleManager titleManager;
 
     private final CC infoBarConstraints = new CC().grow().pushX().dockSouth().height("18!");
 
@@ -130,11 +130,10 @@ public class MainWindow implements Closeable {
 
             this.systemViewport = new SystemViewport();
             this.menuBar = new MainMenuBar(this, this.appFrame);
-            this.statusBar = new StatusBar(this);
+            this.titleManager = new TitleManager(this, this.appFrame);
 
             this.appFrame.setJMenuBar(this.menuBar.getJMenuBar());
             this.appFrame.add(this.systemViewport.getJPanel(), new CC().grow().push().wrap());
-            this.appFrame.add(this.statusBar.getJPanel(), this.infoBarConstraints);
 
             Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 
@@ -221,8 +220,8 @@ public class MainWindow implements Closeable {
         return Objects.requireNonNull(this.menuBar);
     }
 
-    public StatusBar getStatusBar() {
-        return Objects.requireNonNull(this.statusBar);
+    public TitleManager getTitleManager() {
+        return Objects.requireNonNull(this.titleManager);
     }
 
     public void show() {
@@ -237,15 +236,6 @@ public class MainWindow implements Closeable {
                 runnable.run();
             }
 
-        });
-    }
-
-    public void setStatusBarEnabled(boolean enabled) {
-        SwingUtilities.invokeLater(() -> {
-            this.getStatusBar().getJPanel().setVisible(enabled);
-            this.infoBarConstraints.setHideMode(enabled ? 0 : 3);
-            this.getJFrame().revalidate();
-            this.getJFrame().repaint();
         });
     }
 

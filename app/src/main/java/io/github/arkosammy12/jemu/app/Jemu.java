@@ -57,7 +57,7 @@ public final class Jemu {
                 Logger.error("Uncaught exception in thread {}: {}", thread.getName(), throwable, throwable.getStackTrace());
             });
 
-            this.mainWindow = new MainWindow("jemu " + MavenProperties.VERSION, APP_DIR, Arrays.stream(System.values()).toList());
+            this.mainWindow = new MainWindow(MavenProperties.ARTIFACT_ID, APP_DIR, Arrays.stream(System.values()).toList());
             this.mainWindow.setClosingHook(() -> {
                 this.running = false;
                 try {
@@ -219,7 +219,7 @@ public final class Jemu {
         }
         this.getCurrentAudioRenderer().ifPresent(renderer -> renderer.setPaused(false));
         this.currentSystem.getEmulator().executeFrame();
-        this.mainWindow.getStatusBar().update(this.currentSystem.getRomTitle().orElse(""), this.currentSystem.getSystemName());
+        this.mainWindow.getTitleManager().update(this.currentSystem.getRomTitle().orElse("No title"));
     }
 
     private void onSteppingFrame() {
