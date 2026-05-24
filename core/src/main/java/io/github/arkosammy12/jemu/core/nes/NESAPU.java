@@ -227,7 +227,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         for (int i = 0; i < samplesPerFrame; i++) {
             int index = Math.min((int) Math.round(pos), this.sampleBuffer.length - 1);
             short sample = this.sampleBuffer[index];
-            out[i * 2]     = (byte) (((int) sample >>> 8) & 0xFF);
+            out[i * 2] = (byte) (((int) sample >>> 8) & 0xFF);
             out[i * 2 + 1] = (byte) ((int) sample & 0xFF);
             pos += step;
         }

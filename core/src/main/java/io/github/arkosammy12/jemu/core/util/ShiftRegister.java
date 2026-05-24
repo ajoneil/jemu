@@ -36,5 +36,4 @@ public final class ShiftRegister {
         return this.elements[(this.head + index) % this.elements.length];
     }
 
-
 }
