@@ -47,11 +47,11 @@ public class DMGAPU<E extends GameBoyEmulator> extends AudioGenerator<E> impleme
     private static final int UNUSED_BITS_NR52 = 0b01110000;
 
     private static final float MAX_VOLUME = 15.0f;
-    private static final float SAMPLE_SCALE = 127.0f;
+    private static final float SAMPLE_SCALE = 32767.0f;
     private static final double CAPACITOR_CONSTANT = 0.999958;
 
-    private final byte[] leftChannelSamples = new byte[GameBoyEmulator.T_CYCLES_PER_FRAME];
-    private final byte[] rightChannelSamples = new byte[GameBoyEmulator.T_CYCLES_PER_FRAME];
+    private final short[] leftChannelSamples = new short[GameBoyEmulator.T_CYCLES_PER_FRAME];
+    private final short[] rightChannelSamples = new short[GameBoyEmulator.T_CYCLES_PER_FRAME];
     private int currentSampleIndex = 0;
 
     private int frameSequencerStep;
@@ -193,7 +193,7 @@ public class DMGAPU<E extends GameBoyEmulator> extends AudioGenerator<E> impleme
 
     @Override
     public AudioGenerator.@NotNull SampleSize getBytesPerSample() {
-        return SampleSize.BYTES_1;
+        return SampleSize.BYTES_2;
     }
 
     @Override
@@ -206,7 +206,7 @@ public class DMGAPU<E extends GameBoyEmulator> extends AudioGenerator<E> impleme
         AudioDriver audioDriver = optionalAudioDriver.get();
         int samplesPerFrame = audioDriver.getSamplesPerFrame();
 
-        byte[] out = new byte[samplesPerFrame * 2];
+        byte[] out = new byte[samplesPerFrame * 4];
         double step = (double) GameBoyEmulator.T_CYCLES_PER_FRAME / (double) samplesPerFrame;
         double pos = 0.0;
 
@@ -214,8 +214,13 @@ public class DMGAPU<E extends GameBoyEmulator> extends AudioGenerator<E> impleme
             int index = Math.toIntExact(Math.round(pos));
             int nextIndex = Math.min(index + 1, GameBoyEmulator.T_CYCLES_PER_FRAME - 1);
 
-            out[i * 2] = this.leftChannelSamples[nextIndex];
-            out[(i * 2) + 1] = this.rightChannelSamples[nextIndex];
+            short left = this.leftChannelSamples[nextIndex];
+            short right = this.rightChannelSamples[nextIndex];
+
+            out[i * 4]     = (byte) (((int) left >> 8) & 0xFF);
+            out[(i * 4) + 1] = (byte) ((int) left & 0xFF);
+            out[(i * 4) + 2] = (byte) (((int) right >> 8) & 0xFF);
+            out[(i * 4) + 3] = (byte) ((int) right & 0xFF);
 
             pos += step;
         }
@@ -282,8 +287,8 @@ public class DMGAPU<E extends GameBoyEmulator> extends AudioGenerator<E> impleme
 
             boolean dacEnable = this.channel1.getDacEnable() || this.channel2.getDacEnable() || this.channel3.getDacEnable() || this.channel4.getDacEnable();
 
-            this.leftChannelSamples[this.currentSampleIndex] = (byte) (this.highPassFilterLeft(left, dacEnable) * SAMPLE_SCALE);
-            this.rightChannelSamples[this.currentSampleIndex] = (byte) (this.highPassFilterRight(right, dacEnable) * SAMPLE_SCALE);
+            this.leftChannelSamples[this.currentSampleIndex] = (short) Math.clamp((long)(this.highPassFilterLeft(left, dacEnable) * SAMPLE_SCALE), -32768, 32767);
+            this.rightChannelSamples[this.currentSampleIndex] = (short) Math.clamp((long)(this.highPassFilterRight(right, dacEnable) * SAMPLE_SCALE), -32768, 32767);
             this.currentSampleIndex = (this.currentSampleIndex + 1) % GameBoyEmulator.T_CYCLES_PER_FRAME;
         }
     }

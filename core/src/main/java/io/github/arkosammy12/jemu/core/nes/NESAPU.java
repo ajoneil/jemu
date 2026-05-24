@@ -14,7 +14,7 @@ import static io.github.arkosammy12.jemu.core.nes.RP2A03.*;
 
 public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements Bus {
 
-    private static final double OUTPUT_GAIN = 127;
+    private static final double OUTPUT_GAIN = 32767;
     private static final double CAPACITOR_CONSTANT = 0.999958;
 
     private static final double[] PULSE_TABLE = new double[31];
@@ -31,7 +31,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
     private final E emulator;
 
-    private final byte[] sampleBuffer;
+    private final short[] sampleBuffer;
     private int currentSampleIndex;
 
     private final PulseChannel1 pulseChannel1;
@@ -60,7 +60,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
     public NESAPU(E emulator, int samplesPerFrame) {
         super(emulator);
         this.emulator = emulator;
-        this.sampleBuffer = new byte[samplesPerFrame];
+        this.sampleBuffer = new short[samplesPerFrame];
 
         this.frameCounterControlUpdateSignalId = this.signalDispatcher.addSignal(newJoy2Value -> {
             this.frameCounterStepMode = (newJoy2Value & (1 << 7)) != 0 ? FrameCounterStepMode.STEP_5 : FrameCounterStepMode.STEP_4;
@@ -207,7 +207,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
     @Override
     public @NotNull SampleSize getBytesPerSample() {
-        return SampleSize.BYTES_1;
+        return SampleSize.BYTES_2;
     }
 
     @Override
@@ -220,14 +220,15 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         AudioDriver audioDriver = optionalAudioDriver.get();
         int samplesPerFrame = audioDriver.getSamplesPerFrame();
 
-        byte[] out = new byte[samplesPerFrame];
+        byte[] out = new byte[samplesPerFrame * 2];
         double step = (double) this.sampleBuffer.length / (double) samplesPerFrame;
         double pos = 0.0;
 
         for (int i = 0; i < samplesPerFrame; i++) {
-            int index = Math.toIntExact(Math.round(pos));
-            int nextIndex = Math.min(index + 1, this.sampleBuffer.length - 1);
-            out[i] = this.sampleBuffer[nextIndex];
+            int index = Math.min((int) Math.round(pos), this.sampleBuffer.length - 1);
+            short sample = this.sampleBuffer[index];
+            out[i * 2]     = (byte) (((int) sample >>> 8) & 0xFF);
+            out[i * 2 + 1] = (byte) ((int) sample & 0xFF);
             pos += step;
         }
 
@@ -353,7 +354,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         int dmc = this.dmcChannel.getDigitalOutput();
 
         double output = PULSE_TABLE[pulse1 + pulse2] + TND_TABLE[3 * triangle + 2 * noise + dmc];
-        this.sampleBuffer[this.currentSampleIndex] = (byte) Math.clamp((long)(this.highPassFilter(output) * OUTPUT_GAIN), -128, 127);
+        this.sampleBuffer[this.currentSampleIndex] = (short) Math.clamp((long)(this.highPassFilter(output) * OUTPUT_GAIN), -32768, 32767);
         this.currentSampleIndex = (this.currentSampleIndex + 1) % this.sampleBuffer.length;
     }
 

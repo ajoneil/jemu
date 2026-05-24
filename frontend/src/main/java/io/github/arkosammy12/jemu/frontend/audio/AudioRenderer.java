@@ -69,7 +69,7 @@ public abstract class AudioRenderer implements Closeable {
     }
 
     public void setVolume(int volume) {
-        this.volumeControl.setValue(20.0f * (float) Math.log10(Math.clamp(volume, 0, 100) / 100.0));
+        this.volumeControl.setValue(20.0f * (float) Math.log10((double) Math.clamp((long) volume, 0, 100) / 100.0));
     }
 
     abstract protected AudioFormat getAudioFormat();
@@ -78,12 +78,9 @@ public abstract class AudioRenderer implements Closeable {
 
     public void pushSampleFrame(byte @Nullable [] samples) {
         if (!this.started) {
-            //byte[] prefill = new byte[this.bytesPerFrame];
             this.audioLine.flush();
-            //this.audioLine.write(prefill, 0, prefill.length);
             this.audioLine.start();
             this.started = true;
-            //return;
         }
 
         if (this.paused) {

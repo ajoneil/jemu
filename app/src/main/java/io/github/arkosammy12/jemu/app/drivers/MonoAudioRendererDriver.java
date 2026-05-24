@@ -30,8 +30,7 @@ public class MonoAudioRendererDriver extends DefaultAudioRendererDriver {
             this.audioRenderer.pushSampleFrame(null);
             return;
         }
-        byte[] samples = optionalSamples.get();
-        this.audioRenderer.pushSampleFrame(this.resampleIfNecessary(samples));
+        this.audioRenderer.pushSampleFrame(this.resampleIfNecessary(optionalSamples.get()));
     }
 
     private byte[] resampleIfNecessary(byte[] buf) {
@@ -39,7 +38,7 @@ public class MonoAudioRendererDriver extends DefaultAudioRendererDriver {
             case BYTES_1 -> {
                 byte[] buf16 = new byte[this.audioRenderer.getBytesPerFrame()];
                 for (int i = 0; i < buf.length; i++) {
-                    int sample16 = buf[i] * 256;
+                    int sample16 = ((int) buf[i] & 0xFF) * 256;
                     buf16[i * 2] = (byte) ((sample16 & 0xFF00) >>> 8);
                     buf16[(i * 2) + 1] = (byte) (sample16 & 0xFF);
                 }
