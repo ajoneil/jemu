@@ -118,7 +118,11 @@ public final class Jemu {
                     case VolumeChangedEvent(int newVolume) -> this.getCurrentAudioRenderer().ifPresent(audioRenderer -> audioRenderer.setVolume(newVolume));
                     case null, default -> {}
                 }
-            } catch (InterruptedException _) {}
+            } catch (InterruptedException _) {
+
+            } catch (Exception e) {
+                Logger.error("Unexpected error in event listener loop: {}", e);
+            }
         }
     }
 
