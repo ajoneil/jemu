@@ -36,7 +36,6 @@ public class DMGAPU<E extends GameBoyEmulator> extends AudioGenerator<E> impleme
     public static final int NR51_ADDR = 0xFF25;
     public static final int NR52_ADDR = 0xFF26;
 
-
     public static final int WAVERAM_START = 0xFF30;
     public static final int WAVERAM_END = 0xFF3F;
 

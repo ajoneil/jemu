@@ -17,6 +17,18 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
     private static final double OUTPUT_GAIN = 127;
     private static final double CAPACITOR_CONSTANT = 0.999958;
 
+    private static final double[] PULSE_TABLE = new double[31];
+    private static final double[] TND_TABLE = new double [203];
+
+    static {
+        for (int i = 0; i < PULSE_TABLE.length; i++) {
+            PULSE_TABLE[i] = 95.52 / (8128.0 / (double) i + 100);
+        }
+        for (int i = 0; i < TND_TABLE.length; i++) {
+            TND_TABLE[i] = 163.67 / (24329.0 / (double) i + 100);
+        }
+    }
+
     private final E emulator;
 
     private final byte[] sampleBuffer;
@@ -340,20 +352,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         int noise = this.noiseChannel.getDigitalOutput();
         int dmc = this.dmcChannel.getDigitalOutput();
 
-        double pulseOut = 0;
-        double tndOut = 0;
-
-        int pulseGroupSum = pulse1 + pulse2;
-
-        if (pulseGroupSum > 0) {
-            pulseOut = 95.88 / (((double) 8128 / (double) pulseGroupSum) + 100);
-        }
-
-        if (triangle != 0 || noise != 0 || dmc != 0) {
-            tndOut = 159.79 / (((double) 1 / (((double) triangle / 8227) + ((double) noise / 12241) + ((double) dmc / 22638))) + 100);
-        }
-
-        double output = Math.clamp(pulseOut + tndOut, 0, 1.0);
+        double output = PULSE_TABLE[pulse1 + pulse2] + TND_TABLE[3 * triangle + 2 * noise + dmc];
         this.sampleBuffer[this.currentSampleIndex] = (byte) Math.clamp((long)(this.highPassFilter(output) * OUTPUT_GAIN), -128, 127);
         this.currentSampleIndex = (this.currentSampleIndex + 1) % this.sampleBuffer.length;
     }
