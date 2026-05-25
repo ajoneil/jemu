@@ -4,7 +4,6 @@ import io.github.arkosammy12.jemu.core.common.AudioGenerator;
 import io.github.arkosammy12.jemu.core.common.Bus;
 import io.github.arkosammy12.jemu.core.drivers.AudioDriver;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
-import io.github.arkosammy12.jemu.core.util.ActionSignal;
 import io.github.arkosammy12.jemu.core.util.ActionSignalDispatcher;
 import org.jetbrains.annotations.NotNull;
 
@@ -14,8 +13,8 @@ import static io.github.arkosammy12.jemu.core.nes.RP2A03.*;
 
 public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements Bus {
 
-    private static final double OUTPUT_GAIN = 32767;
-    private static final double CAPACITOR_CONSTANT = 0.999958;
+    private static final double OUTPUT_GAIN = Short.MAX_VALUE;
+    private static final double HIGH_PASS_CAPACITOR_CONSTANT = 0.999958;
 
     private static final double[] PULSE_TABLE = new double[31];
     private static final double[] TND_TABLE = new double [203];
@@ -354,13 +353,13 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         int dmc = this.dmcChannel.getDigitalOutput();
 
         double output = PULSE_TABLE[pulse1 + pulse2] + TND_TABLE[3 * triangle + 2 * noise + dmc];
-        this.sampleBuffer[this.currentSampleIndex] = (short) Math.clamp((long)(this.highPassFilter(output) * OUTPUT_GAIN), -32768, 32767);
+        this.sampleBuffer[this.currentSampleIndex] = (short) Math.clamp((long)(this.highPassFilter(output) * OUTPUT_GAIN), Short.MIN_VALUE, Short.MAX_VALUE);
         this.currentSampleIndex = (this.currentSampleIndex + 1) % this.sampleBuffer.length;
     }
 
     private double highPassFilter(double in) {
         double out = in - this.capacitor;
-        this.capacitor = in - out * CAPACITOR_CONSTANT;
+        this.capacitor = in - out * HIGH_PASS_CAPACITOR_CONSTANT;
         return out;
     }
 
