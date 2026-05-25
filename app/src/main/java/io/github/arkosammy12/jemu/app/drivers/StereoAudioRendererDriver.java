@@ -23,16 +23,7 @@ public class StereoAudioRendererDriver extends DefaultAudioRendererDriver {
     }
 
     @Override
-    public void onFrame() {
-        Optional<byte[]> optionalSamples = this.audioGenerator.getSampleFrame();
-        if (optionalSamples.isEmpty()) {
-            this.audioRenderer.pushSampleFrame(null);
-            return;
-        }
-        this.audioRenderer.pushSampleFrame(this.convertSampleFormatIfNecessary(optionalSamples.get()));
-    }
-
-    private byte[] convertSampleFormatIfNecessary(byte[] buf) {
+    protected byte[] convertBitDepthIfNecessary(byte[] buf) {
         return switch (this.audioGenerator.getBytesPerSample()) {
             case BYTES_1 -> {
                 byte[] buf16 = new byte[this.audioRenderer.getBytesPerFrame()];
