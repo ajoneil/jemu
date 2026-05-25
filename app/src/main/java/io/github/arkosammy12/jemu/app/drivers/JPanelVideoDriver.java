@@ -38,12 +38,13 @@ public class JPanelVideoDriver extends JPanel implements VideoDriver, Closeable 
         this.displayHeight = videoGenerator.getImageHeight();
 
         this.renderBuffer = new int[displayWidth][displayHeight];
-        this.bufferedImage = new BufferedImage(displayWidth, displayHeight, BufferedImage.TYPE_INT_ARGB);
+        this.bufferedImage = new BufferedImage(displayWidth, displayHeight, BufferedImage.TYPE_INT_RGB);
 
         SwingUtilities.invokeLater(() -> this.addKeyListener(keyListener));
         this.renderThread = new Thread(this::renderLoop, "jemu-render-thread");
         this.renderThread.setDaemon(true);
         this.renderThread.start();
+
     }
 
     @Override
@@ -124,7 +125,7 @@ public class JPanelVideoDriver extends JPanel implements VideoDriver, Closeable 
             for (int y = 0; y < displayHeight; y++) {
                 int base = y * displayWidth;
                 for (int x = 0; x < displayWidth; x++) {
-                    pixels[base + x] = 0xFF000000 | renderBuffer[x][y];
+                    pixels[base + x] = renderBuffer[x][y];
                 }
             }
         }
