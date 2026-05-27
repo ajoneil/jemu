@@ -151,7 +151,7 @@ public class EmulatorMenu extends MenuBarMenu implements EmulatorManager {
             pauseButton.setSelected(false);
             stepFrameButton.setEnabled(false);
             stepCycleButton.setEnabled(false);
-            mainWindow.getSystemViewport().setSystemDisplayPanel(null);
+            mainWindow.getSystemViewport().setSystemDisplay(null);
             emulatorStopped = true;
         }));
     }

@@ -2,8 +2,8 @@ package io.github.arkosammy12.jemu.app.drivers;
 
 import io.github.arkosammy12.jemu.core.common.VideoGenerator;
 import io.github.arkosammy12.jemu.core.drivers.VideoDriver;
+import org.tinylog.Logger;
 
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyListener;
 import java.awt.geom.AffineTransform;
@@ -11,7 +11,9 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.Closeable;
 
-public class JPanelVideoDriver extends JPanel implements VideoDriver, Closeable {
+import java.awt.image.BufferStrategy;
+
+public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Closeable {
 
     private final VideoGenerator<?> videoGenerator;
     private final int[][] renderBuffer;
@@ -32,7 +34,7 @@ public class JPanelVideoDriver extends JPanel implements VideoDriver, Closeable 
     private int lastWidth = -1;
     private int lastHeight = -1;
 
-    public JPanelVideoDriver(VideoGenerator<?> videoGenerator, KeyListener keyListener) {
+    public DefaultSystemVideoDriver(VideoGenerator<?> videoGenerator, KeyListener keyListener) {
         this.videoGenerator = videoGenerator;
         this.displayWidth = videoGenerator.getImageWidth();
         this.displayHeight = videoGenerator.getImageHeight();
@@ -40,11 +42,11 @@ public class JPanelVideoDriver extends JPanel implements VideoDriver, Closeable 
         this.renderBuffer = new int[displayWidth][displayHeight];
         this.bufferedImage = new BufferedImage(displayWidth, displayHeight, BufferedImage.TYPE_INT_RGB);
 
-        SwingUtilities.invokeLater(() -> this.addKeyListener(keyListener));
+        this.addKeyListener(keyListener);
+
         this.renderThread = new Thread(this::renderLoop, "jemu-render-thread");
         this.renderThread.setDaemon(true);
         this.renderThread.start();
-
     }
 
     @Override
@@ -68,19 +70,6 @@ public class JPanelVideoDriver extends JPanel implements VideoDriver, Closeable 
         }
     }
 
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        this.updateTransformIfNeeded();
-        Graphics2D g2 = (Graphics2D) g.create();
-        try {
-            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-            g2.drawImage(this.bufferedImage, this.drawTransform, null);
-        } finally {
-            g2.dispose();
-        }
-    }
-
     private void updateTransformIfNeeded() {
         int w = this.getWidth();
         int h = this.getHeight();
@@ -89,13 +78,13 @@ public class JPanelVideoDriver extends JPanel implements VideoDriver, Closeable 
             return;
         }
 
-        double scale = Math.min((double) w / this.displayWidth, (double) h / this.displayHeight);
+        double scale = Math.min((double) w / (double) this.displayWidth, (double) h / (double) this.displayHeight);
 
-        double scaledWidth = this.displayWidth * scale;
-        double scaledHeight = this.displayHeight * scale;
+        double scaledWidth = (double) this.displayWidth * scale;
+        double scaledHeight = (double) this.displayHeight * scale;
 
-        double offsetX = (w - scaledWidth) / 2.0;
-        double offsetY = (h - scaledHeight) / 2.0;
+        double offsetX = ((double) w - scaledWidth) / 2.0;
+        double offsetY = ((double) h - scaledHeight) / 2.0;
 
         this.drawTransform.setToIdentity();
         this.drawTransform.translate(offsetX, offsetY);
@@ -120,16 +109,33 @@ public class JPanelVideoDriver extends JPanel implements VideoDriver, Closeable 
     }
 
     private void renderFrame() {
-        int[] pixels = ((DataBufferInt) bufferedImage.getRaster().getDataBuffer()).getData();
+        BufferStrategy bufferStrategy = getBufferStrategy();
+        if (bufferStrategy == null) {
+            try {
+                createBufferStrategy(3);
+            } catch (Exception e) {
+                Logger.warn("Failed to create buffer strategy: {}", e.getMessage());
+            }
+            return;
+        }
+        updateTransformIfNeeded();
+        int[] pixels = ((DataBufferInt) this.bufferedImage.getRaster().getDataBuffer()).getData();
         synchronized (this.renderBufferLock) {
             for (int y = 0; y < displayHeight; y++) {
                 int base = y * displayWidth;
                 for (int x = 0; x < displayWidth; x++) {
-                    pixels[base + x] = renderBuffer[x][y];
+                    pixels[base + x] = this.renderBuffer[x][y];
                 }
             }
         }
-        SwingUtilities.invokeLater(this::repaint);
+        Graphics2D g = (Graphics2D) bufferStrategy.getDrawGraphics();
+        g.setColor(Color.BLACK);
+        g.fillRect(0, 0, getWidth(), getHeight());
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        g.drawImage(this.bufferedImage, this.drawTransform, null);
+        g.dispose();
+        bufferStrategy.show();
+        Toolkit.getDefaultToolkit().sync();
     }
 
     @Override

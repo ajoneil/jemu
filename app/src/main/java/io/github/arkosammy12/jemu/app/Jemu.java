@@ -18,7 +18,7 @@ import net.harawata.appdirs.AppDirsFactory;
 import org.jetbrains.annotations.Nullable;
 import org.tinylog.Logger;
 
-import javax.swing.*;
+import java.awt.*;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Optional;
@@ -168,7 +168,7 @@ public final class Jemu {
             try {
                 this.currentSystem.close();
             } catch (Exception _) {}
-            this.mainWindow.getSystemViewport().setSystemDisplayPanel(null);
+            this.mainWindow.getSystemViewport().setSystemDisplay(null);
             this.currentSystem = null;
         }
         this.mainWindow.submitEmulatorCommand(new StopEmulatorCommand());
@@ -179,7 +179,7 @@ public final class Jemu {
         State enqueuedState = switch (enqueuedEmulatorCommand) {
             case ResetEmulatorCommand resetEvent -> {
                 this.onResetting(resetEvent);
-                this.mainWindow.getSystemViewport().setSystemDisplayPanel(this.currentSystem.getVideoDriver().orElse(null) instanceof JPanel jPanel ? () -> jPanel : null);
+                this.mainWindow.getSystemViewport().setSystemDisplay(this.currentSystem.getVideoDriver().orElse(null) instanceof Component c ? () -> c : null);
                 yield resetEvent.resetIntoPaused() ? State.PAUSED : State.RUNNING;
             }
             case StopEmulatorCommand _ -> {
