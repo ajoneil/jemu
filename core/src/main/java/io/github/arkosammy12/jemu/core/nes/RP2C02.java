@@ -145,6 +145,14 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
             0x7e, 0xab, 0xad, 0x81, 0x81, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     };
 
+    private static final int[] PALETTE_2C02G_COMPACT = new int[64 * 8];
+
+    static {
+        for (int i = 0; i < PALETTE_2C02G_COMPACT.length; i++) {
+            PALETTE_2C02G_COMPACT[i] = (PALETTE_2C02G_WIKI[i * 3] << 16) | (PALETTE_2C02G_WIKI[(i * 3) + 1] << 8) | PALETTE_2C02G_WIKI[(i * 3) + 2];
+        }
+    }
+
     private static final int PPUCTRL_ADDR = 0x2000;
     private static final int PPUMASK_ADDR = 0x2001;
     private static final int PPUSTATUS_ADDR = 0x2002;
@@ -189,7 +197,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private static final int SPRITE_FETCH_END = 320;
 
     private final int[][] video;
-    private final int[] palette;
+    private final int[] compactPalette;
     private final int scanlinesPerFrame;
     private final int visibleScanlines;
     private final int vblScanline;
@@ -278,7 +286,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         this.visibleScanlines = this.getVisibleScanlines();
         this.vblScanline = this.getVblScanline();
         this.doOddFrameDotSkipping = this.doDotSkipping();
-        this.palette = this.getPalette();
+        this.compactPalette = this.getCompactPalette();
 
         this.video = new int[WIDTH][this.visibleScanlines];
 
@@ -335,8 +343,8 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         return true;
     }
 
-    protected int[] getPalette() {
-        return PALETTE_2C02G_WIKI;
+    protected int[] getCompactPalette() {
+        return PALETTE_2C02G_COMPACT;
     }
 
     @Override
@@ -821,8 +829,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
             paletteByte &= 0x30;
         }
 
-        int paletteColorIndex = ((this.getEmphasisBits() << 6) | (paletteByte & 0b111111)) * 3;
-        this.video[this.dotNumber - 1][this.scanlineNumber] = (this.palette[paletteColorIndex] << 16) | (this.palette[paletteColorIndex + 1] << 8) | this.palette[paletteColorIndex + 2];
+        this.video[this.dotNumber - 1][this.scanlineNumber] = this.compactPalette[(this.getEmphasisBits() << 6) | (paletteByte & 0b111111)];
     }
 
     private int shiftBackgroundRegister(int select) {
