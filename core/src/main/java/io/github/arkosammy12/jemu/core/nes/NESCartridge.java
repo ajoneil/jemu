@@ -58,6 +58,7 @@ public abstract class NESCartridge<E extends NESEmulator> implements Bus {
                 case 3 -> new VRC2Cartridge<>(emulator, iNESFile);
                 default -> throw new EmulatorException("Invalid iNES mapper %d and submapper number %d combination!".formatted(mapperNumber, subMapperNumber));
             };
+            case 24, 26 -> new VRC6Cartridge<>(emulator, iNESFile);
             case 71 -> new INESMapper71Cartridge<>(emulator, iNESFile);
             case 218 -> new INESMapper218Cartridge<>(emulator, iNESFile);
             default -> throw new EmulatorException("Unimplemented iNES mapper number %d!".formatted(mapperNumber));

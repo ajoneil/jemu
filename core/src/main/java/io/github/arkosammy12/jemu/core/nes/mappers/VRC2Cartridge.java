@@ -145,6 +145,11 @@ public class VRC2Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     }
 
     @Override
+    protected int mapNametableAddress(int address) {
+        return this.mapNametableAddress(address, this.nametableArrangement);
+    }
+
+    @Override
     public int readByte(int address) {
         if (address >= 0x6000 && address <= 0x7FFF) {
             if (this.programRAM != null) {
@@ -159,11 +164,6 @@ public class VRC2Cartridge<E extends NESEmulator> extends NESCartridge<E> {
         } else {
             return -1;
         }
-    }
-
-    @Override
-    protected int mapNametableAddress(int address) {
-        return this.mapNametableAddress(address, this.nametableArrangement);
     }
 
     @Override
