@@ -23,6 +23,9 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     private final int a1Bit;
 
     private final VRC4Cartridge.VRCIRQEngine vrcirqEngine = new VRC4Cartridge.VRCIRQEngine();
+    private final PulseChannel pulseChannel1 = new PulseChannel();
+    private final PulseChannel pulseChannel2 = new PulseChannel();
+    private final SawtoothChannel sawtoothChannel = new SawtoothChannel();
 
     private int prgSelect16K;
     private int prgSelect8K;
@@ -38,6 +41,8 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     private int R5;
     private int R6;
     private int R7;
+
+    private int frequencyControl;
 
     public VRC6Cartridge(E emulator, INESFile iNESFile) {
         super(emulator, iNESFile);
@@ -143,22 +148,22 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
             }
         } else if (address >= 0x9000 && address <= 0x9FFF) {
             switch (this.getRegisterSlot(address)) {
-                case 0 -> {} // Pulse 1 duty and volume
-                case 1 -> {} // Pulse 1 period low
-                case 2 -> {} // Pulse 1 period high
-                case 3 -> {} // Frequency scaling
+                case 0 -> this.pulseChannel1.writeVolume(value);
+                case 1 -> this.pulseChannel1.writeLO(value);
+                case 2 -> this.pulseChannel1.writeHI(value);
+                case 3 -> this.frequencyControl = value & 0b111;
             }
         } else if (address >= 0xA000 && address <= 0xAFFF) {
             switch (this.getRegisterSlot(address)) {
-                case 0 -> {} // Pulse 2 duty and volume
-                case 1 -> {} // Pulse 2 period low
-                case 2 -> {} // Pulse 2 period high
+                case 0 -> this.pulseChannel2.writeVolume(value);
+                case 1 -> this.pulseChannel2.writeLO(value);
+                case 2 -> this.pulseChannel2.writeHI(value);
             }
         } else if (address >= 0xB000 && address <= 0xBFFF) {
             switch (this.getRegisterSlot(address)) {
-                case 0 -> {} // Saw volume
-                case 1 -> {} // Saw period low
-                case 2 -> {} // Saw period high
+                case 0 -> this.sawtoothChannel.writeVolume(value);
+                case 1 -> this.sawtoothChannel.writeLO(value);
+                case 2 -> this.sawtoothChannel.writeHI(value);
                 case 3 -> {
 					this.ppuBankingStyle = value & 0xBF;
 
@@ -386,7 +391,7 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
 				default -> this.R6;
 			};
 			case 3 -> this.R7;
-			default -> throw new EmulatorException("Invalid VRC6 nametable slot!");
+			default -> throw new EmulatorException("Invalid VRC6 nametable slot %d!".formatted(slot));
 		};
 	}
 
@@ -433,11 +438,176 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     @Override
     public void cycle() {
         this.vrcirqEngine.cycle();
+        this.pulseChannel1.clock();
+        this.pulseChannel2.clock();
+        this.sawtoothChannel.clock();
     }
 
     @Override
     public boolean getIRQSignal() {
         return this.vrcirqEngine.getIRQSignal();
+    }
+
+    @Override
+    public double mixAPUAudio(double apuOutput) {
+        return apuOutput + ((double) (this.pulseChannel1.getDigitalOutput() + this.pulseChannel2.getDigitalOutput() + this.sawtoothChannel.getDigitalOutput()) / 63.0);
+    }
+
+    private boolean getHalt() {
+        return (this.frequencyControl & 1) != 0;
+    }
+
+    private boolean getFrequency16x() {
+        return (this.frequencyControl & (1 << 1)) != 0;
+    }
+
+    private boolean getFrequency256x() {
+        return (this.frequencyControl & (1 << 2)) != 0;
+    }
+
+    private abstract class WaveformChannel {
+
+        protected int divider;
+        protected int step;
+
+        protected int volume;
+        protected int lo;
+        protected int hi;
+
+        protected void writeVolume(int value) {
+            this.volume = value & 0xFF;
+        }
+
+        protected void writeLO(int value) {
+            this.lo = value & 0xFF;
+        }
+
+        protected void writeHI(int value) {
+            this.hi = value & 0x8F;
+        }
+
+        @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+        protected boolean getEnabled() {
+            return (this.hi & (1 << 7)) != 0;
+        }
+
+        protected int getDividerReload() {
+            int period = this.lo | ((this.hi & 0b1111) << 8);
+            if (getHalt()) {
+                return period;
+            } else if (getFrequency256x()) {
+                return period >> 8;
+            } else if (getFrequency16x()) {
+                return period >> 4;
+            }
+            return period;
+        }
+
+        protected abstract void clock();
+
+        protected abstract int getDigitalOutput();
+
+    }
+
+    private class PulseChannel extends WaveformChannel {
+
+        @Override
+        protected void writeHI(int value) {
+            super.writeHI(value);
+            if (!this.getEnabled()) {
+                this.divider = 0;
+                this.step = 0;
+            }
+        }
+
+        private int getCurrentVolume() {
+            return this.volume & 0b1111;
+        }
+
+        private int getDutyCycle() {
+            return (this.volume >>> 4) & 0b111;
+        }
+
+        private boolean getMode() {
+            return (this.volume & (1 << 7)) != 0;
+        }
+
+        @Override
+        protected void clock() {
+            if (!this.getEnabled() || getHalt()) {
+                return;
+            }
+
+            this.divider--;
+            if (this.divider < 0) {
+                this.divider = this.getDividerReload();
+                this.step = (this.step - 1) & 0xF;
+            }
+        }
+
+        @Override
+        protected int getDigitalOutput() {
+            if (!this.getEnabled()) {
+                return 0;
+            } else if (this.getMode()) {
+                return this.getCurrentVolume();
+            } else if (this.step <= this.getDutyCycle()) {
+                return this.getCurrentVolume();
+            } else {
+                return 0;
+            }
+        }
+
+    }
+
+    private class SawtoothChannel extends WaveformChannel {
+
+        private int accumulator;
+        private boolean subClock = true;
+
+        @Override
+        protected void writeHI(int value) {
+            super.writeHI(value);
+            if (!this.getEnabled()) {
+                this.accumulator = 0;
+                this.subClock = true;
+            }
+        }
+
+        @Override
+        protected void writeVolume(int value) {
+            this.volume = value & 0x3F;
+        }
+
+        @Override
+        protected void clock() {
+            if (!this.getEnabled() || getHalt()) {
+                return;
+            }
+            this.divider--;
+            if (this.divider < 0) {
+                this.divider = this.getDividerReload();
+                this.subClock = !this.subClock;
+                if (this.subClock) {
+                    this.step++;
+                    if (this.step >= 7) {
+                        this.accumulator = 0;
+                        this.step = 0;
+                    } else {
+                        this.accumulator = (this.accumulator + this.volume) & 0xFF;
+                    }
+                }
+            }
+        }
+
+        @Override
+        protected int getDigitalOutput() {
+            if (this.getEnabled()) {
+                return (this.accumulator >>> 3) & 0b11111;
+            } else {
+                return 0;
+            }
+        }
     }
 
 }

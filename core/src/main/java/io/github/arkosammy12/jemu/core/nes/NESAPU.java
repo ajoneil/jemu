@@ -353,6 +353,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         int dmc = this.dmcChannel.getDigitalOutput();
 
         double output = PULSE_TABLE[pulse1 + pulse2] + TND_TABLE[3 * triangle + 2 * noise + dmc];
+        output = this.emulator.getCartridge().mixAPUAudio(output);
         this.sampleBuffer[this.currentSampleIndex] = (short) Math.clamp((long)(this.highPassFilter(output) * OUTPUT_GAIN), Short.MIN_VALUE, Short.MAX_VALUE);
         this.currentSampleIndex = (this.currentSampleIndex + 1) % this.sampleBuffer.length;
     }

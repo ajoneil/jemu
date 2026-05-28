@@ -86,6 +86,10 @@ public abstract class NESCartridge<E extends NESEmulator> implements Bus {
 
     }
 
+    public double mixAPUAudio(double apuOutput) {
+        return apuOutput;
+    }
+
     protected int readByteVRAM(int address) {
         return (int) this.vram[address] & 0xFF;
     }
