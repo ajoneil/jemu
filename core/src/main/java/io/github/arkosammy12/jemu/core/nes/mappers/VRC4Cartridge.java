@@ -164,7 +164,7 @@ public class VRC4Cartridge<E extends NESEmulator> extends VRC2Cartridge<E> {
     public static class VRCIRQEngine {
 
         private int irqLatch;
-        private boolean irqEnableAfterAcknowledgemnt;
+        private boolean irqEnableAfterAcknowledgement;
         private boolean irqEnable;
         private boolean irqMode;
 
@@ -186,7 +186,7 @@ public class VRC4Cartridge<E extends NESEmulator> extends VRC2Cartridge<E> {
         }
 
         public void writeIRQControl(int value) {
-            this.irqEnableAfterAcknowledgemnt = (value & 1) != 0;
+            this.irqEnableAfterAcknowledgement = (value & 1) != 0;
             this.irqEnable = (value & (1 << 1)) != 0;
             this.irqMode = (value & (1 << 2)) != 0;
 
@@ -199,7 +199,7 @@ public class VRC4Cartridge<E extends NESEmulator> extends VRC2Cartridge<E> {
 
         public void writeIRQAcknowledge() {
             this.irqSignal = false;
-            this.irqEnable = this.irqEnableAfterAcknowledgemnt;
+            this.irqEnable = this.irqEnableAfterAcknowledgement;
         }
 
         public void cycle() {
