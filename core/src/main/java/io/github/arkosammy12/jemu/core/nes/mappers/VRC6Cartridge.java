@@ -10,7 +10,7 @@ import java.util.Arrays;
 import java.util.Optional;
 
 import static io.github.arkosammy12.jemu.core.nes.RP2C02.*;
-import static io.github.arkosammy12.jemu.core.nes.RP2C02.CIRAM_MIRROR_END;
+import static io.github.arkosammy12.jemu.core.nes.RP2C02.CIRAM_END;
 
 public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
 
@@ -85,13 +85,13 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
 		this.observePPUAddress(address);
         if (address >= CHR_START && address <= CHR_END) {
             return this.readChrMappedAddress(this.mapChrAddress(address));
-        } else if (address >= CIRAM_START && address <= CIRAM_MIRROR_END) {
+        } else if (address >= CIRAM_START && address <= CIRAM_END) {
             if (this.usesROMNametables()) {
                 return this.readChrMappedAddress(this.mapVRC6NametableChrAddress(address));
             } else {
                 return this.readByteVRAM(this.mapNametableAddress(address));
             }
-        } else if (address >= PALETTE_RAM_START && address <= PALETTE_RAM_MIRROR_END) {
+        } else if (address >= PALETTE_RAM_START && address <= PALETTE_RAM_END) {
             return address & 0xFF;
         } else {
             throw new EmulatorException("Invalid NES VRC6 cartridge PPU read address $%04X!".formatted(address));
@@ -103,13 +103,13 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
 		this.observePPUAddress(address);
         if (address >= 0x0000 && address <= 0x1FFF) {
             this.writeChrMappedAddress(this.mapChrAddress(address), value);
-        } else if (address >= CIRAM_START && address <= CIRAM_MIRROR_END) {
+        } else if (address >= CIRAM_START && address <= CIRAM_END) {
             if (this.usesROMNametables()) {
                 this.writeChrMappedAddress(this.mapVRC6NametableChrAddress(address), value);
             } else {
                 this.writeByteVRAM(this.mapNametableAddress(address), value);
             }
-        } else if (address >= PALETTE_RAM_START && address <= PALETTE_RAM_MIRROR_END) {
+        } else if (address >= PALETTE_RAM_START && address <= PALETTE_RAM_END) {
 
         } else {
             throw new EmulatorException("Invalid NES VRC6 cartridge PPU write address $%04X!".formatted(address));

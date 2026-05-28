@@ -166,16 +166,10 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     public static final int CHR_END = 0x1FFF;
 
     public static final int CIRAM_START = 0x2000;
-    public static final int CIRAM_END = 0x2FFF;
-
-    public static final int CIRAM_MIRROR_START = 0x3000;
-    public static final int CIRAM_MIRROR_END = 0x3EFF;
+    public static final int CIRAM_END = 0x3EFF;
 
     public static final int PALETTE_RAM_START = 0x3F00;
-    public static final int PALETTE_RAM_END = 0x3F1F;
-
-    public static final int PALETTE_RAM_MIRROR_START = 0x3F20;
-    public static final int PALETTE_RAM_MIRROR_END = 0x3FFF;
+    public static final int PALETTE_RAM_END = 0x3FFF;
 
     private static final int WIDTH = 256;
 
