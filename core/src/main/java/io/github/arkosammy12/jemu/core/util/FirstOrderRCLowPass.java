@@ -1,5 +1,8 @@
 package io.github.arkosammy12.jemu.core.util;
 
+/**
+ * Courtesy of <a href="https://github.com/dtabacaru">dtabacaru</a>
+ */
 public class FirstOrderRCLowPass {
     private double cornerFreq; // Hz
     private double sampleRate; // Hz

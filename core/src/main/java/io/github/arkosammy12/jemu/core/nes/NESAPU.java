@@ -5,8 +5,8 @@ import io.github.arkosammy12.jemu.core.common.Bus;
 import io.github.arkosammy12.jemu.core.drivers.AudioDriver;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import io.github.arkosammy12.jemu.core.util.ActionSignalDispatcher;
-import io.github.arkosammy12.jemu.core.util.FirstOrderRCHighPass;
-import io.github.arkosammy12.jemu.core.util.FirstOrderRCLowPass;
+import io.github.arkosammy12.jemu.core.util.HighPassFilter;
+import io.github.arkosammy12.jemu.core.util.LowPassFilter;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
@@ -40,10 +40,10 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
     private final NoiseChannel noiseChannel;
     private final DMCChannel dmcChannel;
 
-    private final FirstOrderRCLowPass lpf = new FirstOrderRCLowPass();
-    private final FirstOrderRCHighPass hpf0 = new FirstOrderRCHighPass();
-    private final FirstOrderRCHighPass hpf1 = new FirstOrderRCHighPass();
-    private final FirstOrderRCHighPass hpf2 = new FirstOrderRCHighPass();
+    private final LowPassFilter lpf = new LowPassFilter();
+    private final HighPassFilter hpf0 = new HighPassFilter();
+    private final HighPassFilter hpf1 = new HighPassFilter();
+    private final HighPassFilter hpf2 = new HighPassFilter();
 
     private int frameCounterCycleCounter;
 
@@ -65,7 +65,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         this.emulator = emulator;
         this.sampleBuffer = new double[samplesPerFrame];
 
-        this.lpf.computeConstants(17000.0, (double) (samplesPerFrame * emulator.getFramerate()));
+        this.lpf.createLpf(17000.0, (double) (samplesPerFrame * emulator.getFramerate()));
 
         this.frameCounterControlUpdateSignalId = this.signalDispatcher.addSignal(newJoy2Value -> {
             this.frameCounterStepMode = (newJoy2Value & (1 << 7)) != 0 ? FrameCounterStepMode.STEP_5 : FrameCounterStepMode.STEP_4;
@@ -226,10 +226,9 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         int samplesPerFrame = audioDriver.getSamplesPerFrame();
         int sampleRate = audioDriver.getSampleRate();
 
-        // HPF0 omitted to keep deep bass frequencies
-        //this.hpf0.computeConstants(285.17092929859564, (double) sampleRate);
-        this.hpf1.computeConstants(85.509330674952423, (double) sampleRate);
-        this.hpf2.computeConstants(7.3617262313390981, (double) sampleRate);
+        this.hpf0.createHpf(285.17092929859564, (double) sampleRate);
+        this.hpf1.createHpf(85.509330674952423, (double) sampleRate);
+        this.hpf2.createHpf(7.3617262313390981, (double) sampleRate);
 
         byte[] out = new byte[samplesPerFrame * 2];
         double step = (double) this.sampleBuffer.length / (double) samplesPerFrame;
@@ -237,7 +236,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
         for (int i = 0; i < samplesPerFrame; i++) {
             int index = Math.min((int) Math.round(pos), this.sampleBuffer.length - 1);
-            short sample = (short) Math.clamp((long)(this.hpf2.filter(this.hpf1.filter(this.sampleBuffer[index])) * OUTPUT_GAIN), -Short.MAX_VALUE, Short.MAX_VALUE);
+            short sample = (short) Math.clamp((long)(this.hpf2.process(this.hpf1.process(this.hpf0.process(this.sampleBuffer[index]))) * OUTPUT_GAIN), -Short.MAX_VALUE, Short.MAX_VALUE);
             out[i * 2] = (byte) (((int) sample >>> 8) & 0xFF);
             out[i * 2 + 1] = (byte) ((int) sample & 0xFF);
             pos += step;
@@ -366,7 +365,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
         double output = PULSE_TABLE[pulse1 + pulse2] + TND_TABLE[3 * triangle + 2 * noise + dmc];
         output = this.emulator.getCartridge().mixAPUAudio(output);
-        this.sampleBuffer[this.currentSampleIndex] = this.lpf.filter(output);
+        this.sampleBuffer[this.currentSampleIndex] = this.lpf.process(output);
         this.currentSampleIndex = (this.currentSampleIndex + 1) % this.sampleBuffer.length;
     }
 
