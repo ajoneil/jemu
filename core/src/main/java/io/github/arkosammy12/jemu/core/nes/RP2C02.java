@@ -711,6 +711,10 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                     if (this.scanlineNumber >= this.scanlinesPerFrame) {
                         this.scanlineNumber = 0;
                         this.frameParity = this.frameParity.getOpposite();
+                        // TODO: Use signal for dot skipping.
+                        // Attempt to go with setup where decision to skip dot is taken in dot 339 of the pre-render scanline,
+                        // and dot 0 of the next frame is skipped. Also try using the rendering flag directly from the PPUMASK register
+                        // instead of the delayed internal one
                         if (this.frameParity.isEven() && isRenderingEnabled && this.doOddFrameDotSkipping) {
                             this.dotNumber = 1;
                             this.dotSkipped = true;

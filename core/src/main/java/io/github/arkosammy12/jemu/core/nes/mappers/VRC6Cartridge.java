@@ -14,8 +14,14 @@ import static io.github.arkosammy12.jemu.core.nes.RP2C02.CIRAM_END;
 
 public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
 
+    private static final double NES_PULSE_FULL_VOLUME = 95.88 / ((8128.0 / 15.0) + 100.0);
+    private static final double VRC6_PULSE_FULL_VOLUME = 15.0 / 61.0;
+
+    // TODO: Eventually make this user configurable
+    private static final double VRC6_WEIGHT = NES_PULSE_FULL_VOLUME / VRC6_PULSE_FULL_VOLUME;
+
     private final byte[] programROM;
-    protected final byte[] programRAM;
+    private final byte[] programRAM;
     private final byte[] characterROM;
     private final byte[] characterRAM;
 
@@ -450,7 +456,7 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
 
     @Override
     public double mixAPUAudio(double apuOutput) {
-        return apuOutput + ((double) (this.pulseChannel1.getDigitalOutput() + this.pulseChannel2.getDigitalOutput() + this.sawtoothChannel.getDigitalOutput()) / 63.0);
+        return apuOutput + (VRC6_WEIGHT * ((double) (this.pulseChannel1.getDigitalOutput() + this.pulseChannel2.getDigitalOutput() + this.sawtoothChannel.getDigitalOutput()) / 61.0));
     }
 
     private boolean getHalt() {
