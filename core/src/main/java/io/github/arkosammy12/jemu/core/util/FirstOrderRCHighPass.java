@@ -1,5 +1,8 @@
 package io.github.arkosammy12.jemu.core.util;
 
+/**
+ * Courtesy of <a href="https://github.com/dtabacaru">dtabacaru</a>
+ */
 public class FirstOrderRCHighPass {
 
     private double cornerFreq;
@@ -20,7 +23,7 @@ public class FirstOrderRCHighPass {
     }
 
     public double filter(double in) {
-        double out = this.lastOut * k + in - this.lastIn;
+        double out = k * (this.lastOut + in - this.lastIn);
         this.lastIn  = in;
         this.lastOut = out;
         return out;
