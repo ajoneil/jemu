@@ -291,8 +291,8 @@ public class DMGAPU<E extends GameBoyEmulator> extends AudioGenerator<E> impleme
 
             boolean dacEnable = this.channel1.getDacEnable() || this.channel2.getDacEnable() || this.channel3.getDacEnable() || this.channel4.getDacEnable();
 
-            this.leftChannelSamples[this.currentSampleIndex] = (short) Math.clamp((long)(this.leftBandPass(left, dacEnable) * SAMPLE_SCALE), Short.MIN_VALUE, Short.MAX_VALUE);
-            this.rightChannelSamples[this.currentSampleIndex] = (short) Math.clamp((long)(this.rightBandPass(right, dacEnable) * SAMPLE_SCALE), Short.MIN_VALUE, Short.MAX_VALUE);
+            this.leftChannelSamples[this.currentSampleIndex] = (short) Math.clamp((long)(this.leftBandPass(left, dacEnable) * SAMPLE_SCALE), -Short.MAX_VALUE, Short.MAX_VALUE);
+            this.rightChannelSamples[this.currentSampleIndex] = (short) Math.clamp((long)(this.rightBandPass(right, dacEnable) * SAMPLE_SCALE), -Short.MAX_VALUE, Short.MAX_VALUE);
             this.currentSampleIndex = (this.currentSampleIndex + 1) % GameBoyEmulator.T_CYCLES_PER_FRAME;
         }
     }
