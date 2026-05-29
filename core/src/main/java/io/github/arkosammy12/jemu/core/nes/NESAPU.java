@@ -14,7 +14,6 @@ import static io.github.arkosammy12.jemu.core.nes.RP2A03.*;
 public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements Bus {
 
     private static final double OUTPUT_GAIN = Short.MAX_VALUE;
-    private static final double HIGH_PASS_CAPACITOR_CONSTANT = 0.999958;
 
     private static final double[] PULSE_TABLE = new double[31];
     private static final double[] TND_TABLE = new double [203];
@@ -39,6 +38,8 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
     private final NoiseChannel noiseChannel;
     private final DMCChannel dmcChannel;
 
+    private final Filter filter = new Filter();
+
     private int frameCounterCycleCounter;
 
     private final ActionSignalDispatcher signalDispatcher = new ActionSignalDispatcher();
@@ -54,7 +55,6 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
     private FrameCounterStepMode frameCounterStepMode = FrameCounterStepMode.STEP_4;
     private boolean frameCounterInterruptInhibitFlag;
 
-    private double capacitor;
 
     public NESAPU(E emulator, int samplesPerFrame) {
         super(emulator);
@@ -218,6 +218,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
         AudioDriver audioDriver = optionalAudioDriver.get();
         int samplesPerFrame = audioDriver.getSamplesPerFrame();
+        this.filter.updateConstantsIfNeeded((double) audioDriver.getSampleRate());
 
         byte[] out = new byte[samplesPerFrame * 2];
         double step = (double) this.sampleBuffer.length / (double) samplesPerFrame;
@@ -354,14 +355,8 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
         double output = PULSE_TABLE[pulse1 + pulse2] + TND_TABLE[3 * triangle + 2 * noise + dmc];
         output = this.emulator.getCartridge().mixAPUAudio(output);
-        this.sampleBuffer[this.currentSampleIndex] = (short) Math.clamp((long)(this.highPassFilter(output) * OUTPUT_GAIN), Short.MIN_VALUE, Short.MAX_VALUE);
+        this.sampleBuffer[this.currentSampleIndex] = (short) Math.clamp((long)(this.filter.filter(output) * OUTPUT_GAIN), Short.MIN_VALUE, Short.MAX_VALUE);
         this.currentSampleIndex = (this.currentSampleIndex + 1) % this.sampleBuffer.length;
-    }
-
-    private double highPassFilter(double in) {
-        double out = in - this.capacitor;
-        this.capacitor = in - out * HIGH_PASS_CAPACITOR_CONSTANT;
-        return out;
     }
 
     private void signalHalfFrameClock() {
@@ -408,6 +403,58 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
     private enum FrameCounterStepMode {
         STEP_4,
         STEP_5
+    }
+
+    private static class Filter {
+
+        private static final double BLARGG_HPF_90_K_BASE = 0.999835;
+        private static final double BLARGG_HPF_442_K_BASE = 0.996039;
+        private static final double BLARGG_RATE = 44100;
+        private static final double LPF_FREQUENCY_CUTOFF = 17000.0;
+
+        private double lastOutRate;
+
+        private double lpfk;
+        private double hpf90k;
+        //private double hpf442k;
+
+        private double lpfOut;
+        private double hpf90In;
+        private double hpf90Out;
+        //private double hpf442In;
+        //private double hpf442Out;
+
+        private void updateConstantsIfNeeded(double outRate) {
+            if (outRate == this.lastOutRate) {
+                return;
+            }
+            this.lastOutRate = outRate;
+
+            double rateRatio = BLARGG_RATE / outRate;
+            this.lpfk = 1.0 - Math.exp(-2.0 * Math.PI * LPF_FREQUENCY_CUTOFF / outRate);
+            this.hpf90k = Math.pow(BLARGG_HPF_90_K_BASE, rateRatio);
+            //this.hpf442k = Math.pow(BLARGG_HPF_442_K_BASE, rateRatio);
+        }
+
+        private double filter(double in) {
+            double y1 = this.lpfOut + this.lpfk * (in - this.lpfOut);
+            this.lpfOut = y1;
+
+            double y2 = this.hpf90Out * this.hpf90k + y1 - this.hpf90In;
+            this.hpf90Out = y2;
+            this.hpf90In = y1;
+
+            // Skip the 442 Hz stage for now
+            /*
+            double y3 = this.hpf442Out * this.hpf442k + y2 - this.hpf442In;
+            this.hpf442Out = y3;
+            this.hpf442In = y2;
+
+            return y3;
+             */
+            return y2;
+        }
+
     }
 
     private abstract static class AudioChannel {
