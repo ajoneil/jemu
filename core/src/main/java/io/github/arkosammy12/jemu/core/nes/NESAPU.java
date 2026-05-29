@@ -5,6 +5,8 @@ import io.github.arkosammy12.jemu.core.common.Bus;
 import io.github.arkosammy12.jemu.core.drivers.AudioDriver;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import io.github.arkosammy12.jemu.core.util.ActionSignalDispatcher;
+import io.github.arkosammy12.jemu.core.util.FirstOrderRCHighPass;
+import io.github.arkosammy12.jemu.core.util.FirstOrderRCLowPass;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
@@ -29,7 +31,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
     private final E emulator;
 
-    private final short[] sampleBuffer;
+    private final double[] sampleBuffer;
     private int currentSampleIndex;
 
     private final PulseChannel1 pulseChannel1;
@@ -38,7 +40,10 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
     private final NoiseChannel noiseChannel;
     private final DMCChannel dmcChannel;
 
-    private final Filter filter = new Filter();
+    private final FirstOrderRCLowPass lpf = new FirstOrderRCLowPass();
+    private final FirstOrderRCHighPass hpf0 = new FirstOrderRCHighPass();
+    private final FirstOrderRCHighPass hpf1 = new FirstOrderRCHighPass();
+    private final FirstOrderRCHighPass hpf2 = new FirstOrderRCHighPass();
 
     private int frameCounterCycleCounter;
 
@@ -55,11 +60,12 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
     private FrameCounterStepMode frameCounterStepMode = FrameCounterStepMode.STEP_4;
     private boolean frameCounterInterruptInhibitFlag;
 
-
     public NESAPU(E emulator, int samplesPerFrame) {
         super(emulator);
         this.emulator = emulator;
-        this.sampleBuffer = new short[samplesPerFrame];
+        this.sampleBuffer = new double[samplesPerFrame];
+
+        this.lpf.computeConstants(17000.0, (double) (samplesPerFrame * emulator.getFramerate()));
 
         this.frameCounterControlUpdateSignalId = this.signalDispatcher.addSignal(newJoy2Value -> {
             this.frameCounterStepMode = (newJoy2Value & (1 << 7)) != 0 ? FrameCounterStepMode.STEP_5 : FrameCounterStepMode.STEP_4;
@@ -218,7 +224,12 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
         AudioDriver audioDriver = optionalAudioDriver.get();
         int samplesPerFrame = audioDriver.getSamplesPerFrame();
-        this.filter.updateConstantsIfNeeded((double) audioDriver.getSampleRate());
+        int sampleRate = audioDriver.getSampleRate();
+
+        // HPF0 omitted to keep deep bass frequencies
+        //this.hpf0.computeConstants(285.17092929859564, (double) sampleRate);
+        this.hpf1.computeConstants(85.509330674952423, (double) sampleRate);
+        this.hpf2.computeConstants(7.3617262313390981, (double) sampleRate);
 
         byte[] out = new byte[samplesPerFrame * 2];
         double step = (double) this.sampleBuffer.length / (double) samplesPerFrame;
@@ -226,7 +237,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
         for (int i = 0; i < samplesPerFrame; i++) {
             int index = Math.min((int) Math.round(pos), this.sampleBuffer.length - 1);
-            short sample = this.sampleBuffer[index];
+            short sample = (short) Math.clamp((long)(this.hpf2.filter(this.hpf1.filter(this.sampleBuffer[index])) * OUTPUT_GAIN), -Short.MAX_VALUE, Short.MAX_VALUE);
             out[i * 2] = (byte) (((int) sample >>> 8) & 0xFF);
             out[i * 2 + 1] = (byte) ((int) sample & 0xFF);
             pos += step;
@@ -355,7 +366,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
         double output = PULSE_TABLE[pulse1 + pulse2] + TND_TABLE[3 * triangle + 2 * noise + dmc];
         output = this.emulator.getCartridge().mixAPUAudio(output);
-        this.sampleBuffer[this.currentSampleIndex] = (short) Math.clamp((long)(this.filter.filter(output) * OUTPUT_GAIN), Short.MIN_VALUE, Short.MAX_VALUE);
+        this.sampleBuffer[this.currentSampleIndex] = this.lpf.filter(output);
         this.currentSampleIndex = (this.currentSampleIndex + 1) % this.sampleBuffer.length;
     }
 
@@ -403,58 +414,6 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
     private enum FrameCounterStepMode {
         STEP_4,
         STEP_5
-    }
-
-    private static class Filter {
-
-        private static final double BLARGG_HPF_90_K_BASE = 0.999835;
-        private static final double BLARGG_HPF_442_K_BASE = 0.996039;
-        private static final double BLARGG_RATE = 44100;
-        private static final double LPF_FREQUENCY_CUTOFF = 17000.0;
-
-        private double lastOutRate;
-
-        private double lpfk;
-        private double hpf90k;
-        //private double hpf442k;
-
-        private double lpfOut;
-        private double hpf90In;
-        private double hpf90Out;
-        //private double hpf442In;
-        //private double hpf442Out;
-
-        private void updateConstantsIfNeeded(double outRate) {
-            if (outRate == this.lastOutRate) {
-                return;
-            }
-            this.lastOutRate = outRate;
-
-            double rateRatio = BLARGG_RATE / outRate;
-            this.lpfk = 1.0 - Math.exp(-2.0 * Math.PI * LPF_FREQUENCY_CUTOFF / outRate);
-            this.hpf90k = Math.pow(BLARGG_HPF_90_K_BASE, rateRatio);
-            //this.hpf442k = Math.pow(BLARGG_HPF_442_K_BASE, rateRatio);
-        }
-
-        private double filter(double in) {
-            double y1 = this.lpfOut + this.lpfk * (in - this.lpfOut);
-            this.lpfOut = y1;
-
-            double y2 = this.hpf90Out * this.hpf90k + y1 - this.hpf90In;
-            this.hpf90Out = y2;
-            this.hpf90In = y1;
-
-            // Skip the 442 Hz stage for now
-            /*
-            double y3 = this.hpf442Out * this.hpf442k + y2 - this.hpf442In;
-            this.hpf442Out = y3;
-            this.hpf442In = y2;
-
-            return y3;
-             */
-            return y2;
-        }
-
     }
 
     private abstract static class AudioChannel {
