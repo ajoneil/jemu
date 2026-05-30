@@ -4,6 +4,7 @@ import io.github.arkosammy12.jemu.app.drivers.*;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.core.common.Emulator;
+import io.github.arkosammy12.jemu.core.common.SystemController;
 import io.github.arkosammy12.jemu.core.cosmacvip.CosmacVIPKeypad;
 import io.github.arkosammy12.jemu.core.cosmacvip.CosmacVIPEmulator;
 import io.github.arkosammy12.jemu.core.cosmacvip.CosmacVIPHost;
@@ -26,100 +27,22 @@ public class DefaultCosmacVIPAdapter extends DefaultSystemAdapter implements Cos
     private final System system;
     private final Chip8Interpreter chip8Interpreter;
 
-    private final CosmacVIPEmulator emulator;
-    private final DefaultSystemVideoDriver videoDriver;
-    private final DefaultAudioRendererDriver audioDriver;
-    private final AudioRenderer audioRenderer;
-
     public DefaultCosmacVIPAdapter(CoreInitializer initializer, Chip8Interpreter chip8Interpreter) {
         super(initializer);
 
         this.romTitle = initializer.getRomPath().map(path -> path.getFileName().toString()).orElse(null);
         this.system = initializer.getSystem().orElse(COSMAC_VIP);
         this.chip8Interpreter = chip8Interpreter;
-
-        this.emulator = new CosmacVIPEmulator(this);
-
-        KeyAdapter keyAdapter = new KeyAdapter() {
-
-            @Override
-            public void keyPressed(KeyEvent e) {
-                int keyCode = e.getKeyCode();
-                CosmacVIPKeypad.Actions action = getActionForKeyCode(keyCode);
-                if (action != null) {
-                    getEmulator().getSystemController().onActionPressed(action);
-                }
-            }
-
-            @Override
-            public void keyReleased(KeyEvent e) {
-                int keyCode = e.getKeyCode();
-                CosmacVIPKeypad.Actions action = getActionForKeyCode(keyCode);
-                if (action != null) {
-                    getEmulator().getSystemController().onActionReleased(action);
-                }
-            }
-
-        };
-
-        this.videoDriver = new DefaultSystemVideoDriver(this.emulator.getVideoGenerator(), keyAdapter);
-
-        int framerate = this.emulator.getFramerate();
-        boolean isStereo = this.emulator.getAudioGenerator().isStereo();
-
-        this.audioDriver = isStereo
-                ? new StereoAudioRendererDriver(this.emulator.getAudioGenerator(), new StereoAudioRenderer(framerate))
-                : new MonoAudioRendererDriver(this.emulator.getAudioGenerator(), new MonoAudioRenderer(framerate));
-        this.audioRenderer = this.audioDriver.getAudioRenderer();
     }
 
     @Override
-    public System getSystem() {
-        return this.system;
+    protected Emulator createEmulator() {
+        return new CosmacVIPEmulator(this);
     }
 
     @Override
-    public Emulator getEmulator() {
-        return this.emulator;
-    }
-
-    @Override
-    public String getSystemName() {
-        return this.system.getDisplayName();
-    }
-
-    @Override
-    public Optional<String> getRomTitle() {
-        return Optional.ofNullable(this.romTitle);
-    }
-
-    @Override
-    public Optional<VideoDriver> getVideoDriver() {
-        return Optional.of(this.videoDriver);
-    }
-
-    @Override
-    public Optional<? extends DefaultAudioRendererDriver> getAudioDriver() {
-        return Optional.of(this.audioDriver);
-    }
-
-    @Override
-    public Chip8Interpreter getChip8Interpreter() {
-        return this.chip8Interpreter;
-    }
-
-    @Override
-    public DefaultSystemVideoDriver getJPanelVideoDriver() {
-        return this.videoDriver;
-    }
-
-    @Override
-    public AudioRenderer getAudioRenderer() {
-        return this.audioRenderer;
-    }
-
     @Nullable
-    private CosmacVIPKeypad.Actions getActionForKeyCode(int keyCode) {
+    protected CosmacVIPKeypad.Actions getActionForKeyCode(int keyCode) {
         return switch (keyCode) {
             case KeyEvent.VK_X -> CosmacVIPKeypad.Actions.KEY_0;
             case KeyEvent.VK_1 -> CosmacVIPKeypad.Actions.KEY_1;
@@ -142,16 +65,23 @@ public class DefaultCosmacVIPAdapter extends DefaultSystemAdapter implements Cos
     }
 
     @Override
-    public void close() throws IOException {
-        if (this.videoDriver != null) {
-            this.videoDriver.close();
-        }
-        if (this.audioDriver != null) {
-            this.audioDriver.close();
-        }
-        if (this.emulator != null) {
-            this.emulator.close();
-        }
+    public System getSystem() {
+        return this.system;
+    }
+
+    @Override
+    public String getSystemName() {
+        return this.system.getDisplayName();
+    }
+
+    @Override
+    public Optional<String> getRomTitle() {
+        return Optional.ofNullable(this.romTitle);
+    }
+
+    @Override
+    public Chip8Interpreter getChip8Interpreter() {
+        return this.chip8Interpreter;
     }
 
 }

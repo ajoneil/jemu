@@ -23,61 +23,32 @@ public class DefaultNESAdapter extends DefaultSystemAdapter {
     private final String romTitle;
     private final System system;
 
-    private final Emulator emulator;
-    private final DefaultSystemVideoDriver videoDriver;
-    private final DefaultAudioRendererDriver audioDriver;
-    private final AudioRenderer audioRenderer;
-
     public DefaultNESAdapter(CoreInitializer initializer) {
         super(initializer);
 
         this.romTitle = initializer.getRomPath().map(path -> path.getFileName().toString()).orElse(null);
         this.system = System.NES;
+    }
 
-        this.emulator = new NESEmulator(this);
+    @Override
+    protected Emulator createEmulator() {
+        return new NESEmulator(this);
+    }
 
-        KeyAdapter keyAdapter = new KeyAdapter() {
-
-            @Override
-            public void keyPressed(KeyEvent e) {
-                int keyCode = e.getKeyCode();
-                NESController.Actions action = getActionForKeyCode(keyCode);
-                if (action != null) {
-                    getEmulator().getSystemController().onActionPressed(action);
-                }
-            }
-
-            @Override
-            public void keyReleased(KeyEvent e) {
-                int keyCode = e.getKeyCode();
-                NESController.Actions action = getActionForKeyCode(keyCode);
-                if (action != null) {
-                    getEmulator().getSystemController().onActionReleased(action);
-                }
-            }
-
+    @Override
+    @Nullable
+    protected NESController.Actions getActionForKeyCode(int keyCode) {
+        return switch (keyCode) {
+            case KeyEvent.VK_W -> NESController.Actions.UP;
+            case KeyEvent.VK_S -> NESController.Actions.DOWN;
+            case KeyEvent.VK_A -> NESController.Actions.LEFT;
+            case KeyEvent.VK_D -> NESController.Actions.RIGHT;
+            case KeyEvent.VK_ENTER -> NESController.Actions.START;
+            case KeyEvent.VK_BACK_SPACE -> NESController.Actions.SELECT;
+            case KeyEvent.VK_J -> NESController.Actions.A;
+            case KeyEvent.VK_K -> NESController.Actions.B;
+            default -> null;
         };
-
-
-        this.videoDriver = new DefaultSystemVideoDriver(this.emulator.getVideoGenerator(), keyAdapter);
-
-        int framerate = this.emulator.getFramerate();
-        boolean isStereo = this.emulator.getAudioGenerator().isStereo();
-
-        this.audioDriver = isStereo
-                ? new StereoAudioRendererDriver(this.emulator.getAudioGenerator(), new StereoAudioRenderer(framerate))
-                : new MonoAudioRendererDriver(this.emulator.getAudioGenerator(), new MonoAudioRenderer(framerate));
-        this.audioRenderer = this.audioDriver.getAudioRenderer();
-    }
-
-    @Override
-    public DefaultSystemVideoDriver getJPanelVideoDriver() {
-        return this.videoDriver;
-    }
-
-    @Override
-    public AudioRenderer getAudioRenderer() {
-        return this.audioRenderer;
     }
 
     @Override
@@ -91,56 +62,8 @@ public class DefaultNESAdapter extends DefaultSystemAdapter {
     }
 
     @Override
-    public Optional<? extends VideoDriver> getVideoDriver() {
-        return Optional.ofNullable(this.videoDriver);
-    }
-
-    @Override
-    public Optional<? extends DefaultAudioRendererDriver> getAudioDriver() {
-        return Optional.ofNullable(this.audioDriver);
-    }
-
-    @Override
     public System getSystem() {
         return this.system;
-    }
-
-    @Override
-    public Emulator getEmulator() {
-        return this.emulator;
-    }
-
-    @Override
-    public void close() throws IOException {
-        if (this.videoDriver != null) {
-            this.videoDriver.close();
-        }
-        if (this.audioDriver != null) {
-            this.audioDriver.close();
-        }
-        if (this.emulator != null) {
-            try {
-                this.emulator.close();
-            } catch (Exception e) {
-                Logger.error("Error closing NES emulator resources: {}", e);
-            }
-        }
-    }
-
-
-    @Nullable
-    private NESController.Actions getActionForKeyCode(int keyCode) {
-        return switch (keyCode) {
-            case KeyEvent.VK_W -> NESController.Actions.UP;
-            case KeyEvent.VK_S -> NESController.Actions.DOWN;
-            case KeyEvent.VK_A -> NESController.Actions.LEFT;
-            case KeyEvent.VK_D -> NESController.Actions.RIGHT;
-            case KeyEvent.VK_ENTER -> NESController.Actions.START;
-            case KeyEvent.VK_BACK_SPACE -> NESController.Actions.SELECT;
-            case KeyEvent.VK_J -> NESController.Actions.A;
-            case KeyEvent.VK_K -> NESController.Actions.B;
-            default -> null;
-        };
     }
 
 }

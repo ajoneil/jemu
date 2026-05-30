@@ -32,13 +32,10 @@ public class DefaultGameBoyAdapter extends DefaultSystemAdapter implements GameB
     private final System system;
     private final Model model;
 
-    private final Emulator emulator;
-    private final DefaultSystemVideoDriver videoDriver;
-    private final DefaultAudioRendererDriver audioDriver;
-    private final AudioRenderer audioRenderer;
     private final Path saveDataDirectory;
 
     public DefaultGameBoyAdapter(CoreInitializer initializer, Model model) {
+        this.model = model;
         super(initializer);
         StringBuilder titleBuilder;
         String title = null;
@@ -60,57 +57,37 @@ public class DefaultGameBoyAdapter extends DefaultSystemAdapter implements GameB
         }
         this.romTitle = title != null ? title : initializer.getRomPath().map(path -> path.getFileName().toString()).orElse(null);
         this.system = initializer.getSystem().orElse(System.GAME_BOY);
-        this.model = model;
-
-        KeyAdapter keyAdapter = new KeyAdapter() {
-
-            @Override
-            public void keyPressed(KeyEvent e) {
-                int keyCode = e.getKeyCode();
-                GameBoyJoypad.Actions action = getActionForKeyCode(keyCode);
-                if (action != null) {
-                    getEmulator().getSystemController().onActionPressed(action);
-                }
-            }
-
-            @Override
-            public void keyReleased(KeyEvent e) {
-                int keyCode = e.getKeyCode();
-                GameBoyJoypad.Actions action = getActionForKeyCode(keyCode);
-                if (action != null) {
-                    getEmulator().getSystemController().onActionReleased(action);
-                }
-            }
-
-        };
-
         this.saveDataDirectory = this.getRomPath().getParent();
+    }
 
-        this.emulator = switch (model) {
+    @Override
+    protected Emulator createEmulator() {
+        return switch (this.model) {
             case CGB -> new GameBoyColorEmulator(this);
             case DMG -> new GameBoyEmulator(this);
         };
+    }
 
-        this.videoDriver = new DefaultSystemVideoDriver(this.emulator.getVideoGenerator(), keyAdapter);
-
-        int framerate = this.emulator.getFramerate();
-        boolean isStereo = this.emulator.getAudioGenerator().isStereo();
-
-        this.audioDriver = isStereo
-                ? new StereoAudioRendererDriver(this.emulator.getAudioGenerator(), new StereoAudioRenderer(framerate))
-                : new MonoAudioRendererDriver(this.emulator.getAudioGenerator(), new MonoAudioRenderer(framerate));
-        this.audioRenderer = this.audioDriver.getAudioRenderer();
+    @Override
+    @Nullable
+    protected GameBoyJoypad.Actions getActionForKeyCode(int keyCode) {
+        return switch (keyCode) {
+            case KeyEvent.VK_W -> GameBoyJoypad.Actions.UP;
+            case KeyEvent.VK_S -> GameBoyJoypad.Actions.DOWN;
+            case KeyEvent.VK_A -> GameBoyJoypad.Actions.LEFT;
+            case KeyEvent.VK_D -> GameBoyJoypad.Actions.RIGHT;
+            case KeyEvent.VK_ENTER -> GameBoyJoypad.Actions.START;
+            case KeyEvent.VK_BACK_SPACE -> GameBoyJoypad.Actions.SELECT;
+            case KeyEvent.VK_J -> GameBoyJoypad.Actions.A;
+            case KeyEvent.VK_K -> GameBoyJoypad.Actions.B;
+            default -> null;
+        };
     }
 
 
     @Override
     public System getSystem() {
         return this.system;
-    }
-
-    @Override
-    public Emulator getEmulator() {
-        return this.emulator;
     }
 
     @Override
@@ -133,56 +110,5 @@ public class DefaultGameBoyAdapter extends DefaultSystemAdapter implements GameB
         return Optional.ofNullable(this.romTitle);
     }
 
-    @Override
-    public Optional<VideoDriver> getVideoDriver() {
-        return Optional.of(this.videoDriver);
-    }
-
-    @Override
-    public Optional<? extends DefaultAudioRendererDriver> getAudioDriver() {
-        return Optional.of(this.audioDriver);
-    }
-
-    @Override
-    public DefaultSystemVideoDriver getJPanelVideoDriver() {
-        return this.videoDriver;
-    }
-
-    @Override
-    public AudioRenderer getAudioRenderer() {
-        return this.audioRenderer;
-    }
-
-    @Nullable
-    private GameBoyJoypad.Actions getActionForKeyCode(int keyCode) {
-        return switch (keyCode) {
-            case KeyEvent.VK_W -> GameBoyJoypad.Actions.UP;
-            case KeyEvent.VK_S -> GameBoyJoypad.Actions.DOWN;
-            case KeyEvent.VK_A -> GameBoyJoypad.Actions.LEFT;
-            case KeyEvent.VK_D -> GameBoyJoypad.Actions.RIGHT;
-            case KeyEvent.VK_ENTER -> GameBoyJoypad.Actions.START;
-            case KeyEvent.VK_BACK_SPACE -> GameBoyJoypad.Actions.SELECT;
-            case KeyEvent.VK_J -> GameBoyJoypad.Actions.A;
-            case KeyEvent.VK_K -> GameBoyJoypad.Actions.B;
-            default -> null;
-        };
-    }
-
-    @Override
-    public void close() throws IOException {
-        if (this.videoDriver != null) {
-            this.videoDriver.close();
-        }
-        if (this.audioDriver != null) {
-            this.audioDriver.close();
-        }
-        if (this.emulator != null) {
-            try {
-                this.emulator.close();
-            } catch (Exception e) {
-                Logger.error("Error closing Game Boy emulator resources: {}", e);
-            }
-        }
-    }
 
 }
