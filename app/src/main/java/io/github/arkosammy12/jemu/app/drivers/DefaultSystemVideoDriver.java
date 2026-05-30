@@ -88,15 +88,19 @@ public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Clo
 
     private void renderLoop() {
         while (this.running) {
-            synchronized (this.renderLock) {
-                while (this.running && !this.frameRequested) {
-                    try {
-                        this.renderLock.wait();
-                    } catch (InterruptedException _) {}
+            try {
+                synchronized (this.renderLock) {
+                    while (this.running && !this.frameRequested) {
+                        try {
+                            this.renderLock.wait();
+                        } catch (InterruptedException _) {}
+                    }
+                    this.frameRequested = false;
                 }
-                this.frameRequested = false;
+                this.renderFrame();
+            } catch (Exception e) {
+                Logger.warn("Render thread encountered an unexpected error, continuing: {}", e.getMessage());
             }
-            this.renderFrame();
         }
     }
 
@@ -114,14 +118,18 @@ public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Clo
         synchronized (this.renderBufferLock) {
             System.arraycopy(this.renderBuffer, 0, ((DataBufferInt) this.bufferedImage.getRaster().getDataBuffer()).getData(), 0, this.renderBuffer.length);
         }
-        Graphics2D g = (Graphics2D) bufferStrategy.getDrawGraphics();
-        g.setColor(Color.BLACK);
-        g.fillRect(0, 0, getWidth(), getHeight());
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-        g.drawImage(this.bufferedImage, this.drawTransform, null);
-        g.dispose();
-        bufferStrategy.show();
-        Toolkit.getDefaultToolkit().sync();
+        try {
+            Graphics2D g = (Graphics2D) bufferStrategy.getDrawGraphics();
+            g.setColor(Color.BLACK);
+            g.fillRect(0, 0, getWidth(), getHeight());
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            g.drawImage(this.bufferedImage, this.drawTransform, null);
+            g.dispose();
+            bufferStrategy.show();
+            Toolkit.getDefaultToolkit().sync();
+        } catch (Exception e) {
+            Logger.warn("Failed to render frame to canvas: {}", e.getMessage());
+        }
     }
 
     @Override
