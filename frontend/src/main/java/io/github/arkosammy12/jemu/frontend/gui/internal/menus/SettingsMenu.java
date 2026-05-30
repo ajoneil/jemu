@@ -50,7 +50,6 @@ public class SettingsMenu extends MenuBarMenu implements SettingsManager {
 
         this.getJMenu().add(volumeMenu);
         this.getJMenu().add(muteButton);
-        this.getJMenu().addSeparator();
 
         mainWindow.registerSettingProperty(new SerializedEntry("settings.volume", () -> String.valueOf(this.volumeSlider.getValue()), s -> tryParseInt(s).ifPresent(this.volumeSlider::setValue)));
         mainWindow.registerSettingProperty(new SerializedEntry("settings.muted", () -> String.valueOf(this.muteButton.isSelected()), s -> this.muteButton.setSelected(Boolean.parseBoolean(s))));

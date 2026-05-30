@@ -15,6 +15,7 @@ import javax.swing.*;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowEvent;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -117,11 +118,16 @@ public class FileMenu extends MenuBarMenu implements FileManager {
         resetOnROMFileSelect.setSelected(true);
         resetOnROMFileSelect.addChangeListener(_ -> this.resetOnFileSelect = resetOnROMFileSelect.isSelected());
 
+        JMenuItem exitButton = new JMenuItem("Exit");
+        exitButton.addActionListener(_ -> jFrame.dispatchEvent(new WindowEvent(jFrame, WindowEvent.WINDOW_CLOSING)));
+
         openRecentMenu.add(clearRecentsButton);
         this.jMenu.add(openItem);
         this.jMenu.add(openRecentMenu);
         this.jMenu.addSeparator();
         this.jMenu.add(resetOnROMFileSelect);
+        this.jMenu.addSeparator();
+        this.jMenu.add(exitButton);
 
         for (int i = 0; i < RECENT_FILES_SIZE; i++) {
             int finalI = i;

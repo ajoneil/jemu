@@ -11,7 +11,6 @@ public class Main {
             jemu.start();
         } catch (Throwable t) {
             Logger.error("jemu has crashed! {}", t);
-        } finally {
             if (jemu != null) {
                 jemu.onShutdown();
             }
