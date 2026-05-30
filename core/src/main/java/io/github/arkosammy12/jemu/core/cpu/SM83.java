@@ -1155,11 +1155,13 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                                 switch (machineCycleIndex) {
                                     case 0 -> {
                                         setZ(systemBus.getBus().readByte(getSP()));
+                                        systemBus.onIDURead(getSP());
                                         setSP(getSP() + 1);
                                         machineCycleIndex = 1;
                                     }
                                     case 1 -> {
                                         setW(systemBus.getBus().readByte(getSP()));
+                                        systemBus.onIDURead(getSP());
                                         setSP(getSP() + 1);
                                         machineCycleIndex = 2;
                                     }
@@ -1406,11 +1408,13 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                             case 0 -> { // PUSH rp2[p]
                                 switch (machineCycleIndex) {
                                     case 0 -> {
+                                        systemBus.onIDUWrite(getSP());
                                         setSP(getSP() - 1);
                                         machineCycleIndex = 1;
                                     }
                                     case 1 -> {
                                         systemBus.getBus().writeByte(getSP(), (getRP2(p) & 0xFF00) >>> 8);
+                                        systemBus.onIDUWrite(getSP());
                                         setSP(getSP() - 1);
                                         machineCycleIndex = 2;
                                     }
