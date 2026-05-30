@@ -3,12 +3,13 @@ package io.github.arkosammy12.jemu.core.gameboy;
 import io.github.arkosammy12.jemu.core.common.SystemHost;
 
 import java.nio.file.Path;
+import java.util.Optional;
 
 public interface GameBoyHost extends SystemHost {
 
     Model getModel();
 
-    Path getSaveDataDirectory();
+    Optional<Path> getSaveDataDirectory();
 
     enum Model {
         DMG,

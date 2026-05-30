@@ -1,38 +1,29 @@
 package io.github.arkosammy12.jemu.app.adapters;
 
-import io.github.arkosammy12.jemu.app.drivers.*;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.core.common.Emulator;
-import io.github.arkosammy12.jemu.core.common.SystemController;
 import io.github.arkosammy12.jemu.core.cosmacvip.CosmacVIPKeypad;
 import io.github.arkosammy12.jemu.core.cosmacvip.CosmacVIPEmulator;
 import io.github.arkosammy12.jemu.core.cosmacvip.CosmacVIPHost;
-import io.github.arkosammy12.jemu.core.drivers.VideoDriver;
-import io.github.arkosammy12.jemu.frontend.audio.AudioRenderer;
-import io.github.arkosammy12.jemu.frontend.audio.MonoAudioRenderer;
-import io.github.arkosammy12.jemu.frontend.audio.StereoAudioRenderer;
 import org.jetbrains.annotations.Nullable;
 
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.io.IOException;
 import java.util.Optional;
 
 import static io.github.arkosammy12.jemu.app.util.System.COSMAC_VIP;
 
-public class DefaultCosmacVIPAdapter extends DefaultSystemAdapter implements CosmacVIPHost {
+public class CosmacVIPAdapter extends AbstractSystemAdapter implements CosmacVIPHost {
 
     private final String romTitle;
     private final System system;
     private final Chip8Interpreter chip8Interpreter;
 
-    public DefaultCosmacVIPAdapter(CoreInitializer initializer, Chip8Interpreter chip8Interpreter) {
-        super(initializer);
-
+    public CosmacVIPAdapter(CoreInitializer initializer, Chip8Interpreter chip8Interpreter) {
         this.romTitle = initializer.getRomPath().map(path -> path.getFileName().toString()).orElse(null);
         this.system = initializer.getSystem().orElse(COSMAC_VIP);
         this.chip8Interpreter = chip8Interpreter;
+        super(initializer);
     }
 
     @Override

@@ -54,7 +54,12 @@ public abstract class GameBoyCartridge implements Bus {
     }
 
     protected final Optional<byte[]> readSaveData() {
-        Path saveDataDirectory = this.gameBoyEmulator.getHost().getSaveDataDirectory();
+        Optional<Path> optionalSaveDataDirectory = this.gameBoyEmulator.getHost().getSaveDataDirectory();
+        if (optionalSaveDataDirectory.isEmpty()) {
+            Logger.warn("Cannot read GameBoy cartridge save data because no save data directory was provided!");
+            return Optional.empty();
+        }
+        Path saveDataDirectory = optionalSaveDataDirectory.get();
         String romName = FilenameUtils.getBaseName(this.gameBoyEmulator.getHost().getRomPath().toString());
         Path saveDataFilePath = saveDataDirectory.resolve("%s.sav".formatted(romName));
         try {
@@ -69,13 +74,19 @@ public abstract class GameBoyCartridge implements Bus {
     }
 
     public void save() {
+        Optional<Path> optionalSaveDataDirectory = this.gameBoyEmulator.getHost().getSaveDataDirectory();
+        if (optionalSaveDataDirectory.isEmpty()) {
+            Logger.warn("Cannot save GameBoy cartridge save data because no save data directory was provided!");
+            return;
+        }
+
         Optional<byte[]> saveDataOptional = this.getSaveData();
         if (saveDataOptional.isEmpty()) {
             return;
         }
         byte[] saveData = saveDataOptional.get();
 
-        Path saveDataDirectory = this.gameBoyEmulator.getHost().getSaveDataDirectory();
+        Path saveDataDirectory = optionalSaveDataDirectory.get();
         String romName = FilenameUtils.getBaseName(this.gameBoyEmulator.getHost().getRomPath().toString());
         if (!Files.exists(saveDataDirectory)) {
             try {

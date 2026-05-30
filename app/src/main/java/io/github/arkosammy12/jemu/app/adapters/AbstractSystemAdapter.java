@@ -7,7 +7,6 @@ import io.github.arkosammy12.jemu.app.drivers.StereoAudioRendererDriver;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.core.common.Emulator;
 import io.github.arkosammy12.jemu.core.common.SystemController;
-import io.github.arkosammy12.jemu.core.cosmacvip.CosmacVIPKeypad;
 import io.github.arkosammy12.jemu.core.drivers.VideoDriver;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import io.github.arkosammy12.jemu.frontend.audio.AudioRenderer;
@@ -23,7 +22,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Optional;
 
-public abstract class DefaultSystemAdapter implements SystemAdapter {
+public abstract class AbstractSystemAdapter implements SystemAdapter {
 
     private final byte[] rom;
     private final Path path;
@@ -33,7 +32,7 @@ public abstract class DefaultSystemAdapter implements SystemAdapter {
     private final DefaultAudioRendererDriver audioDriver;
     private final AudioRenderer audioRenderer;
 
-    public DefaultSystemAdapter(CoreInitializer initializer) {
+    public AbstractSystemAdapter(CoreInitializer initializer) {
         Optional<byte[]> rawRomOptional = initializer.getRawRom();
         Optional<Path> romPathOptional = initializer.getRomPath();
         if (rawRomOptional.isEmpty() || romPathOptional.isEmpty()) {

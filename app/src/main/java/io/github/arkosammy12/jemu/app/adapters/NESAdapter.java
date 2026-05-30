@@ -1,33 +1,24 @@
 package io.github.arkosammy12.jemu.app.adapters;
 
-import io.github.arkosammy12.jemu.app.drivers.*;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.core.common.Emulator;
-import io.github.arkosammy12.jemu.core.drivers.VideoDriver;
 import io.github.arkosammy12.jemu.core.nes.NESController;
 import io.github.arkosammy12.jemu.core.nes.NESEmulator;
-import io.github.arkosammy12.jemu.frontend.audio.AudioRenderer;
-import io.github.arkosammy12.jemu.frontend.audio.MonoAudioRenderer;
-import io.github.arkosammy12.jemu.frontend.audio.StereoAudioRenderer;
 import org.jetbrains.annotations.Nullable;
-import org.tinylog.Logger;
 
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.io.IOException;
 import java.util.Optional;
 
-public class DefaultNESAdapter extends DefaultSystemAdapter {
+public class NESAdapter extends AbstractSystemAdapter {
 
     private final String romTitle;
     private final System system;
 
-    public DefaultNESAdapter(CoreInitializer initializer) {
-        super(initializer);
-
+    public NESAdapter(CoreInitializer initializer) {
         this.romTitle = initializer.getRomPath().map(path -> path.getFileName().toString()).orElse(null);
         this.system = System.NES;
+        super(initializer);
     }
 
     @Override

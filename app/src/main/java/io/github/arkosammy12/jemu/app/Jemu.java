@@ -1,6 +1,6 @@
 package io.github.arkosammy12.jemu.app;
 
-import io.github.arkosammy12.jemu.app.adapters.DefaultSystemAdapter;
+import io.github.arkosammy12.jemu.app.adapters.AbstractSystemAdapter;
 import io.github.arkosammy12.jemu.app.adapters.SystemAdapter;
 import io.github.arkosammy12.jemu.app.io.CLIArgs;
 import io.github.arkosammy12.jemu.app.io.initializers.EmulatorInitializer;
@@ -27,7 +27,7 @@ public final class Jemu {
 
     private static final Path APP_DIR = Path.of(AppDirsFactory.getInstance().getUserDataDir("jemu", null, null));
 
-    private volatile DefaultSystemAdapter currentSystem = null;
+    private volatile AbstractSystemAdapter currentSystem = null;
     private volatile State currentState = State.STOPPED;
 
     @Nullable
@@ -95,7 +95,7 @@ public final class Jemu {
     }
 
     public Optional<AudioRenderer> getCurrentAudioRenderer() {
-        return Optional.ofNullable(this.currentSystem).map(DefaultSystemAdapter::getAudioRenderer);
+        return Optional.ofNullable(this.currentSystem).map(AbstractSystemAdapter::getAudioRenderer);
     }
 
     public void start() {

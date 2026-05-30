@@ -1,10 +1,10 @@
 package io.github.arkosammy12.jemu.app.util;
 
 import io.github.arkosammy12.jemu.app.Jemu;
-import io.github.arkosammy12.jemu.app.adapters.DefaultCosmacVIPAdapter;
-import io.github.arkosammy12.jemu.app.adapters.DefaultGameBoyAdapter;
-import io.github.arkosammy12.jemu.app.adapters.DefaultNESAdapter;
-import io.github.arkosammy12.jemu.app.adapters.DefaultSystemAdapter;
+import io.github.arkosammy12.jemu.app.adapters.CosmacVIPAdapter;
+import io.github.arkosammy12.jemu.app.adapters.GameBoyAdapter;
+import io.github.arkosammy12.jemu.app.adapters.NESAdapter;
+import io.github.arkosammy12.jemu.app.adapters.AbstractSystemAdapter;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.core.cosmacvip.CosmacVIPHost;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
@@ -16,19 +16,19 @@ import java.util.Optional;
 import java.util.function.Function;
 
 public enum System implements DisplayNameProvider, SystemDescriptor {
-    COSMAC_VIP("cosmac-vip", "COSMAC-VIP", new String[] {"cos", "bin"}, args -> new DefaultCosmacVIPAdapter(args.coreInitializer(), CosmacVIPHost.Chip8Interpreter.NONE)),
-    VIP_CHIP_8("vip-chip8", "VIP CHIP-8", new String[] {"ch8", "hc8"}, args -> new DefaultCosmacVIPAdapter(args.coreInitializer(), CosmacVIPHost.Chip8Interpreter.CHIP_8)),
-    VIP_CHIP_8X("vip-chip8x", "VIP CHIP-8X", new String[] {"ch8", "c8x"}, args -> new DefaultCosmacVIPAdapter(args.coreInitializer(), CosmacVIPHost.Chip8Interpreter.CHIP_8X)),
-    GAME_BOY("gameboy", "Game Boy", new String[] {"gb"}, args -> new DefaultGameBoyAdapter(args.coreInitializer(), GameBoyHost.Model.DMG)),
-    GAME_BOY_COLOR("gameboy-color", "Game Boy Color", new String[] {"gbc"}, args -> new DefaultGameBoyAdapter(args.coreInitializer(), GameBoyHost.Model.CGB)),
-    NES("nes", "Nintendo Entertainment System", new String[] {"nes"}, args -> new DefaultNESAdapter(args.coreInitializer()));
+    COSMAC_VIP("cosmac-vip", "COSMAC-VIP", new String[] {"cos", "bin"}, args -> new CosmacVIPAdapter(args.coreInitializer(), CosmacVIPHost.Chip8Interpreter.NONE)),
+    VIP_CHIP_8("vip-chip8", "VIP CHIP-8", new String[] {"ch8", "hc8"}, args -> new CosmacVIPAdapter(args.coreInitializer(), CosmacVIPHost.Chip8Interpreter.CHIP_8)),
+    VIP_CHIP_8X("vip-chip8x", "VIP CHIP-8X", new String[] {"ch8", "c8x"}, args -> new CosmacVIPAdapter(args.coreInitializer(), CosmacVIPHost.Chip8Interpreter.CHIP_8X)),
+    GAME_BOY("gameboy", "Game Boy", new String[] {"gb"}, args -> new GameBoyAdapter(args.coreInitializer(), GameBoyHost.Model.DMG)),
+    GAME_BOY_COLOR("gameboy-color", "Game Boy Color", new String[] {"gbc"}, args -> new GameBoyAdapter(args.coreInitializer(), GameBoyHost.Model.CGB)),
+    NES("nes", "Nintendo Entertainment System", new String[] {"nes"}, args -> new NESAdapter(args.coreInitializer()));
 
     private final String identifier;
     private final String displayName;
     private final String[] fileExtensions;
-    private final Function<EmulatorSettingsArgs, ? extends DefaultSystemAdapter> args;
+    private final Function<EmulatorSettingsArgs, ? extends AbstractSystemAdapter> args;
 
-    System(String identifier, String displayName, String[] fileExtensions, Function<EmulatorSettingsArgs, ? extends DefaultSystemAdapter> args) {
+    System(String identifier, String displayName, String[] fileExtensions, Function<EmulatorSettingsArgs, ? extends AbstractSystemAdapter> args) {
         this.identifier = identifier;
         this.displayName = displayName;
         this.fileExtensions = fileExtensions;
@@ -40,7 +40,7 @@ public enum System implements DisplayNameProvider, SystemDescriptor {
         return this.displayName;
     }
 
-    public static DefaultSystemAdapter getSystemAdapter(Jemu jemu, CoreInitializer initializer) {
+    public static AbstractSystemAdapter getSystemAdapter(Jemu jemu, CoreInitializer initializer) {
         Optional<System> optionalVariant = initializer.getSystem();
         if (optionalVariant.isPresent()) {
              return optionalVariant.get().args.apply(new EmulatorSettingsArgs(jemu, initializer));

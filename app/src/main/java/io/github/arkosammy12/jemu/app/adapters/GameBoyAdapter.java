@@ -1,30 +1,23 @@
 package io.github.arkosammy12.jemu.app.adapters;
 
-import io.github.arkosammy12.jemu.app.drivers.*;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.core.common.Emulator;
 import io.github.arkosammy12.jemu.core.common.SystemHost;
-import io.github.arkosammy12.jemu.core.drivers.VideoDriver;
 import io.github.arkosammy12.jemu.core.gameboy.GameBoyEmulator;
 import io.github.arkosammy12.jemu.core.gameboy.GameBoyHost;
 import io.github.arkosammy12.jemu.core.gameboy.GameBoyJoypad;
 import io.github.arkosammy12.jemu.core.gameboycolor.GameBoyColorEmulator;
-import io.github.arkosammy12.jemu.frontend.audio.AudioRenderer;
-import io.github.arkosammy12.jemu.frontend.audio.MonoAudioRenderer;
-import io.github.arkosammy12.jemu.frontend.audio.StereoAudioRenderer;
 import org.jetbrains.annotations.Nullable;
 import org.tinylog.Logger;
 
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
 
-public class DefaultGameBoyAdapter extends DefaultSystemAdapter implements GameBoyHost {
+public class GameBoyAdapter extends AbstractSystemAdapter implements GameBoyHost {
 
-    private final String romTitle;
+    private String romTitle;
 
     private static final int HEADER_TITLE_START = 0x0134;
     private static final int HEADER_TITLE_END = 0x0143;
@@ -32,11 +25,17 @@ public class DefaultGameBoyAdapter extends DefaultSystemAdapter implements GameB
     private final System system;
     private final Model model;
 
-    private final Path saveDataDirectory;
+    private Path saveDataDirectory;
 
-    public DefaultGameBoyAdapter(CoreInitializer initializer, Model model) {
+    public GameBoyAdapter(CoreInitializer initializer, Model model) {
         this.model = model;
+        this.system = initializer.getSystem().orElse(System.GAME_BOY);
         super(initializer);
+    }
+
+    @Override
+    protected Emulator createEmulator() {
+
         StringBuilder titleBuilder;
         String title = null;
         try {
@@ -55,13 +54,10 @@ public class DefaultGameBoyAdapter extends DefaultSystemAdapter implements GameB
         } catch (ArrayIndexOutOfBoundsException e) {
             Logger.error("Failed to read ROM title from GameBoy cartridge header!", e);
         }
-        this.romTitle = title != null ? title : initializer.getRomPath().map(path -> path.getFileName().toString()).orElse(null);
-        this.system = initializer.getSystem().orElse(System.GAME_BOY);
-        this.saveDataDirectory = this.getRomPath().getParent();
-    }
 
-    @Override
-    protected Emulator createEmulator() {
+        this.romTitle = title != null ? title : this.getRomPath().getFileName().toString();
+        this.saveDataDirectory = this.getRomPath().getParent();
+
         return switch (this.model) {
             case CGB -> new GameBoyColorEmulator(this);
             case DMG -> new GameBoyEmulator(this);
@@ -96,8 +92,8 @@ public class DefaultGameBoyAdapter extends DefaultSystemAdapter implements GameB
     }
 
     @Override
-    public Path getSaveDataDirectory() {
-        return this.saveDataDirectory;
+    public Optional<Path> getSaveDataDirectory() {
+        return Optional.ofNullable(this.saveDataDirectory);
     }
 
     @Override
@@ -109,6 +105,5 @@ public class DefaultGameBoyAdapter extends DefaultSystemAdapter implements GameB
     public Optional<String> getRomTitle() {
         return Optional.ofNullable(this.romTitle);
     }
-
 
 }
