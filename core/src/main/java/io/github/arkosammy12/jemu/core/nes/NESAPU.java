@@ -364,7 +364,14 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         int dmc = this.dmcChannel.getDigitalOutput();
 
         double output = PULSE_TABLE[pulse1 + pulse2] + TND_TABLE[3 * triangle + 2 * noise + dmc];
+
+        // > But, when Sunsoft 5B mixes itself with the APU audio, it should invert the incoming APU audio.
+        //
+        // Shawn (L. Spiro) Wilcoxen, 2026
         output = this.emulator.getCartridge().mixAPUAudio(output);
+
+        // Apparently my final waveform is inverted compared to hardware, so we revert it right back here
+        output *= -1;
         this.sampleBuffer[this.currentSampleIndex] = this.lpf.process(output);
         this.currentSampleIndex = (this.currentSampleIndex + 1) % this.sampleBuffer.length;
     }
