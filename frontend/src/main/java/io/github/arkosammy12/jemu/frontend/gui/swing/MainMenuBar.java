@@ -22,7 +22,7 @@ public class MainMenuBar {
 
         this.fileMenu = new FileMenu(mainWindow, jFrame);
         this.emulatorMenu = new EmulatorMenu(mainWindow);
-        this.settingsMenu = new SettingsMenu(mainWindow);
+        this.settingsMenu = new SettingsMenu(mainWindow, jFrame);
         this.helpMenu = new HelpMenu(mainWindow);
 
         this.jMenuBar.add(this.fileMenu.getJMenu());
