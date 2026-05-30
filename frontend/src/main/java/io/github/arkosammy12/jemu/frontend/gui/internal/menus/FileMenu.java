@@ -34,6 +34,8 @@ public class FileMenu extends MenuBarMenu implements FileManager {
     @Nullable
     private Path currentDirectory;
 
+    private volatile boolean resetOnFileSelect = true;
+
     private final JMenu openRecentMenu;
     private final JMenuItem clearRecentsButton;
     private final CircularFifoQueue<Path> recentFilePaths = new CircularFifoQueue<>(RECENT_FILES_SIZE);
@@ -111,9 +113,15 @@ public class FileMenu extends MenuBarMenu implements FileManager {
             this.rebuildOpenRecentMenu();
         });
 
+        JRadioButtonMenuItem resetOnROMFileSelect = new JRadioButtonMenuItem("Reset on ROM file select");
+        resetOnROMFileSelect.setSelected(true);
+        resetOnROMFileSelect.addChangeListener(_ -> this.resetOnFileSelect = resetOnROMFileSelect.isSelected());
+
         openRecentMenu.add(clearRecentsButton);
         this.jMenu.add(openItem);
         this.jMenu.add(openRecentMenu);
+        this.jMenu.addSeparator();
+        this.jMenu.add(resetOnROMFileSelect);
 
         for (int i = 0; i < RECENT_FILES_SIZE; i++) {
             int finalI = i;
@@ -126,6 +134,7 @@ public class FileMenu extends MenuBarMenu implements FileManager {
         }
 
         mainWindow.registerStateProperty(new SerializedEntry("file.current_directory", () -> this.currentDirectory == null ? "" : this.currentDirectory.toString(), s -> this.currentDirectory = Path.of(s)));
+        mainWindow.registerSettingProperty(new SerializedEntry("file.reset_on_rom_file_select", () -> String.valueOf(resetOnROMFileSelect.isSelected()), s -> resetOnROMFileSelect.setSelected(Boolean.parseBoolean(s))));
     }
 
     @Override
@@ -141,7 +150,7 @@ public class FileMenu extends MenuBarMenu implements FileManager {
     public void loadFile(Path filePath, boolean forceReset) {
         SwingUtilities.invokeLater(() -> {
             this.currentRomPath = filePath;
-            if (this.mainWindow.getMainMenuBar().getSettingsMenu().resetOnFileSelect() || forceReset) {
+            if (this.resetOnFileSelect || forceReset) {
                 mainWindow.getMainMenuBar().getEmulatorMenu().submitReset();
             }
         });
