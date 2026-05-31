@@ -12,9 +12,21 @@ import io.github.arkosammy12.jemu.core.common.SystemController;
 import org.tinylog.Logger;
 
 import java.io.IOException;
-import java.util.List;
+
 
 public class JoypadDriver implements AutoCloseable {
+
+    private static final float JOYSTICK_ENGAGED_THRESH = 0.5f;
+
+    // Keep JOYSTICK_DISENGAGED_THRESH <= JOYSTICK_ENGAGED_THRESH.
+    // If JOYSTICK_DISENGAGED_THRESH < JOYSTICK_ENGAGED_THRESH there is a hysteresis effect which seems more natural
+    // when using a joystick in place of a DPAD
+    private static final float JOYSTICK_DISENGAGED_THRESH = 0.45f;
+
+    private boolean joyUp = false;
+    private boolean joyDown = false;
+    private boolean joyLeft = false;
+    private boolean joyRight = false;
 
     private final AbstractSystemAdapter systemAdapter;
 
@@ -83,6 +95,9 @@ public class JoypadDriver implements AutoCloseable {
         device.onButtonReleased(XInput.BACK, () -> releaseButton(XInput.BACK));
         device.onButtonReleased(XInput.X, () -> releaseButton(XInput.X));
         device.onButtonReleased(XInput.A, () -> releaseButton(XInput.A));
+
+        device.onAxisChanged(XInput.LEFT_THUMB_X, this::xAxisChange);
+        device.onAxisChanged(XInput.LEFT_THUMB_Y, this::yAxisChange);
     }
 
     private void pressButton(InputComponent.ID id) {
@@ -95,6 +110,52 @@ public class JoypadDriver implements AutoCloseable {
     private void releaseButton(InputComponent.ID id) {
         SystemController.Action action = systemAdapter.getActionForJoypadEvent(id);
         if (action != null) {
+            systemAdapter.getEmulator().getSystemController().onActionReleased(action);
+        }
+    }
+
+    private void xAxisChange(float val) {
+        if(val >= JOYSTICK_ENGAGED_THRESH && !joyRight){
+            joyRight = true;
+            SystemController.Action action = systemAdapter.getActionForJoypadEvent(XInput.DPAD_RIGHT);
+            systemAdapter.getEmulator().getSystemController().onActionPressed(action);
+        }
+        else if (val < JOYSTICK_DISENGAGED_THRESH && joyRight){
+            joyRight = false;
+            SystemController.Action action = systemAdapter.getActionForJoypadEvent(XInput.DPAD_RIGHT);
+            systemAdapter.getEmulator().getSystemController().onActionReleased(action);
+        }
+
+        if(val <= -JOYSTICK_ENGAGED_THRESH && !joyLeft){
+            joyLeft = true;
+            SystemController.Action action = systemAdapter.getActionForJoypadEvent(XInput.DPAD_LEFT);
+            systemAdapter.getEmulator().getSystemController().onActionPressed(action);
+        }
+        else if (val > -JOYSTICK_DISENGAGED_THRESH && joyLeft){
+            joyLeft = false;
+            SystemController.Action action = systemAdapter.getActionForJoypadEvent(XInput.DPAD_LEFT);
+            systemAdapter.getEmulator().getSystemController().onActionReleased(action);
+        }
+    }
+
+    private void yAxisChange(float val) {
+        if (val >= JOYSTICK_ENGAGED_THRESH && !joyUp) {
+            joyUp = true;
+            SystemController.Action action = systemAdapter.getActionForJoypadEvent(XInput.DPAD_UP);
+            systemAdapter.getEmulator().getSystemController().onActionPressed(action);
+        } else if (val < JOYSTICK_DISENGAGED_THRESH && joyUp) {
+            joyUp = false;
+            SystemController.Action action = systemAdapter.getActionForJoypadEvent(XInput.DPAD_UP);
+            systemAdapter.getEmulator().getSystemController().onActionReleased(action);
+        }
+
+        if (val <= -JOYSTICK_ENGAGED_THRESH && !joyDown) {
+            joyDown = true;
+            SystemController.Action action = systemAdapter.getActionForJoypadEvent(XInput.DPAD_DOWN);
+            systemAdapter.getEmulator().getSystemController().onActionPressed(action);
+        } else if (val > -JOYSTICK_DISENGAGED_THRESH && joyDown) {
+            joyDown = false;
+            SystemController.Action action = systemAdapter.getActionForJoypadEvent(XInput.DPAD_DOWN);
             systemAdapter.getEmulator().getSystemController().onActionReleased(action);
         }
     }
