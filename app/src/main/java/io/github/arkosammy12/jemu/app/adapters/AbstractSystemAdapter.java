@@ -1,8 +1,10 @@
 package io.github.arkosammy12.jemu.app.adapters;
 
+import de.gurkenlabs.input4j.InputComponent;
 import io.github.arkosammy12.jemu.app.drivers.DefaultAudioRendererDriver;
 import io.github.arkosammy12.jemu.app.drivers.DefaultSystemVideoDriver;
 import io.github.arkosammy12.jemu.app.drivers.MonoAudioRendererDriver;
+import io.github.arkosammy12.jemu.app.drivers.JoypadDriver;
 import io.github.arkosammy12.jemu.app.drivers.StereoAudioRendererDriver;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.core.common.Emulator;
@@ -30,6 +32,7 @@ public abstract class AbstractSystemAdapter implements SystemAdapter {
     private final Emulator emulator;
     private final DefaultSystemVideoDriver videoDriver;
     private final DefaultAudioRendererDriver audioDriver;
+    private final JoypadDriver joypadDriver;
     private final AudioRenderer audioRenderer;
 
     public AbstractSystemAdapter(CoreInitializer initializer) {
@@ -66,6 +69,8 @@ public abstract class AbstractSystemAdapter implements SystemAdapter {
 
         };
 
+        this.joypadDriver = new JoypadDriver(this);
+
         this.videoDriver = new DefaultSystemVideoDriver(this.emulator.getVideoGenerator(), keyAdapter);
         this.audioDriver = this.emulator.getAudioGenerator().isStereo()
                 ? new StereoAudioRendererDriver(this.emulator.getAudioGenerator(), new StereoAudioRenderer(this.emulator.getFramerate()))
@@ -77,6 +82,9 @@ public abstract class AbstractSystemAdapter implements SystemAdapter {
 
     @Nullable
     protected abstract SystemController.Action getActionForKeyCode(int keyCode);
+
+    @Nullable
+    public abstract SystemController.Action getActionForJoypadEvent(InputComponent.ID id);
 
     @Override
     public byte[] getRom() {

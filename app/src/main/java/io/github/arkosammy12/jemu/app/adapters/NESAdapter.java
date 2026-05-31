@@ -1,5 +1,7 @@
 package io.github.arkosammy12.jemu.app.adapters;
 
+import de.gurkenlabs.input4j.InputComponent;
+import de.gurkenlabs.input4j.components.XInput;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.core.common.Emulator;
@@ -40,6 +42,29 @@ public class NESAdapter extends AbstractSystemAdapter {
             case KeyEvent.VK_K -> NESController.Actions.B;
             default -> null;
         };
+    }
+
+    @Override
+    @Nullable
+    public NESController.Actions getActionForJoypadEvent(InputComponent.ID id) {
+        if (id == XInput.DPAD_UP)
+            return NESController.Actions.UP;
+        else if (id == XInput.DPAD_DOWN)
+            return NESController.Actions.DOWN;
+        else if (id == XInput.DPAD_LEFT)
+            return NESController.Actions.LEFT;
+        else if (id == XInput.DPAD_RIGHT)
+            return NESController.Actions.RIGHT;
+        else if (id == XInput.START)
+            return NESController.Actions.START;
+        else if (id == XInput.BACK)
+            return NESController.Actions.SELECT;
+        else if (id == XInput.A)
+            return NESController.Actions.A;
+        else if (id == XInput.X)
+            return NESController.Actions.B;
+        else
+            return null;
     }
 
     @Override
