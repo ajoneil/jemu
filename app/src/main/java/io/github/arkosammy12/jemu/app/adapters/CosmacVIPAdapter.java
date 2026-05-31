@@ -1,6 +1,7 @@
 package io.github.arkosammy12.jemu.app.adapters;
 
 import de.gurkenlabs.input4j.InputComponent;
+import io.github.arkosammy12.jemu.app.Jemu;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.core.common.Emulator;
@@ -20,11 +21,11 @@ public class CosmacVIPAdapter extends AbstractSystemAdapter implements CosmacVIP
     private final System system;
     private final Chip8Interpreter chip8Interpreter;
 
-    public CosmacVIPAdapter(CoreInitializer initializer, Chip8Interpreter chip8Interpreter) {
+    public CosmacVIPAdapter(Jemu jemu, CoreInitializer initializer, Chip8Interpreter chip8Interpreter) {
         this.romTitle = initializer.getRomPath().map(path -> path.getFileName().toString()).orElse(null);
         this.system = initializer.getSystem().orElse(COSMAC_VIP);
         this.chip8Interpreter = chip8Interpreter;
-        super(initializer);
+        super(jemu, initializer);
     }
 
     @Override

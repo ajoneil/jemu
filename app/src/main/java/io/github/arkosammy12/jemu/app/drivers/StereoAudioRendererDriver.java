@@ -1,32 +1,19 @@
 package io.github.arkosammy12.jemu.app.drivers;
 
+import io.github.arkosammy12.jemu.app.Jemu;
 import io.github.arkosammy12.jemu.core.common.AudioGenerator;
-import io.github.arkosammy12.jemu.frontend.audio.StereoAudioRenderer;
-
-import java.io.IOException;
-import java.util.Optional;
 
 public class StereoAudioRendererDriver extends DefaultAudioRendererDriver {
 
-    public StereoAudioRendererDriver(AudioGenerator<?> audioGenerator, StereoAudioRenderer audioRenderer) {
-        super(audioGenerator, audioRenderer);
-    }
-
-    @Override
-    public int getSampleRate() {
-        return this.audioRenderer.getSampleRate();
-    }
-
-    @Override
-    public int getSamplesPerFrame() {
-        return this.audioRenderer.getSamplesPerFrame();
+    public StereoAudioRendererDriver(Jemu jemu, AudioGenerator<?> audioGenerator) {
+        super(jemu, audioGenerator);
     }
 
     @Override
     protected byte[] convertBitDepthIfNecessary(byte[] buf) {
         return switch (this.audioGenerator.getBytesPerSample()) {
             case BYTES_1 -> {
-                byte[] buf16 = new byte[this.audioRenderer.getBytesPerFrame()];
+                byte[] buf16 = new byte[this.jemu.getAudioEngine().getBytesPerFrame()];
 
                 int frames = buf.length / 2;
                 for (int i = 0; i < frames; i++) {
@@ -41,13 +28,6 @@ public class StereoAudioRendererDriver extends DefaultAudioRendererDriver {
             }
             case BYTES_2 -> buf;
         };
-    }
-
-    @Override
-    public void close() throws IOException {
-        if (this.audioRenderer != null) {
-            this.audioRenderer.close();
-        }
     }
 
 }

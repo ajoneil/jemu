@@ -1,6 +1,8 @@
 package io.github.arkosammy12.jemu.app.adapters;
 
 import de.gurkenlabs.input4j.InputComponent;
+import de.gurkenlabs.input4j.components.XInput;
+import io.github.arkosammy12.jemu.app.Jemu;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.core.common.Emulator;
@@ -14,6 +16,7 @@ import org.tinylog.Logger;
 
 import java.awt.event.KeyEvent;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Optional;
 
 public class GameBoyAdapter extends AbstractSystemAdapter implements GameBoyHost {
@@ -23,15 +26,24 @@ public class GameBoyAdapter extends AbstractSystemAdapter implements GameBoyHost
     private static final int HEADER_TITLE_START = 0x0134;
     private static final int HEADER_TITLE_END = 0x0143;
 
+    private static final Map<InputComponent.ID, GameBoyJoypad.Actions> XINPUT_MAPPINGS = Map.of(
+            XInput.DPAD_UP, GameBoyJoypad.Actions.UP,
+            XInput.DPAD_DOWN, GameBoyJoypad.Actions.DOWN,
+            XInput.DPAD_LEFT, GameBoyJoypad.Actions.LEFT,
+            XInput.DPAD_RIGHT, GameBoyJoypad.Actions.RIGHT,
+            XInput.START, GameBoyJoypad.Actions.START,
+            XInput.A, GameBoyJoypad.Actions.A
+    );
+
     private final System system;
     private final Model model;
 
     private Path saveDataDirectory;
 
-    public GameBoyAdapter(CoreInitializer initializer, Model model) {
+    public GameBoyAdapter(Jemu jemu, CoreInitializer initializer, Model model) {
         this.model = model;
         this.system = initializer.getSystem().orElse(System.GAME_BOY);
-        super(initializer);
+        super(jemu, initializer);
     }
 
     @Override
@@ -84,7 +96,7 @@ public class GameBoyAdapter extends AbstractSystemAdapter implements GameBoyHost
     @Override
     @Nullable
     public GameBoyJoypad.Actions getActionForJoypadEvent(InputComponent.ID id) {
-        return null;
+        return XINPUT_MAPPINGS.get(id);
     }
 
     @Override

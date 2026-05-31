@@ -1,0 +1,256 @@
+package io.github.arkosammy12.jemu.frontend.audio;
+
+import javax.sound.sampled.*;
+import java.io.Closeable;
+import java.util.function.Supplier;
+
+public class AudioEngine implements Closeable {
+
+    private static final int TARGET_FRAME_LATENCY = 3;
+
+    private int samplesPerFrame;
+    private int bytesPerFrame;
+    private int targetByteLatency;
+    private byte[] emptySamples = new byte[0];
+
+    private SourceDataLine currentSourceDataLine;
+    private FloatControl volumeControl;
+    private BooleanControl muteControl;
+
+    private final Thread audioThread;
+    private final Object audioThreadLock = new Object();
+    private final Object currentLineLock = new Object();
+    private volatile boolean running;
+    private volatile boolean audioLineRunning;
+
+    private AudioChannels audioChannels = AudioChannels.MONO;
+    private SampleRate sampleRate = SampleRate.HZ_44100;
+    private volatile int volume;
+    private volatile int framerate;
+    private volatile boolean paused = true;
+    private volatile boolean muted;
+
+    private boolean audioLineFirstFrame;
+
+    private Supplier<byte[]> sampleFrameCallback;
+
+    public AudioEngine(String threadName) {
+        this.running = true;
+
+        this.audioThread = new Thread(this::audioLoop, threadName);
+        this.audioThread.setDaemon(true);
+        this.audioThread.start();
+
+        this.setFramerate(60);
+        this.setVolume(50);
+    }
+
+    public void setSampleFrameCallback(Supplier<byte[]> sampleFrameCallback) {
+        this.sampleFrameCallback = sampleFrameCallback;
+    }
+
+    public void setPaused(boolean paused) {
+        this.paused = paused;
+    }
+
+    public void setMuted(boolean muted) {
+        this.muted = muted;
+        synchronized (this.currentLineLock) {
+            if (this.muteControl != null) {
+                this.muteControl.setValue(muted);
+            }
+        }
+    }
+
+    public void setVolume(int volume) {
+        this.volume = volume;
+        synchronized (this.currentLineLock) {
+            if (this.volumeControl != null) {
+                this.volumeControl.setValue(20.0f * (float) Math.log10(this.volume / 100.0));
+            }
+        }
+    }
+
+    public void setFramerate(int framerate) {
+        this.framerate = framerate;
+        this.recalculateFrameMetrics();
+    }
+
+    public void setSampleRate(SampleRate sampleRate) throws LineUnavailableException {
+        this.stop();
+        this.sampleRate = sampleRate;
+        this.recalculateFrameMetrics();
+        this.start();
+    }
+
+    public void setAudioChannels(AudioChannels audioChannels) throws LineUnavailableException {
+        this.stop();
+        this.audioChannels = audioChannels;
+        this.recalculateFrameMetrics();
+        this.start();
+    }
+
+    public int getSampleRate() {
+        return switch (this.sampleRate) {
+            case HZ_44100 -> 44100;
+            case HZ_48000 -> 48000;
+        };
+    }
+
+    public int getSamplesPerFrame() {
+        return this.samplesPerFrame;
+    }
+
+    public int getBytesPerFrame() {
+        return this.bytesPerFrame;
+    }
+
+    public void start() throws LineUnavailableException {
+        synchronized (this.currentLineLock) {
+            if (this.currentSourceDataLine != null) {
+                this.stop();
+            }
+
+            AudioFormat format = new AudioFormat((float) this.getSampleRate(), 16, this.audioChannels == AudioChannels.STEREO ? 2 : 1, true, true);
+            this.currentSourceDataLine = AudioSystem.getSourceDataLine(format);
+            this.currentSourceDataLine.open(format);
+            this.volumeControl = (FloatControl) this.currentSourceDataLine.getControl(FloatControl.Type.MASTER_GAIN);
+            this.muteControl = (BooleanControl) this.currentSourceDataLine.getControl(BooleanControl.Type.MUTE);
+
+            this.setVolume(this.volume);
+            this.setMuted(this.muted);
+
+            this.audioLineFirstFrame = false;
+            this.audioLineRunning = true;
+        }
+
+        synchronized (this.audioThreadLock) {
+            this.audioThreadLock.notify();
+        }
+    }
+
+    public void stop() {
+        synchronized (this.currentLineLock) {
+            if (this.currentSourceDataLine != null) {
+                this.currentSourceDataLine.stop();
+                this.currentSourceDataLine.flush();
+                this.currentSourceDataLine.close();
+                this.currentSourceDataLine = null;
+            }
+            this.volumeControl = null;
+            this.muteControl = null;
+            this.audioLineRunning = false;
+            this.audioLineFirstFrame = false;
+        }
+    }
+
+    private void audioLoop() {
+        while (this.running) {
+            synchronized (this.audioThreadLock) {
+                if (!this.audioLineRunning) {
+                    try {
+                        this.audioThreadLock.wait();
+                    } catch (InterruptedException e) {}
+                }
+            }
+
+            if (this.audioLineRunning) {
+                if (this.needsFrame()) {
+                    this.pushAudioFrame();
+                } else {
+                    try {
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {}
+                }
+            }
+        }
+    }
+
+    private void pushAudioFrame() {
+        byte[] writtenSamples = this.sampleFrameCallback == null ? this.emptySamples : this.sampleFrameCallback.get();
+        synchronized (this.currentLineLock) {
+            if (this.currentSourceDataLine == null) {
+                return;
+            }
+
+            if (!this.audioLineFirstFrame) {
+                this.currentSourceDataLine.flush();
+                this.currentSourceDataLine.start();
+                this.audioLineFirstFrame = true;
+            }
+
+            if (this.paused) {
+                this.currentSourceDataLine.write(this.emptySamples, 0, this.emptySamples.length);
+                return;
+            }
+
+            if (writtenSamples == null) {
+                writtenSamples = this.emptySamples;
+            }
+
+            writtenSamples = this.ensureBufferLength(writtenSamples);
+            this.currentSourceDataLine.write(writtenSamples, 0, writtenSamples.length);
+        }
+    }
+
+    private boolean needsFrame() {
+        synchronized (this.currentLineLock) {
+            if (this.currentSourceDataLine != null) {
+                return (this.currentSourceDataLine.getBufferSize() - this.currentSourceDataLine.available()) <= this.targetByteLatency;
+            } else {
+                return false;
+            }
+        }
+    }
+
+    private int getBytesPerOutputSample() {
+        return switch (this.audioChannels) {
+            case MONO -> 2;
+            case STEREO -> 4;
+        };
+    }
+
+    private byte[] ensureBufferLength(byte[] buf) {
+        if (buf.length == this.bytesPerFrame) {
+            return buf;
+        }
+        byte[] actualBuf = new byte[this.bytesPerFrame];
+        System.arraycopy(buf, 0, actualBuf, 0, buf.length);
+        int frameSize = this.getBytesPerOutputSample();
+        for (int i = buf.length; i < actualBuf.length; i += frameSize) {
+            System.arraycopy(buf, buf.length - frameSize, actualBuf, i, frameSize);
+        }
+        return actualBuf;
+    }
+
+    private void recalculateFrameMetrics() {
+        this.samplesPerFrame = this.getSampleRate() / this.framerate;
+        this.bytesPerFrame = this.samplesPerFrame * this.getBytesPerOutputSample();
+        this.targetByteLatency = this.bytesPerFrame * TARGET_FRAME_LATENCY;
+        this.emptySamples = new byte[this.bytesPerFrame];
+    }
+
+    @Override
+    public void close() {
+        this.running = false;
+        this.audioLineRunning = false;
+
+        synchronized (this.audioThreadLock) {
+            this.audioThreadLock.notifyAll();
+        }
+
+        try {
+            this.audioThread.join();
+        } catch (InterruptedException _) {}
+
+        synchronized (this.currentLineLock) {
+            if (this.currentSourceDataLine != null) {
+                this.currentSourceDataLine.stop();
+                this.currentSourceDataLine.flush();
+                this.currentSourceDataLine.close();
+                this.currentSourceDataLine = null;
+            }
+        }
+    }
+
+}

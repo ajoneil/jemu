@@ -1,6 +1,7 @@
 package io.github.arkosammy12.jemu.app.adapters;
 
 import de.gurkenlabs.input4j.InputComponent;
+import io.github.arkosammy12.jemu.app.Jemu;
 import io.github.arkosammy12.jemu.app.drivers.DefaultAudioRendererDriver;
 import io.github.arkosammy12.jemu.app.drivers.DefaultSystemVideoDriver;
 import io.github.arkosammy12.jemu.app.drivers.MonoAudioRendererDriver;
@@ -11,15 +12,12 @@ import io.github.arkosammy12.jemu.core.common.Emulator;
 import io.github.arkosammy12.jemu.core.common.SystemController;
 import io.github.arkosammy12.jemu.core.drivers.VideoDriver;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
-import io.github.arkosammy12.jemu.frontend.audio.AudioRenderer;
-import io.github.arkosammy12.jemu.frontend.audio.MonoAudioRenderer;
-import io.github.arkosammy12.jemu.frontend.audio.StereoAudioRenderer;
 import org.jetbrains.annotations.Nullable;
 import org.tinylog.Logger;
 
+import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Optional;
@@ -30,12 +28,13 @@ public abstract class AbstractSystemAdapter implements SystemAdapter {
     private final Path path;
 
     private final Emulator emulator;
-    private final DefaultSystemVideoDriver videoDriver;
     private final DefaultAudioRendererDriver audioDriver;
     private final JoypadDriver joypadDriver;
-    private final AudioRenderer audioRenderer;
 
-    public AbstractSystemAdapter(CoreInitializer initializer) {
+    @Nullable
+    private DefaultSystemVideoDriver videoDriver;
+
+    public AbstractSystemAdapter(Jemu jemu, CoreInitializer initializer) {
         Optional<byte[]> rawRomOptional = initializer.getRawRom();
         Optional<Path> romPathOptional = initializer.getRomPath();
         if (rawRomOptional.isEmpty() || romPathOptional.isEmpty()) {
@@ -46,36 +45,8 @@ public abstract class AbstractSystemAdapter implements SystemAdapter {
         this.path = romPathOptional.get();
 
         this.emulator = this.createEmulator();
-
-        KeyAdapter keyAdapter = new KeyAdapter() {
-
-            @Override
-            public void keyPressed(KeyEvent e) {
-                int keyCode = e.getKeyCode();
-                SystemController.Action action = getActionForKeyCode(keyCode);
-                if (action != null) {
-                    getEmulator().getSystemController().onActionPressed(action);
-                }
-            }
-
-            @Override
-            public void keyReleased(KeyEvent e) {
-                int keyCode = e.getKeyCode();
-                SystemController.Action action = getActionForKeyCode(keyCode);
-                if (action != null) {
-                    getEmulator().getSystemController().onActionReleased(action);
-                }
-            }
-
-        };
-
         this.joypadDriver = new JoypadDriver(this);
-
-        this.videoDriver = new DefaultSystemVideoDriver(this.emulator.getVideoGenerator(), keyAdapter);
-        this.audioDriver = this.emulator.getAudioGenerator().isStereo()
-                ? new StereoAudioRendererDriver(this.emulator.getAudioGenerator(), new StereoAudioRenderer(this.emulator.getFramerate()))
-                : new MonoAudioRendererDriver(this.emulator.getAudioGenerator(), new MonoAudioRenderer(this.emulator.getFramerate()));
-        this.audioRenderer = this.audioDriver.getAudioRenderer();
+        this.audioDriver = this.emulator.getAudioGenerator().isStereo() ? new StereoAudioRendererDriver(jemu, this.emulator.getAudioGenerator()) : new MonoAudioRendererDriver(jemu, this.emulator.getAudioGenerator());
     }
 
     protected abstract Emulator createEmulator();
@@ -103,7 +74,7 @@ public abstract class AbstractSystemAdapter implements SystemAdapter {
 
     @Override
     public Optional<VideoDriver> getVideoDriver() {
-        return Optional.of(this.videoDriver);
+        return Optional.ofNullable(this.videoDriver);
     }
 
     @Override
@@ -111,33 +82,51 @@ public abstract class AbstractSystemAdapter implements SystemAdapter {
         return Optional.of(this.audioDriver);
     }
 
-    public DefaultSystemVideoDriver getJPanelVideoDriver() {
+    public Component createAWTComponentVideoDriver() {
+        KeyAdapter keyAdapter = new KeyAdapter() {
+
+            @Override
+            public void keyPressed(KeyEvent e) {
+                int keyCode = e.getKeyCode();
+                SystemController.Action action = getActionForKeyCode(keyCode);
+                if (action != null) {
+                    getEmulator().getSystemController().onActionPressed(action);
+                }
+            }
+
+            @Override
+            public void keyReleased(KeyEvent e) {
+                int keyCode = e.getKeyCode();
+                SystemController.Action action = getActionForKeyCode(keyCode);
+                if (action != null) {
+                    getEmulator().getSystemController().onActionReleased(action);
+                }
+            }
+
+        };
+        this.videoDriver = new DefaultSystemVideoDriver(this.emulator.getVideoGenerator(), keyAdapter);
         return this.videoDriver;
     }
 
-    public AudioRenderer getAudioRenderer() {
-        return this.audioRenderer;
-    }
-
     public void onFrame() {
-        this.videoDriver.requestFrame();
-        this.audioDriver.onFrame();
+        if (this.videoDriver != null) {
+            this.videoDriver.requestFrame();
+        }
+        this.joypadDriver.poll();
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         if (this.videoDriver != null) {
             this.videoDriver.close();
         }
-        if (this.audioDriver != null) {
-            this.audioDriver.close();
-        }
-        if (this.emulator != null) {
-            try {
+        try {
+            this.joypadDriver.close();
+            if (this.emulator != null) {
                 this.emulator.close();
-            } catch (Exception e) {
-                Logger.error("Error attempting to release %s emulator resources: {}".formatted(this.getSystemName()), e);
             }
+        } catch (Exception e) {
+            Logger.error("Error attempting to release %s emulator resources: {}".formatted(this.getSystemName()), e);
         }
     }
 

@@ -1,19 +1,28 @@
 package io.github.arkosammy12.jemu.app.drivers;
 
 import de.gurkenlabs.input4j.InputComponent;
+import de.gurkenlabs.input4j.InputDevice;
+import de.gurkenlabs.input4j.InputDevicePlugin;
 import io.github.arkosammy12.jemu.app.util.MavenProperties;
 import io.github.arkosammy12.jemu.app.adapters.AbstractSystemAdapter;
 
 import de.gurkenlabs.input4j.InputDevices;
 import de.gurkenlabs.input4j.components.XInput;
 import io.github.arkosammy12.jemu.core.common.SystemController;
+import org.tinylog.Logger;
+
+import java.io.IOException;
+import java.util.List;
 
 public class JoypadDriver implements AutoCloseable {
 
+    private final AbstractSystemAdapter systemAdapter;
+
     private final Thread pollThread;
+    private final Object joypadLock = new Object();
     private volatile boolean running = true;
 
-    private final AbstractSystemAdapter systemAdapter;
+    private InputDevicePlugin inputDevicePlugin;
 
     public JoypadDriver(AbstractSystemAdapter systemAdapter) {
         this.systemAdapter = systemAdapter;
@@ -23,31 +32,40 @@ public class JoypadDriver implements AutoCloseable {
         this.pollThread.start();
     }
 
-    private void pressButton(InputComponent.ID id)
-    {
-        SystemController.Action action = systemAdapter.getActionForJoypadEvent(id);
-
-        if(action != null)
-            systemAdapter.getEmulator().getSystemController().onActionPressed(action);
-    }
-
-    private void releaseButton(InputComponent.ID id)
-    {
-        SystemController.Action action = systemAdapter.getActionForJoypadEvent(id);
-
-        if(action != null)
-            systemAdapter.getEmulator().getSystemController().onActionReleased(action);
+    public void poll() {
+        synchronized (this.joypadLock) {
+            this.joypadLock.notify();
+        }
     }
 
     private void pollLoop() {
-        var devices = InputDevices.init();
+        this.tryInitDevices();
 
-        // For now, only support controllers connected at application start
-        if(devices.getAll().isEmpty())
-            return;
+        while (this.running) {
+            try {
+                synchronized (this.joypadLock) {
+                    this.joypadLock.wait();
+                    if (!this.running) {
+                        break;
+                    }
+                    this.tryInitDevices();
+                    if (this.inputDevicePlugin != null) {
+                        this.inputDevicePlugin.getAll().forEach(InputDevice::poll);
+                    }
+                }
+            } catch (InterruptedException e) {}
+        }
 
-        var device = devices.getAll().iterator().next();
+        if (this.inputDevicePlugin != null) {
+            try {
+                this.inputDevicePlugin.close();
+            } catch (IOException e) {
+                Logger.error("Error releasing joypad driver resources: {}", e);
+            }
+        }
+    }
 
+    private void registerCallbacks(InputDevice device) {
         device.onButtonPressed(XInput.DPAD_UP, () -> pressButton(XInput.DPAD_UP));
         device.onButtonPressed(XInput.DPAD_DOWN, () -> pressButton(XInput.DPAD_DOWN));
         device.onButtonPressed(XInput.DPAD_LEFT, () -> pressButton(XInput.DPAD_LEFT));
@@ -65,29 +83,40 @@ public class JoypadDriver implements AutoCloseable {
         device.onButtonReleased(XInput.BACK, () -> releaseButton(XInput.BACK));
         device.onButtonReleased(XInput.X, () -> releaseButton(XInput.X));
         device.onButtonReleased(XInput.A, () -> releaseButton(XInput.A));
+    }
 
-        while (running)
-        {
-            device.poll();
-
-            try{
-                Thread.sleep(5); // test
-            } catch (InterruptedException e) {
-                running = false;
-                Thread.currentThread().interrupt();
-            }
+    private void pressButton(InputComponent.ID id) {
+        SystemController.Action action = systemAdapter.getActionForJoypadEvent(id);
+        if (action != null) {
+            systemAdapter.getEmulator().getSystemController().onActionPressed(action);
         }
+    }
+
+    private void releaseButton(InputComponent.ID id) {
+        SystemController.Action action = systemAdapter.getActionForJoypadEvent(id);
+        if (action != null) {
+            systemAdapter.getEmulator().getSystemController().onActionReleased(action);
+        }
+    }
+
+    private void tryInitDevices() {
+        if (this.inputDevicePlugin != null) {
+            return;
+        }
+        this.inputDevicePlugin = InputDevices.init();
+        this.inputDevicePlugin.getAll().forEach(this::registerCallbacks);
+        this.inputDevicePlugin.onDeviceConnected(this::registerCallbacks);
     }
 
     @Override
     public void close() {
-        running = false;
-        pollThread.interrupt();
-
-        try {
-            pollThread.join();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        this.running = false;
+        synchronized (this.joypadLock) {
+            this.joypadLock.notifyAll();
         }
+        try {
+            this.pollThread.join();
+        } catch (InterruptedException _) {}
     }
+
 }

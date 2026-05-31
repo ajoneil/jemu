@@ -2,6 +2,7 @@ package io.github.arkosammy12.jemu.app.adapters;
 
 import de.gurkenlabs.input4j.InputComponent;
 import de.gurkenlabs.input4j.components.XInput;
+import io.github.arkosammy12.jemu.app.Jemu;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.core.common.Emulator;
@@ -10,6 +11,7 @@ import io.github.arkosammy12.jemu.core.nes.NESEmulator;
 import org.jetbrains.annotations.Nullable;
 
 import java.awt.event.KeyEvent;
+import java.util.Map;
 import java.util.Optional;
 
 public class NESAdapter extends AbstractSystemAdapter {
@@ -17,10 +19,19 @@ public class NESAdapter extends AbstractSystemAdapter {
     private final String romTitle;
     private final System system;
 
-    public NESAdapter(CoreInitializer initializer) {
+    private static final Map<InputComponent.ID, NESController.Actions> XINPUT_MAPPINGS = Map.of(
+            XInput.DPAD_UP, NESController.Actions.UP,
+            XInput.DPAD_DOWN, NESController.Actions.DOWN,
+            XInput.DPAD_LEFT, NESController.Actions.LEFT,
+            XInput.DPAD_RIGHT, NESController.Actions.RIGHT,
+            XInput.START, NESController.Actions.START,
+            XInput.A, NESController.Actions.A
+    );
+
+    public NESAdapter(Jemu jemu, CoreInitializer initializer) {
         this.romTitle = initializer.getRomPath().map(path -> path.getFileName().toString()).orElse(null);
         this.system = System.NES;
-        super(initializer);
+        super(jemu, initializer);
     }
 
     @Override
@@ -47,24 +58,7 @@ public class NESAdapter extends AbstractSystemAdapter {
     @Override
     @Nullable
     public NESController.Actions getActionForJoypadEvent(InputComponent.ID id) {
-        if (id == XInput.DPAD_UP)
-            return NESController.Actions.UP;
-        else if (id == XInput.DPAD_DOWN)
-            return NESController.Actions.DOWN;
-        else if (id == XInput.DPAD_LEFT)
-            return NESController.Actions.LEFT;
-        else if (id == XInput.DPAD_RIGHT)
-            return NESController.Actions.RIGHT;
-        else if (id == XInput.START)
-            return NESController.Actions.START;
-        else if (id == XInput.BACK)
-            return NESController.Actions.SELECT;
-        else if (id == XInput.A)
-            return NESController.Actions.A;
-        else if (id == XInput.X)
-            return NESController.Actions.B;
-        else
-            return null;
+        return XINPUT_MAPPINGS.get(id);
     }
 
     @Override

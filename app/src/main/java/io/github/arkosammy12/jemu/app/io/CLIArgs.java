@@ -44,6 +44,7 @@ public final class CLIArgs {
         this.exitImmediately = executeHelpResult != null && (executeHelpResult == exitCodeOnUsageHelp || executeHelpResult == exitCodeOnVersionHelp);
     }
 
+
     public Path getRomPath() {
         return this.romPath;
     }

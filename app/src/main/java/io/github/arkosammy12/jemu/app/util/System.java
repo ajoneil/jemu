@@ -16,12 +16,12 @@ import java.util.Optional;
 import java.util.function.Function;
 
 public enum System implements DisplayNameProvider, SystemDescriptor {
-    COSMAC_VIP("cosmac-vip", "COSMAC-VIP", new String[] {"cos", "bin"}, args -> new CosmacVIPAdapter(args.coreInitializer(), CosmacVIPHost.Chip8Interpreter.NONE)),
-    VIP_CHIP_8("vip-chip8", "VIP CHIP-8", new String[] {"ch8", "hc8"}, args -> new CosmacVIPAdapter(args.coreInitializer(), CosmacVIPHost.Chip8Interpreter.CHIP_8)),
-    VIP_CHIP_8X("vip-chip8x", "VIP CHIP-8X", new String[] {"ch8", "c8x"}, args -> new CosmacVIPAdapter(args.coreInitializer(), CosmacVIPHost.Chip8Interpreter.CHIP_8X)),
-    GAME_BOY("gameboy", "Game Boy", new String[] {"gb"}, args -> new GameBoyAdapter(args.coreInitializer(), GameBoyHost.Model.DMG)),
-    GAME_BOY_COLOR("gameboy-color", "Game Boy Color", new String[] {"gbc"}, args -> new GameBoyAdapter(args.coreInitializer(), GameBoyHost.Model.CGB)),
-    NES("nes", "Nintendo Entertainment System", new String[] {"nes"}, args -> new NESAdapter(args.coreInitializer()));
+    COSMAC_VIP("cosmac-vip", "COSMAC-VIP", new String[] {"cos", "bin"}, args -> new CosmacVIPAdapter(args.jemu(), args.coreInitializer(), CosmacVIPHost.Chip8Interpreter.NONE)),
+    VIP_CHIP_8("vip-chip8", "VIP CHIP-8", new String[] {"ch8", "hc8"}, args -> new CosmacVIPAdapter(args.jemu(), args.coreInitializer(), CosmacVIPHost.Chip8Interpreter.CHIP_8)),
+    VIP_CHIP_8X("vip-chip8x", "VIP CHIP-8X", new String[] {"ch8", "c8x"}, args -> new CosmacVIPAdapter(args.jemu(), args.coreInitializer(), CosmacVIPHost.Chip8Interpreter.CHIP_8X)),
+    GAME_BOY("gameboy", "Game Boy", new String[] {"gb"}, args -> new GameBoyAdapter(args.jemu(), args.coreInitializer(), GameBoyHost.Model.DMG)),
+    GAME_BOY_COLOR("gameboy-color", "Game Boy Color", new String[] {"gbc"}, args -> new GameBoyAdapter(args.jemu(), args.coreInitializer(), GameBoyHost.Model.CGB)),
+    NES("nes", "Nintendo Entertainment System", new String[] {"nes"}, args -> new NESAdapter(args.jemu(), args.coreInitializer()));
 
     private final String identifier;
     private final String displayName;
