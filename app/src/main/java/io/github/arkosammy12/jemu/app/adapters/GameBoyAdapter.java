@@ -50,26 +50,30 @@ public class GameBoyAdapter extends AbstractSystemAdapter implements GameBoyHost
     protected Emulator createEmulator() {
 
         StringBuilder titleBuilder;
-        String title = null;
-        try {
-            titleBuilder = new StringBuilder();
-            int[] rom = SystemHost.byteToIntArray(this.getRom());
-            for (int i = HEADER_TITLE_START; i <= HEADER_TITLE_END; i++) {
-                int b = rom[i] & 0xFF;
-                if (b == 0x00) {
-                    break;
+        String title = "No title";
+
+        Optional<byte[]> optionalROM = this.getRom();
+        if (optionalROM.isPresent()) {
+            try {
+                titleBuilder = new StringBuilder();
+                int[] rom = SystemHost.byteToIntArray(optionalROM.get());
+                for (int i = HEADER_TITLE_START; i <= HEADER_TITLE_END; i++) {
+                    int b = rom[i] & 0xFF;
+                    if (b == 0x00) {
+                        break;
+                    }
+                    if (b >= 0x20 && b <= 0x7E) {
+                        titleBuilder.append((char) b);
+                    }
                 }
-                if (b >= 0x20 && b <= 0x7E) {
-                    titleBuilder.append((char) b);
-                }
+                title = titleBuilder.toString();
+            } catch (ArrayIndexOutOfBoundsException e) {
+                Logger.error("Failed to read ROM title from GameBoy cartridge header!", e);
             }
-            title = titleBuilder.toString();
-        } catch (ArrayIndexOutOfBoundsException e) {
-            Logger.error("Failed to read ROM title from GameBoy cartridge header!", e);
         }
 
-        this.romTitle = title != null ? title : this.getRomPath().getFileName().toString();
-        this.saveDataDirectory = this.getRomPath().getParent();
+        this.romTitle = title;
+        this.saveDataDirectory = this.getRomPath().map(Path::getParent).orElse(null);
 
         return switch (this.model) {
             case CGB -> new GameBoyColorEmulator(this);

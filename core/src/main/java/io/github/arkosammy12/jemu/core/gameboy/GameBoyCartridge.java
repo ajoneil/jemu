@@ -3,6 +3,7 @@ package io.github.arkosammy12.jemu.core.gameboy;
 import io.github.arkosammy12.jemu.core.common.Bus;
 import io.github.arkosammy12.jemu.core.common.SystemHost;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
+import io.github.arkosammy12.jemu.core.exceptions.MissingROMException;
 import io.github.arkosammy12.jemu.core.gameboy.mbcs.*;
 import org.apache.commons.io.FilenameUtils;
 import org.tinylog.Logger;
@@ -29,7 +30,11 @@ public abstract class GameBoyCartridge implements Bus {
 
     public GameBoyCartridge(GameBoyEmulator emulator, int cartridgeType) {
         this.gameBoyEmulator = emulator;
-        byte[] rom = emulator.getHost().getRom();
+        Optional<byte[]> optionalROM = emulator.getHost().getRom();
+        if (optionalROM.isEmpty()) {
+            throw new MissingROMException(emulator.getHost().getSystemName());
+        }
+        byte[] rom = optionalROM.get();
         this.originalRom = Arrays.copyOf(rom, rom.length);
         this.cartridgeType = cartridgeType;
         this.romSizeHeader = (int) rom[ROM_SIZE_ADDRESS];
@@ -37,7 +42,12 @@ public abstract class GameBoyCartridge implements Bus {
     }
 
     public static GameBoyCartridge getCartridge(GameBoyEmulator emulator) {
-        int cartridgeType = SystemHost.byteToIntArray(emulator.getHost().getRom())[CARTRIDGE_TYPE_ADDRESS];
+        Optional<byte[]> optionalROM = emulator.getHost().getRom();
+        if (optionalROM.isEmpty()) {
+            throw new MissingROMException(emulator.getHost().getSystemName());
+        }
+        byte[] rom = optionalROM.get();
+        int cartridgeType = SystemHost.byteToIntArray(rom)[CARTRIDGE_TYPE_ADDRESS];
         return switch (cartridgeType) {
             case 0x00, 0x08, 0x09 -> new MBC0(emulator, cartridgeType);
             case 0x01, 0x02, 0x03 -> new MBC1(emulator, cartridgeType);

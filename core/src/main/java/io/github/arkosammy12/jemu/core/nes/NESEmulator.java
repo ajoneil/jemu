@@ -3,7 +3,10 @@ package io.github.arkosammy12.jemu.core.nes;
 import io.github.arkosammy12.jemu.core.common.*;
 import io.github.arkosammy12.jemu.core.cpu.NMOS6502;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
+import io.github.arkosammy12.jemu.core.exceptions.MissingROMException;
 import io.github.arkosammy12.jemu.core.nes.ines.INESFile;
+
+import java.util.Optional;
 
 public class NESEmulator implements Emulator, NMOS6502.SystemBus {
 
@@ -38,7 +41,12 @@ public class NESEmulator implements Emulator, NMOS6502.SystemBus {
 
     public NESEmulator(SystemHost systemHost) {
         this.systemHost = systemHost;
-        this.cartridge = NESCartridge.getCartridge(this, INESFile.getINESFile(this.getHost().getRom()));
+        Optional<byte[]> optionalROM = systemHost.getRom();
+        if (optionalROM.isEmpty()) {
+            throw new MissingROMException(systemHost.getSystemName());
+        }
+        byte[] rom = optionalROM.get();
+        this.cartridge = NESCartridge.getCartridge(this, INESFile.getINESFile(rom));
 
         // TODO: Detect TV system properly with the nes20 xml database
         this.tvSystem = this.cartridge.getINESFile().getTVSystem();

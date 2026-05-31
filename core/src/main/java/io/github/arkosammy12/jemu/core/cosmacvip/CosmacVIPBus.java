@@ -2,8 +2,10 @@ package io.github.arkosammy12.jemu.core.cosmacvip;
 
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import io.github.arkosammy12.jemu.core.common.Bus;
+import io.github.arkosammy12.jemu.core.exceptions.MissingROMException;
 
 import java.util.Arrays;
+import java.util.Optional;
 
 import static io.github.arkosammy12.jemu.core.common.SystemHost.intToByteArray;
 
@@ -148,7 +150,11 @@ public class CosmacVIPBus implements Bus {
     protected int dataBus = 0;
 
     public CosmacVIPBus(CosmacVIPEmulator emulator) {
-        byte[] hostRom = emulator.getHost().getRom();
+        Optional<byte[]> optionalHostRom = emulator.getHost().getRom();
+        if (optionalHostRom.isEmpty()) {
+            throw new MissingROMException(emulator.getHost().getSystemName());
+        }
+        byte[] hostRom = optionalHostRom.get();
         byte[] rom = Arrays.copyOf(hostRom, hostRom.length);
         this.ram = new byte[0x1000];
         try {

@@ -35,14 +35,15 @@ public abstract class AbstractSystemAdapter implements SystemAdapter {
     private DefaultSystemVideoDriver videoDriver;
 
     public AbstractSystemAdapter(Jemu jemu, CoreInitializer initializer) {
+
         Optional<byte[]> rawRomOptional = initializer.getRawRom();
-        Optional<Path> romPathOptional = initializer.getRomPath();
-        if (rawRomOptional.isEmpty() || romPathOptional.isEmpty()) {
-            throw new EmulatorException("Must select a ROM file before starting emulation!");
+        if (rawRomOptional.isPresent()) {
+            byte[] rom = rawRomOptional.get();
+            this.rom = Arrays.copyOf(rom, rom.length);
+        } else {
+            this.rom = null;
         }
-        byte[] rom = rawRomOptional.get();
-        this.rom = Arrays.copyOf(rom, rom.length);
-        this.path = romPathOptional.get();
+        this.path = initializer.getRomPath().orElse(null);
 
         this.emulator = this.createEmulator();
         this.joypadDriver = new JoypadDriver(this);
@@ -58,13 +59,13 @@ public abstract class AbstractSystemAdapter implements SystemAdapter {
     public abstract SystemController.Action getActionForJoypadEvent(InputComponent.ID id);
 
     @Override
-    public byte[] getRom() {
-        return Arrays.copyOf(this.rom, this.rom.length);
+    public Optional<byte[]> getRom() {
+        return Optional.ofNullable(this.rom).map(rom -> Arrays.copyOf(rom, rom.length));
     }
 
     @Override
-    public Path getRomPath() {
-        return this.path;
+    public Optional<Path> getRomPath() {
+        return Optional.ofNullable(this.path);
     }
 
     @Override
