@@ -164,9 +164,12 @@ public class AudioEngine implements Closeable {
                 if (this.needsFrame()) {
                     this.pushAudioFrame();
                 } else {
-                    try {
-                        Thread.sleep(1);
-                    } catch (InterruptedException e) {}
+                    long sleepMs = this.calculateSleepMs();
+                    if (sleepMs > 0) {
+                        try {
+                            Thread.sleep(sleepMs);
+                        } catch (InterruptedException e) {}
+                    }
                 }
             }
         }
@@ -256,6 +259,21 @@ public class AudioEngine implements Closeable {
                 this.currentSourceDataLine.close();
                 this.currentSourceDataLine = null;
             }
+        }
+    }
+
+    private long calculateSleepMs() {
+        synchronized (this.currentLineLock) {
+            if (this.currentSourceDataLine == null) {
+                return 1;
+            }
+            int bufferedBytes = this.currentSourceDataLine.getBufferSize() - this.currentSourceDataLine.available();
+            int excessBytes = bufferedBytes - this.targetByteLatency;
+            if (excessBytes <= 0) {
+                return 0;
+            }
+            float excessSamples = (float) excessBytes / (float) this.getBytesPerOutputSample();
+            return (long) ((excessSamples / (float) this.getSampleRate()) * 1000);
         }
     }
 
