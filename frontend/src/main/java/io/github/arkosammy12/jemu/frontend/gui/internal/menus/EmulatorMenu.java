@@ -172,6 +172,10 @@ public class EmulatorMenu extends MenuBarMenu implements EmulatorManager {
         });
     }
 
+    void submitStop() {
+        this.mainWindow.submitEmulatorCommand(new StopEmulatorCommand());
+    }
+
     void submitReset() {
         SystemDescriptor systemDescriptor = this.currentSystemDescriptor;
         if (systemDescriptor != null) {

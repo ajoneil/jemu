@@ -39,6 +39,7 @@ public class FileMenu extends MenuBarMenu implements FileManager {
 
     private final JMenu openRecentMenu;
     private final JMenuItem clearRecentsButton;
+    private final JMenuItem ejectRomButton;
     private final CircularFifoQueue<Path> recentFilePaths = new CircularFifoQueue<>(RECENT_FILES_SIZE);
     private final String[] fileExtensions;
 
@@ -114,6 +115,15 @@ public class FileMenu extends MenuBarMenu implements FileManager {
             this.rebuildOpenRecentMenu();
         });
 
+        this.ejectRomButton = new JMenuItem("Eject ROM");
+        this.ejectRomButton.setEnabled(false);
+        this.ejectRomButton.addActionListener(_ -> {
+            this.currentRomPath = null;
+            this.ejectRomButton.setEnabled(false);
+            mainWindow.getMainMenuBar().getEmulatorMenu().submitStop();
+
+        });
+
         JRadioButtonMenuItem resetOnROMFileSelect = new JRadioButtonMenuItem("Reset on ROM file select");
         resetOnROMFileSelect.setSelected(true);
         resetOnROMFileSelect.addChangeListener(_ -> this.resetOnFileSelect = resetOnROMFileSelect.isSelected());
@@ -124,6 +134,7 @@ public class FileMenu extends MenuBarMenu implements FileManager {
         openRecentMenu.add(clearRecentsButton);
         this.jMenu.add(openItem);
         this.jMenu.add(openRecentMenu);
+        this.jMenu.add(ejectRomButton);
         this.jMenu.addSeparator();
         this.jMenu.add(resetOnROMFileSelect);
         this.jMenu.addSeparator();
@@ -156,6 +167,7 @@ public class FileMenu extends MenuBarMenu implements FileManager {
     public void loadFile(Path filePath, boolean forceReset) {
         SwingUtilities.invokeLater(() -> {
             this.currentRomPath = filePath;
+            this.ejectRomButton.setEnabled(true);
             if (this.resetOnFileSelect || forceReset) {
                 mainWindow.getMainMenuBar().getEmulatorMenu().submitReset();
             }
