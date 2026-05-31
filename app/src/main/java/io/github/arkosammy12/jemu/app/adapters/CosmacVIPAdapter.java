@@ -1,5 +1,6 @@
 package io.github.arkosammy12.jemu.app.adapters;
 
+import de.gurkenlabs.input4j.InputComponent;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.core.common.Emulator;
@@ -53,6 +54,12 @@ public class CosmacVIPAdapter extends AbstractSystemAdapter implements CosmacVIP
             case KeyEvent.VK_V -> CosmacVIPKeypad.Actions.KEY_F;
             default -> null;
         };
+    }
+
+    @Override
+    @Nullable
+    public CosmacVIPKeypad.Actions getActionForJoypadEvent(InputComponent.ID id) {
+        return null;
     }
 
     @Override
