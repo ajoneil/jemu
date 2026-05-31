@@ -1,6 +1,7 @@
 package io.github.arkosammy12.jemu.app.adapters;
 
 import de.gurkenlabs.input4j.InputComponent;
+import de.gurkenlabs.input4j.components.XInput;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.core.common.Emulator;
@@ -84,7 +85,24 @@ public class GameBoyAdapter extends AbstractSystemAdapter implements GameBoyHost
     @Override
     @Nullable
     public GameBoyJoypad.Actions getActionForJoypadEvent(InputComponent.ID id) {
-        return null;
+        if (id == XInput.DPAD_UP)
+            return GameBoyJoypad.Actions.UP;
+        else if (id == XInput.DPAD_DOWN)
+            return GameBoyJoypad.Actions.DOWN;
+        else if (id == XInput.DPAD_LEFT)
+            return GameBoyJoypad.Actions.LEFT;
+        else if (id == XInput.DPAD_RIGHT)
+            return GameBoyJoypad.Actions.RIGHT;
+        else if (id == XInput.START)
+            return GameBoyJoypad.Actions.START;
+        else if (id == XInput.BACK)
+            return GameBoyJoypad.Actions.SELECT;
+        else if (id == XInput.A)
+            return GameBoyJoypad.Actions.A;
+        else if (id == XInput.X)
+            return GameBoyJoypad.Actions.B;
+        else
+            return null;
     }
 
     @Override
