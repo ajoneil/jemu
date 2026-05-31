@@ -25,7 +25,9 @@ public class NESAdapter extends AbstractSystemAdapter {
             XInput.DPAD_LEFT, NESController.Actions.LEFT,
             XInput.DPAD_RIGHT, NESController.Actions.RIGHT,
             XInput.START, NESController.Actions.START,
-            XInput.A, NESController.Actions.A
+            XInput.BACK, NESController.Actions.SELECT,
+            XInput.A, NESController.Actions.A,
+            XInput.B, NESController.Actions.B
     );
 
     public NESAdapter(Jemu jemu, CoreInitializer initializer) {

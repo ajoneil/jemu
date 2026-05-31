@@ -32,7 +32,9 @@ public class GameBoyAdapter extends AbstractSystemAdapter implements GameBoyHost
             XInput.DPAD_LEFT, GameBoyJoypad.Actions.LEFT,
             XInput.DPAD_RIGHT, GameBoyJoypad.Actions.RIGHT,
             XInput.START, GameBoyJoypad.Actions.START,
-            XInput.A, GameBoyJoypad.Actions.A
+            XInput.BACK, GameBoyJoypad.Actions.SELECT,
+            XInput.A, GameBoyJoypad.Actions.A,
+            XInput.B, GameBoyJoypad.Actions.B
     );
 
     private final System system;
