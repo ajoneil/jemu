@@ -20,14 +20,14 @@ public class NESAdapter extends AbstractSystemAdapter {
     private final System system;
 
     private static final Map<InputComponent.ID, NESController.Actions> XINPUT_MAPPINGS = Map.of(
-            XInput.DPAD_UP, NESController.Actions.UP,
-            XInput.DPAD_DOWN, NESController.Actions.DOWN,
-            XInput.DPAD_LEFT, NESController.Actions.LEFT,
-            XInput.DPAD_RIGHT, NESController.Actions.RIGHT,
-            XInput.START, NESController.Actions.START,
-            XInput.BACK, NESController.Actions.SELECT,
-            XInput.A, NESController.Actions.A,
-            XInput.B, NESController.Actions.B
+            XInput.DPAD_UP, NESController.Actions.JOY1_UP,
+            XInput.DPAD_DOWN, NESController.Actions.JOY1_DOWN,
+            XInput.DPAD_LEFT, NESController.Actions.JOY1_LEFT,
+            XInput.DPAD_RIGHT, NESController.Actions.JOY1_RIGHT,
+            XInput.START, NESController.Actions.JOY1_START,
+            XInput.BACK, NESController.Actions.JOY1_SELECT,
+            XInput.A, NESController.Actions.JOY1_A,
+            XInput.B, NESController.Actions.JOY1_B
     );
 
     public NESAdapter(Jemu jemu, CoreInitializer initializer) {
@@ -45,14 +45,14 @@ public class NESAdapter extends AbstractSystemAdapter {
     @Nullable
     protected NESController.Actions getActionForKeyCode(int keyCode) {
         return switch (keyCode) {
-            case KeyEvent.VK_W -> NESController.Actions.UP;
-            case KeyEvent.VK_S -> NESController.Actions.DOWN;
-            case KeyEvent.VK_A -> NESController.Actions.LEFT;
-            case KeyEvent.VK_D -> NESController.Actions.RIGHT;
-            case KeyEvent.VK_ENTER -> NESController.Actions.START;
-            case KeyEvent.VK_BACK_SPACE -> NESController.Actions.SELECT;
-            case KeyEvent.VK_J -> NESController.Actions.A;
-            case KeyEvent.VK_K -> NESController.Actions.B;
+            case KeyEvent.VK_W -> NESController.Actions.JOY1_UP;
+            case KeyEvent.VK_S -> NESController.Actions.JOY1_DOWN;
+            case KeyEvent.VK_A -> NESController.Actions.JOY1_LEFT;
+            case KeyEvent.VK_D -> NESController.Actions.JOY1_RIGHT;
+            case KeyEvent.VK_ENTER -> NESController.Actions.JOY1_START;
+            case KeyEvent.VK_BACK_SPACE -> NESController.Actions.JOY1_SELECT;
+            case KeyEvent.VK_J -> NESController.Actions.JOY1_A;
+            case KeyEvent.VK_K -> NESController.Actions.JOY1_B;
             default -> null;
         };
     }

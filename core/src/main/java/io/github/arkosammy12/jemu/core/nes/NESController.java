@@ -28,34 +28,34 @@ public class NESController<E extends NESEmulator> extends SystemController<E> {
             return;
         }
         switch (joypadAction) {
-            case UP -> {
+            case JOY1_UP -> {
                 this.physicalControllerState |= UP_MASK;
                 if ((this.physicalControllerState & DOWN_MASK) == 0) {
                     this.currentControllerState |= UP_MASK;
                 }
             }
-            case DOWN -> {
+            case JOY1_DOWN -> {
                 this.physicalControllerState |= DOWN_MASK;
                 if ((this.physicalControllerState & UP_MASK) == 0) {
                     this.currentControllerState |= DOWN_MASK;
                 }
             }
-            case LEFT -> {
+            case JOY1_LEFT -> {
                 this.physicalControllerState |= LEFT_MASK;
                 if ((this.physicalControllerState & RIGHT_MASK) == 0) {
                     this.currentControllerState |= LEFT_MASK;
                 }
             }
-            case RIGHT -> {
+            case JOY1_RIGHT -> {
                 this.physicalControllerState |= RIGHT_MASK;
                 if ((this.physicalControllerState & LEFT_MASK) == 0) {
                     this.currentControllerState |= RIGHT_MASK;
                 }
             }
-            case START -> this.currentControllerState |= START_MASK;
-            case SELECT -> this.currentControllerState |= SELECT_MASK;
-            case A -> this.currentControllerState |= A_MASK;
-            case B -> this.currentControllerState |= B_MASK;
+            case JOY1_START -> this.currentControllerState |= START_MASK;
+            case JOY1_SELECT -> this.currentControllerState |= SELECT_MASK;
+            case JOY1_A -> this.currentControllerState |= A_MASK;
+            case JOY1_B -> this.currentControllerState |= B_MASK;
         }
     }
 
@@ -65,38 +65,38 @@ public class NESController<E extends NESEmulator> extends SystemController<E> {
             return;
         }
         switch (joypadAction) {
-            case UP -> {
+            case JOY1_UP -> {
                 this.physicalControllerState &= ~UP_MASK;
                 this.currentControllerState &= ~UP_MASK;
                 if ((this.physicalControllerState & DOWN_MASK) != 0) {
                     this.currentControllerState |= DOWN_MASK;
                 }
             }
-            case DOWN -> {
+            case JOY1_DOWN -> {
                 this.physicalControllerState &= ~DOWN_MASK;
                 this.currentControllerState &= ~DOWN_MASK;
                 if ((this.physicalControllerState & UP_MASK) != 0) {
                     this.currentControllerState |= UP_MASK;
                 }
             }
-            case LEFT -> {
+            case JOY1_LEFT -> {
                 this.physicalControllerState &= ~LEFT_MASK;
                 this.currentControllerState &= ~LEFT_MASK;
                 if ((this.physicalControllerState & RIGHT_MASK) != 0) {
                     this.currentControllerState |= RIGHT_MASK;
                 }
             }
-            case RIGHT -> {
+            case JOY1_RIGHT -> {
                 this.physicalControllerState &= ~RIGHT_MASK;
                 this.currentControllerState &= ~RIGHT_MASK;
                 if ((this.physicalControllerState & LEFT_MASK) != 0) {
                     this.currentControllerState |= LEFT_MASK;
                 }
             }
-            case START  -> this.currentControllerState &= ~START_MASK;
-            case SELECT -> this.currentControllerState &= ~SELECT_MASK;
-            case A -> this.currentControllerState &= ~A_MASK;
-            case B -> this.currentControllerState &= ~B_MASK;
+            case JOY1_START  -> this.currentControllerState &= ~START_MASK;
+            case JOY1_SELECT -> this.currentControllerState &= ~SELECT_MASK;
+            case JOY1_A -> this.currentControllerState &= ~A_MASK;
+            case JOY1_B -> this.currentControllerState &= ~B_MASK;
         }
     }
 
@@ -124,14 +124,23 @@ public class NESController<E extends NESEmulator> extends SystemController<E> {
     }
 
     public enum Actions implements Action {
-        UP("Up"),
-        DOWN("Down"),
-        LEFT("Left"),
-        RIGHT("Right"),
-        START("Start"),
-        SELECT("Select"),
-        A("A"),
-        B("B");
+        JOY1_UP("Joy1 Up"),
+        JOY1_DOWN("Joy1 Down"),
+        JOY1_LEFT("Joy1 Left"),
+        JOY1_RIGHT("Joy1 Right"),
+        JOY1_START("Joy1 Start"),
+        JOY1_SELECT("Joy1 Select"),
+        JOY1_A("Joy1 A"),
+        JOY1_B("Joy1 B"),
+
+        JOY2_UP("Joy2 Up"),
+        JOY2_DOWN("Joy2 Down"),
+        JOY2_LEFT("Joy2 Left"),
+        JOY2_RIGHT("Joy2 Right"),
+        JOY2_START("Joy2 Start"),
+        JOY2_SELECT("Joy2 Select"),
+        JOY2_A("Joy2 A"),
+        JOY2_B("Joy2 B");
 
         private final String label;
 
