@@ -13,11 +13,16 @@ public class NESController<E extends NESEmulator> extends SystemController<E> {
     private static final int LEFT_MASK = 1 << 6;
     private static final int RIGHT_MASK = 1 << 7;
 
-    private int physicalControllerState;
 
     private boolean strobeSignal;
-    private int currentControllerState;
+
+    private int physicalController1State;
+    private int currentController1State;
     private int joy1ShiftRegister;
+
+    private int physicalController2State;
+    private int currentController2State;
+    private int joy2ShiftRegister;
 
     public NESController(E emulator) {
         super(emulator);
@@ -29,33 +34,62 @@ public class NESController<E extends NESEmulator> extends SystemController<E> {
         }
         switch (joypadAction) {
             case JOY1_UP -> {
-                this.physicalControllerState |= UP_MASK;
-                if ((this.physicalControllerState & DOWN_MASK) == 0) {
-                    this.currentControllerState |= UP_MASK;
+                this.physicalController1State |= UP_MASK;
+                if ((this.physicalController1State & DOWN_MASK) == 0) {
+                    this.currentController1State |= UP_MASK;
                 }
             }
             case JOY1_DOWN -> {
-                this.physicalControllerState |= DOWN_MASK;
-                if ((this.physicalControllerState & UP_MASK) == 0) {
-                    this.currentControllerState |= DOWN_MASK;
+                this.physicalController1State |= DOWN_MASK;
+                if ((this.physicalController1State & UP_MASK) == 0) {
+                    this.currentController1State |= DOWN_MASK;
                 }
             }
             case JOY1_LEFT -> {
-                this.physicalControllerState |= LEFT_MASK;
-                if ((this.physicalControllerState & RIGHT_MASK) == 0) {
-                    this.currentControllerState |= LEFT_MASK;
+                this.physicalController1State |= LEFT_MASK;
+                if ((this.physicalController1State & RIGHT_MASK) == 0) {
+                    this.currentController1State |= LEFT_MASK;
                 }
             }
             case JOY1_RIGHT -> {
-                this.physicalControllerState |= RIGHT_MASK;
-                if ((this.physicalControllerState & LEFT_MASK) == 0) {
-                    this.currentControllerState |= RIGHT_MASK;
+                this.physicalController1State |= RIGHT_MASK;
+                if ((this.physicalController1State & LEFT_MASK) == 0) {
+                    this.currentController1State |= RIGHT_MASK;
                 }
             }
-            case JOY1_START -> this.currentControllerState |= START_MASK;
-            case JOY1_SELECT -> this.currentControllerState |= SELECT_MASK;
-            case JOY1_A -> this.currentControllerState |= A_MASK;
-            case JOY1_B -> this.currentControllerState |= B_MASK;
+            case JOY1_START -> this.currentController1State |= START_MASK;
+            case JOY1_SELECT -> this.currentController1State |= SELECT_MASK;
+            case JOY1_A -> this.currentController1State |= A_MASK;
+            case JOY1_B -> this.currentController1State |= B_MASK;
+            case JOY2_UP -> {
+                this.physicalController2State |= UP_MASK;
+                if ((this.physicalController2State & DOWN_MASK) == 0) {
+                    this.currentController2State |= UP_MASK;
+                }
+            }
+            case JOY2_DOWN -> {
+                this.physicalController2State |= DOWN_MASK;
+                if ((this.physicalController2State & UP_MASK) == 0) {
+                    this.currentController2State |= DOWN_MASK;
+                }
+            }
+            case JOY2_LEFT -> {
+                this.physicalController2State |= LEFT_MASK;
+                if ((this.physicalController2State & RIGHT_MASK) == 0) {
+                    this.currentController2State |= LEFT_MASK;
+                }
+            }
+            case JOY2_RIGHT -> {
+                this.physicalController2State |= RIGHT_MASK;
+                if ((this.physicalController2State & LEFT_MASK) == 0) {
+                    this.currentController2State |= RIGHT_MASK;
+                }
+            }
+            case JOY2_START -> this.currentController2State |= START_MASK;
+            case JOY2_SELECT -> this.currentController2State |= SELECT_MASK;
+            case JOY2_A -> this.currentController2State |= A_MASK;
+            case JOY2_B -> this.currentController2State |= B_MASK;
+
         }
     }
 
@@ -66,37 +100,70 @@ public class NESController<E extends NESEmulator> extends SystemController<E> {
         }
         switch (joypadAction) {
             case JOY1_UP -> {
-                this.physicalControllerState &= ~UP_MASK;
-                this.currentControllerState &= ~UP_MASK;
-                if ((this.physicalControllerState & DOWN_MASK) != 0) {
-                    this.currentControllerState |= DOWN_MASK;
+                this.physicalController1State &= ~UP_MASK;
+                this.currentController1State &= ~UP_MASK;
+                if ((this.physicalController1State & DOWN_MASK) != 0) {
+                    this.currentController1State |= DOWN_MASK;
                 }
             }
             case JOY1_DOWN -> {
-                this.physicalControllerState &= ~DOWN_MASK;
-                this.currentControllerState &= ~DOWN_MASK;
-                if ((this.physicalControllerState & UP_MASK) != 0) {
-                    this.currentControllerState |= UP_MASK;
+                this.physicalController1State &= ~DOWN_MASK;
+                this.currentController1State &= ~DOWN_MASK;
+                if ((this.physicalController1State & UP_MASK) != 0) {
+                    this.currentController1State |= UP_MASK;
                 }
             }
             case JOY1_LEFT -> {
-                this.physicalControllerState &= ~LEFT_MASK;
-                this.currentControllerState &= ~LEFT_MASK;
-                if ((this.physicalControllerState & RIGHT_MASK) != 0) {
-                    this.currentControllerState |= RIGHT_MASK;
+                this.physicalController1State &= ~LEFT_MASK;
+                this.currentController1State &= ~LEFT_MASK;
+                if ((this.physicalController1State & RIGHT_MASK) != 0) {
+                    this.currentController1State |= RIGHT_MASK;
                 }
             }
             case JOY1_RIGHT -> {
-                this.physicalControllerState &= ~RIGHT_MASK;
-                this.currentControllerState &= ~RIGHT_MASK;
-                if ((this.physicalControllerState & LEFT_MASK) != 0) {
-                    this.currentControllerState |= LEFT_MASK;
+                this.physicalController1State &= ~RIGHT_MASK;
+                this.currentController1State &= ~RIGHT_MASK;
+                if ((this.physicalController1State & LEFT_MASK) != 0) {
+                    this.currentController1State |= LEFT_MASK;
                 }
             }
-            case JOY1_START  -> this.currentControllerState &= ~START_MASK;
-            case JOY1_SELECT -> this.currentControllerState &= ~SELECT_MASK;
-            case JOY1_A -> this.currentControllerState &= ~A_MASK;
-            case JOY1_B -> this.currentControllerState &= ~B_MASK;
+            case JOY1_START  -> this.currentController1State &= ~START_MASK;
+            case JOY1_SELECT -> this.currentController1State &= ~SELECT_MASK;
+            case JOY1_A -> this.currentController1State &= ~A_MASK;
+            case JOY1_B -> this.currentController1State &= ~B_MASK;
+
+            case JOY2_UP -> {
+                this.physicalController2State &= ~UP_MASK;
+                this.currentController2State &= ~UP_MASK;
+                if ((this.physicalController2State & DOWN_MASK) != 0) {
+                    this.currentController2State |= DOWN_MASK;
+                }
+            }
+            case JOY2_DOWN -> {
+                this.physicalController2State &= ~DOWN_MASK;
+                this.currentController2State &= ~DOWN_MASK;
+                if ((this.physicalController2State & UP_MASK) != 0) {
+                    this.currentController2State |= UP_MASK;
+                }
+            }
+            case JOY2_LEFT -> {
+                this.physicalController2State &= ~LEFT_MASK;
+                this.currentController2State &= ~LEFT_MASK;
+                if ((this.physicalController2State & RIGHT_MASK) != 0) {
+                    this.currentController2State |= RIGHT_MASK;
+                }
+            }
+            case JOY2_RIGHT -> {
+                this.physicalController2State &= ~RIGHT_MASK;
+                this.currentController2State &= ~RIGHT_MASK;
+                if ((this.physicalController2State & LEFT_MASK) != 0) {
+                    this.currentController2State |= LEFT_MASK;
+                }
+            }
+            case JOY2_START  -> this.currentController2State &= ~START_MASK;
+            case JOY2_SELECT -> this.currentController2State &= ~SELECT_MASK;
+            case JOY2_A -> this.currentController2State &= ~A_MASK;
+            case JOY2_B -> this.currentController2State &= ~B_MASK;
         }
     }
 
@@ -106,7 +173,7 @@ public class NESController<E extends NESEmulator> extends SystemController<E> {
 
     public int readJoy1() {
         if (this.strobeSignal) {
-            return (this.currentControllerState & 1);
+            return (this.currentController1State & 1);
         }
         int bit = this.joy1ShiftRegister & 1;
         this.joy1ShiftRegister = (this.joy1ShiftRegister >> 1) | 0x80;
@@ -114,12 +181,18 @@ public class NESController<E extends NESEmulator> extends SystemController<E> {
     }
 
     public int readJoy2() {
-        return 0x00;
+        if (this.strobeSignal) {
+            return (this.currentController2State & 1);
+        }
+        int bit = this.joy2ShiftRegister & 1;
+        this.joy2ShiftRegister = (this.joy2ShiftRegister >> 1) | 0x80;
+        return bit;
     }
 
     public void cycle() {
         if (this.strobeSignal && this.emulator.getRicohCore().getCurrentApuHalfCycleType() == RP2A03.APUHalfCycleType.GET) {
-            this.joy1ShiftRegister = this.currentControllerState;
+            this.joy1ShiftRegister = this.currentController1State;
+            this.joy2ShiftRegister = this.currentController2State;
         }
     }
 
