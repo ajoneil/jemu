@@ -32,7 +32,7 @@ public class AudioEngine implements Closeable {
 
     private boolean audioLineFirstFrame;
 
-    private Supplier<byte[]> sampleFrameCallback;
+    private volatile Supplier<byte[]> sampleFrameCallback;
 
     public AudioEngine(String threadName) {
         this.running = true;
@@ -77,17 +77,23 @@ public class AudioEngine implements Closeable {
     }
 
     public void setSampleRate(SampleRate sampleRate) throws LineUnavailableException {
+        boolean audioLineWasRunning = this.audioLineRunning;
         this.stop();
         this.sampleRate = sampleRate;
         this.recalculateFrameMetrics();
-        this.start();
+        if (audioLineWasRunning) {
+            this.start();
+        }
     }
 
     public void setAudioChannels(AudioChannels audioChannels) throws LineUnavailableException {
+        boolean audioLineWasRunning = this.audioLineRunning;
         this.stop();
         this.audioChannels = audioChannels;
         this.recalculateFrameMetrics();
-        this.start();
+        if (audioLineWasRunning) {
+            this.start();
+        }
     }
 
     public int getSampleRate() {
