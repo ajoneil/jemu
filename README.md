@@ -44,7 +44,7 @@ Multi-system emulator written in Java.
 | `1 2 3`  | `Q W E`      |
 | `4 5 6`  | `A S D`      |
 | `7 8 9`  | `Z X C`      |
-| `-  0 -` | `- Alt -`    |
+| `- 0 -`  | `- Alt -`    |
 
 
 | Keypad 2 | Keyboard or numpad key |
@@ -52,7 +52,7 @@ Multi-system emulator written in Java.
 | `1 2 3`  | `1 2 3`                |
 | `4 5 6`  | `4 5 6`                |
 | `7 8 9`  | `7 9 9`                |
-| `-  0 -` | `- 0 -`                |
+| `- 0 -`  | `- 0 -`                |
 
 ### Game Boy / Game Boy Color / Nintendo Entertainment System
 
