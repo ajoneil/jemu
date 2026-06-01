@@ -5,12 +5,12 @@ import io.github.arkosammy12.jemu.core.common.SystemController;
 public class RCAStudioIIKeypad<E extends RCAStudioIIEmulator> extends SystemController<E> {
 
     private final boolean[] keypad1Keys = new boolean[10];
-    private int keypad1LatchedKey = 0;
     private boolean keypad1Efx;
 
     private final boolean[] keypad2Keys = new boolean[10];
-    private int keypad2LatchedKey = 0;
     private boolean keypad2Efx;
+
+    private int latchedKey;
 
     public RCAStudioIIKeypad(E emulator) {
         super(emulator);
@@ -46,23 +46,16 @@ public class RCAStudioIIKeypad<E extends RCAStudioIIEmulator> extends SystemCont
         return this.keypad2Efx;
     }
 
-    public void setKeypad1LatchedKey(int value) {
-        this.keypad1LatchedKey = value & 0xF;
-    }
-
-    public void setKeypad2LatchedKey(int value) {
-        this.keypad2LatchedKey = value & 0xF;
+    public void setLatchedKey(int value) {
+        this.latchedKey = value & 0xF;
     }
 
     public void cycle() {
-        if (this.keypad1LatchedKey <= 9) {
-            this.keypad1Efx = this.keypad1Keys[this.keypad1LatchedKey];
+        if (this.latchedKey <= 9) {
+            this.keypad1Efx = this.keypad1Keys[this.latchedKey];
+            this.keypad2Efx = this.keypad2Keys[this.latchedKey];
         } else {
             this.keypad1Efx = false;
-        }
-        if (this.keypad2LatchedKey <= 9) {
-            this.keypad2Efx = this.keypad2Keys[this.keypad2LatchedKey];
-        } else {
             this.keypad2Efx = false;
         }
     }

@@ -143,8 +143,7 @@ public class RCAStudioIIEmulator implements CDP1802System, CDP1802.SystemBus {
             this.vdp.setDisplayEnable(false);
         }
         if ((ioPort & 0b10) != 0) {
-            this.keypad.setKeypad1LatchedKey(value);
-            this.keypad.setKeypad2LatchedKey(value);
+            this.keypad.setLatchedKey(value);
         }
     }
 
