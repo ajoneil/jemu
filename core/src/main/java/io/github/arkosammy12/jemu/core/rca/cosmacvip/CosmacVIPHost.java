@@ -1,4 +1,4 @@
-package io.github.arkosammy12.jemu.core.cosmacvip;
+package io.github.arkosammy12.jemu.core.rca.cosmacvip;
 
 import io.github.arkosammy12.jemu.core.common.SystemHost;
 

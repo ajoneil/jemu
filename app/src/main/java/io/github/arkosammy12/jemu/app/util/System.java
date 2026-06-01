@@ -1,12 +1,9 @@
 package io.github.arkosammy12.jemu.app.util;
 
 import io.github.arkosammy12.jemu.app.Jemu;
-import io.github.arkosammy12.jemu.app.adapters.CosmacVIPAdapter;
-import io.github.arkosammy12.jemu.app.adapters.GameBoyAdapter;
-import io.github.arkosammy12.jemu.app.adapters.NESAdapter;
-import io.github.arkosammy12.jemu.app.adapters.AbstractSystemAdapter;
+import io.github.arkosammy12.jemu.app.adapters.*;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
-import io.github.arkosammy12.jemu.core.cosmacvip.CosmacVIPHost;
+import io.github.arkosammy12.jemu.core.rca.cosmacvip.CosmacVIPHost;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import io.github.arkosammy12.jemu.core.gameboy.GameBoyHost;
 import io.github.arkosammy12.jemu.frontend.SystemDescriptor;
@@ -19,6 +16,7 @@ public enum System implements DisplayNameProvider, SystemDescriptor {
     COSMAC_VIP("cosmac-vip", "COSMAC-VIP", new String[] {"cos", "bin"}, args -> new CosmacVIPAdapter(args.jemu(), args.coreInitializer(), CosmacVIPHost.Chip8Interpreter.NONE)),
     VIP_CHIP_8("vip-chip8", "VIP CHIP-8", new String[] {"ch8", "hc8"}, args -> new CosmacVIPAdapter(args.jemu(), args.coreInitializer(), CosmacVIPHost.Chip8Interpreter.CHIP_8)),
     VIP_CHIP_8X("vip-chip8x", "VIP CHIP-8X", new String[] {"ch8", "c8x"}, args -> new CosmacVIPAdapter(args.jemu(), args.coreInitializer(), CosmacVIPHost.Chip8Interpreter.CHIP_8X)),
+    RCA_STUDIO_II("rca-studioii", "RCA Studio II", new String[]{"bin"}, args -> new RCAStudioIIAdapter(args.jemu(), args.coreInitializer())),
     GAME_BOY("gameboy", "Game Boy", new String[] {"gb"}, args -> new GameBoyAdapter(args.jemu(), args.coreInitializer(), GameBoyHost.Model.DMG)),
     GAME_BOY_COLOR("gameboy-color", "Game Boy Color", new String[] {"gbc"}, args -> new GameBoyAdapter(args.jemu(), args.coreInitializer(), GameBoyHost.Model.CGB)),
     NES("nes", "Nintendo Entertainment System", new String[] {"nes"}, args -> new NESAdapter(args.jemu(), args.coreInitializer()));

@@ -1,8 +1,11 @@
-package io.github.arkosammy12.jemu.core.cosmacvip;
+package io.github.arkosammy12.jemu.core.rca;
 
 import io.github.arkosammy12.jemu.core.common.VideoGenerator;
+import io.github.arkosammy12.jemu.core.rca.cosmacvip.CosmacVIPEmulator;
 
-public class CDP1861<E extends CosmacVIPEmulator> extends VideoGenerator<E> {
+public class CDP1861<E extends CDP1802System> extends VideoGenerator<E> {
+
+    public static final int CPU_CYCLES_PER_FRAME = 3668;
 
     protected static final int IMAGE_WIDTH = 256;
     private static final int IMAGE_HEIGHT = 128;
@@ -67,7 +70,7 @@ public class CDP1861<E extends CosmacVIPEmulator> extends VideoGenerator<E> {
     }
 
     public void cycle() {
-        if (this.cycles % CosmacVIPEmulator.CYCLES_PER_FRAME == 0) {
+        if (this.cycles % CPU_CYCLES_PER_FRAME == 0) {
             this.enabled = this.displayEnableLatch;
         }
         if (this.enabled) {

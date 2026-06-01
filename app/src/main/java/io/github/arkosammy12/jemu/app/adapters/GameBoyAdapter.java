@@ -111,11 +111,6 @@ public class GameBoyAdapter extends AbstractSystemAdapter implements GameBoyHost
     }
 
     @Override
-    public Model getModel() {
-        return this.model;
-    }
-
-    @Override
     public Optional<Path> getSaveDataDirectory() {
         return Optional.ofNullable(this.saveDataDirectory);
     }

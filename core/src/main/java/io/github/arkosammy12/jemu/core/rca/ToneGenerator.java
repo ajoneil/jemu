@@ -1,4 +1,4 @@
-package io.github.arkosammy12.jemu.core.cosmacvip;
+package io.github.arkosammy12.jemu.core.rca;
 
 import io.github.arkosammy12.jemu.core.common.AudioGenerator;
 import io.github.arkosammy12.jemu.core.drivers.AudioDriver;
@@ -6,14 +6,21 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
 
-import static io.github.arkosammy12.jemu.core.cosmacvip.CosmacVIPAudioGenerator.SQUARE_WAVE_AMPLITUDE;
+public class ToneGenerator<E extends CDP1802System> extends AudioGenerator<E> {
 
-public class VP595<E extends CosmacVIPEmulator> extends AudioGenerator<E> {
+    public static final int SQUARE_WAVE_AMPLITUDE = 4;
 
-    private double frequencyLatch = 27535.0 / (0x80 + 1);
-    private double phase = 0.0;
+    protected double phase = 0.0;
 
-    public VP595(E emulator) {
+    private static final int[] DEFAULT_PATTERN_1 = {
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0
+    };
+
+    private static final int[] DEFAULT_PATTERN_2 = {
+            0xFF, 0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0, 0, 0, 0
+    };
+
+    public ToneGenerator(E emulator) {
         super(emulator);
     }
 
@@ -27,25 +34,20 @@ public class VP595<E extends CosmacVIPEmulator> extends AudioGenerator<E> {
         return SampleSize.BYTES_1;
     }
 
-    public void setFrequency(double value) {
-        double actualValue = value != 0 ? value : 0x80;
-        this.frequencyLatch = 27535.0 / (actualValue + 1.0);
-    }
-
     @Override
     public Optional<byte[]> getSampleFrame() {
-        double frequency = frequencyLatch;
         Optional<? extends AudioDriver> optionalAudioDriver = this.emulator.getHost().getAudioDriver();
         if (!this.emulator.getCpu().getQ() || optionalAudioDriver.isEmpty()) {
-            phase = 0.0;
+            this.phase = 0;
             return Optional.empty();
         }
         AudioDriver audioDriver = optionalAudioDriver.get();
+        double step = (4000 * Math.pow(2.0, (175 - 64) / 48.0)) / 128.0 / (double) audioDriver.getSampleRate();
         byte[] data = new byte[audioDriver.getSamplesPerFrame()];
-        double step = frequency / (double) audioDriver.getSampleRate();
         for (int i = 0; i < data.length; i++) {
-            data[i] = (byte) ((phase < 0.5) ? SQUARE_WAVE_AMPLITUDE : -SQUARE_WAVE_AMPLITUDE);
-            phase = (phase + step) % 1.0;
+            int bitStep = (int) (this.phase * 128);
+            data[i] = (byte) (((DEFAULT_PATTERN_2[bitStep >> 3]) & (1 << (7 ^ (bitStep & 7)))) != 0 ? SQUARE_WAVE_AMPLITUDE : -SQUARE_WAVE_AMPLITUDE);
+            this.phase = (this.phase + step) % 1.0;
         }
         return Optional.of(data);
     }

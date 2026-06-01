@@ -7,8 +7,6 @@ import java.util.Optional;
 
 public interface GameBoyHost extends SystemHost {
 
-    Model getModel();
-
     Optional<Path> getSaveDataDirectory();
 
     enum Model {

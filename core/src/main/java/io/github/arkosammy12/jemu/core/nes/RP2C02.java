@@ -1056,8 +1056,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 					}
 				} else {
 					if (this.isSpriteYInRange(evalOamValue) && !this.spriteEvaluationPrimaryOAMAddressOverflowed) {
-						this.spriteEvaluationOamReadingCounter =
-								this.spriteEvaluationSecondaryOamAddressOverflowed ? 3 : 7;
+						this.spriteEvaluationOamReadingCounter = this.spriteEvaluationSecondaryOamAddressOverflowed ? 3 : 7;
 						this.incrementPrimaryOamAddressLow();
 
 						if (this.spriteEvaluationSecondaryOamAddressOverflowed && isRenderingEnabled) {

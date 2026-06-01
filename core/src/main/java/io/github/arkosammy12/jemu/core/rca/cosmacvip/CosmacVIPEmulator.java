@@ -1,12 +1,13 @@
-package io.github.arkosammy12.jemu.core.cosmacvip;
+package io.github.arkosammy12.jemu.core.rca.cosmacvip;
 
 import io.github.arkosammy12.jemu.core.common.*;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import io.github.arkosammy12.jemu.core.cpu.CDP1802;
+import io.github.arkosammy12.jemu.core.rca.CDP1802System;
+import io.github.arkosammy12.jemu.core.rca.CDP1861;
+import io.github.arkosammy12.jemu.core.rca.ToneGenerator;
 
-public class CosmacVIPEmulator implements Emulator, CDP1802.SystemBus {
-
-    public static final int CYCLES_PER_FRAME = 3668;
+public class CosmacVIPEmulator implements CDP1802System, CDP1802.SystemBus {
 
     private final CosmacVIPHost host;
     private final CosmacVIPHost.Chip8Interpreter chip8Interpreter;
@@ -33,7 +34,7 @@ public class CosmacVIPEmulator implements Emulator, CDP1802.SystemBus {
             } else {
                 this.bus = new CosmacVIPBus(this);
                 this.vdp = new CDP1861<>(this);
-                this.audioGenerator = new CosmacVIPAudioGenerator<>(this);
+                this.audioGenerator = new ToneGenerator<>(this);
                 this.frameRate = 60;
             }
         } catch (Exception e) {
@@ -46,6 +47,7 @@ public class CosmacVIPEmulator implements Emulator, CDP1802.SystemBus {
         return this.host;
     }
 
+    @Override
     public CDP1802 getCpu() {
         return this.cpu;
     }
@@ -81,9 +83,14 @@ public class CosmacVIPEmulator implements Emulator, CDP1802.SystemBus {
 
     @Override
     public void executeFrame() {
-        for (int i = 0; i < CYCLES_PER_FRAME; i++) {
+        for (int i = 0; i < CDP1861.CPU_CYCLES_PER_FRAME; i++) {
             this.runCycle();
         }
+    }
+
+    @Override
+    public void executeCycle() {
+        this.runCycle();
     }
 
     private void runCycle() {
@@ -91,11 +98,6 @@ public class CosmacVIPEmulator implements Emulator, CDP1802.SystemBus {
         this.vdp.cycle();
         this.keypad.cycle();
         this.cpu.nextState();
-    }
-
-    @Override
-    public void executeCycle() {
-        this.runCycle();
     }
 
     @Override

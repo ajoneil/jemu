@@ -1,4 +1,4 @@
-package io.github.arkosammy12.jemu.core.cosmacvip;
+package io.github.arkosammy12.jemu.core.rca.cosmacvip;
 
 import io.github.arkosammy12.jemu.core.common.SystemController;
 
@@ -32,12 +32,12 @@ public class CosmacVIPKeypad<E extends CosmacVIPEmulator> extends SystemControll
         return this.efx;
     }
 
-    public void cycle() {
-        this.efx = this.keys[this.latchedKey];
-    }
-
     public void setLatchedKey(int value) {
         this.latchedKey = value & 0xF;
+    }
+
+    public void cycle() {
+        this.efx = this.keys[this.latchedKey];
     }
 
     public enum Actions implements Action {

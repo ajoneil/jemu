@@ -7,7 +7,8 @@ module core {
     requires org.apache.commons.collections4;
 
     exports io.github.arkosammy12.jemu.core.common;
-    exports io.github.arkosammy12.jemu.core.cosmacvip;
+    exports io.github.arkosammy12.jemu.core.rca.cosmacvip;
+    exports io.github.arkosammy12.jemu.core.rca.studioii;
     exports io.github.arkosammy12.jemu.core.cpu;
     exports io.github.arkosammy12.jemu.core.drivers;
     exports io.github.arkosammy12.jemu.core.exceptions;
@@ -17,5 +18,6 @@ module core {
     exports io.github.arkosammy12.jemu.core.nes.ines;
     exports io.github.arkosammy12.jemu.core.nes.mappers;
     exports io.github.arkosammy12.jemu.core.gameboy.mbcs;
+    exports io.github.arkosammy12.jemu.core.rca;
 
 }
