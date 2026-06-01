@@ -67,6 +67,12 @@ jemu [-hV] -r=<romPath> [-s=<system>]
 | `-V, --version`             | Print version information and exit.                                                                                                             | —       |
 
 
+## Dev Builds
+
+The repository has a Github Actions workflow that runs on every push to the `dev` branch and contains native app image artifacts for Windows, MacOS and Linux, which will stay available for 90 days afterwards: https://github.com/ArkoSammy12/jemu/actions/workflows/dev-build.yml
+
+These builds are not well tested and may have bugs.
+
 ## Building
 
 A Java Development Kit targeting Java version 25 or later is required to build this project.
