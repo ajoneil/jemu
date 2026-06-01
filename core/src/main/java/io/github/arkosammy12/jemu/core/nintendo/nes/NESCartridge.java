@@ -3,7 +3,7 @@ package io.github.arkosammy12.jemu.core.nintendo.nes;
 import io.github.arkosammy12.jemu.core.common.Bus;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import io.github.arkosammy12.jemu.core.nintendo.nes.ines.INESFile;
-import io.github.arkosammy12.jemu.core.nes.mappers.*;
+import io.github.arkosammy12.jemu.core.nintendo.nes.mappers.*;
 import io.github.arkosammy12.jemu.core.nintendo.nes.mappers.*;
 
 public abstract class NESCartridge<E extends NESEmulator> implements Bus {
