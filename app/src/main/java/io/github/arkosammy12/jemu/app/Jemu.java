@@ -9,10 +9,12 @@ import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.app.util.MavenProperties;
 import io.github.arkosammy12.jemu.frontend.audio.AudioChannels;
 import io.github.arkosammy12.jemu.frontend.audio.AudioEngine;
+import io.github.arkosammy12.jemu.frontend.audio.SampleRate;
 import io.github.arkosammy12.jemu.frontend.gui.swing.PendingEmulatorCommand;
 import io.github.arkosammy12.jemu.frontend.gui.swing.commands.*;
 import io.github.arkosammy12.jemu.frontend.gui.swing.events.Event;
 import io.github.arkosammy12.jemu.frontend.gui.swing.events.MuteEvent;
+import io.github.arkosammy12.jemu.frontend.gui.swing.events.SampleRateChangedEvent;
 import io.github.arkosammy12.jemu.frontend.gui.swing.events.VolumeChangedEvent;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import io.github.arkosammy12.jemu.frontend.gui.swing.MainWindow;
@@ -96,6 +98,7 @@ public final class Jemu {
                 switch (uiEvent) {
                     case MuteEvent(boolean mute) -> this.audioEngine.setMuted(mute);
                     case VolumeChangedEvent(int newVolume) -> this.audioEngine.setVolume(newVolume);
+                    case SampleRateChangedEvent(SampleRate sampleRate) -> this.audioEngine.setSampleRate(sampleRate);
                     case null, default -> {}
                 }
             } catch (InterruptedException _) {

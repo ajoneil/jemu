@@ -46,7 +46,9 @@ public class AudioEngine implements Closeable {
     }
 
     public void setSampleFrameCallback(Supplier<byte[]> sampleFrameCallback) {
-        this.sampleFrameCallback = sampleFrameCallback;
+        synchronized (this.currentLineLock) {
+            this.sampleFrameCallback = sampleFrameCallback;
+        }
     }
 
     public void setPaused(boolean paused) {
@@ -54,45 +56,55 @@ public class AudioEngine implements Closeable {
     }
 
     public void setMuted(boolean muted) {
-        this.muted = muted;
         synchronized (this.currentLineLock) {
-            if (this.muteControl != null) {
-                this.muteControl.setValue(muted);
+            this.muted = muted;
+            synchronized (this.currentLineLock) {
+                if (this.muteControl != null) {
+                    this.muteControl.setValue(muted);
+                }
             }
         }
     }
 
     public void setVolume(int volume) {
-        this.volume = volume;
         synchronized (this.currentLineLock) {
-            if (this.volumeControl != null) {
-                this.volumeControl.setValue(20.0f * (float) Math.log10(this.volume / 100.0));
+            this.volume = volume;
+            synchronized (this.currentLineLock) {
+                if (this.volumeControl != null) {
+                    this.volumeControl.setValue(20.0f * (float) Math.log10(this.volume / 100.0));
+                }
             }
         }
     }
 
     public void setFramerate(int framerate) {
-        this.framerate = framerate;
-        this.recalculateFrameMetrics();
+        synchronized (this.currentLineLock) {
+            this.framerate = framerate;
+            this.recalculateFrameMetrics();
+        }
     }
 
     public void setSampleRate(SampleRate sampleRate) throws LineUnavailableException {
-        boolean audioLineWasRunning = this.audioLineRunning;
-        this.stop();
-        this.sampleRate = sampleRate;
-        this.recalculateFrameMetrics();
-        if (audioLineWasRunning) {
-            this.start();
+        synchronized (this.currentLineLock) {
+            boolean audioLineWasRunning = this.audioLineRunning;
+            this.stop();
+            this.sampleRate = sampleRate;
+            this.recalculateFrameMetrics();
+            if (audioLineWasRunning) {
+                this.start();
+            }
         }
     }
 
     public void setAudioChannels(AudioChannels audioChannels) throws LineUnavailableException {
-        boolean audioLineWasRunning = this.audioLineRunning;
-        this.stop();
-        this.audioChannels = audioChannels;
-        this.recalculateFrameMetrics();
-        if (audioLineWasRunning) {
-            this.start();
+        synchronized (this.currentLineLock) {
+            boolean audioLineWasRunning = this.audioLineRunning;
+            this.stop();
+            this.audioChannels = audioChannels;
+            this.recalculateFrameMetrics();
+            if (audioLineWasRunning) {
+                this.start();
+            }
         }
     }
 
@@ -128,11 +140,13 @@ public class AudioEngine implements Closeable {
 
             this.audioLineFirstFrame = false;
             this.audioLineRunning = true;
+
         }
 
         synchronized (this.audioThreadLock) {
             this.audioThreadLock.notify();
         }
+
     }
 
     public void stop() {
@@ -176,7 +190,11 @@ public class AudioEngine implements Closeable {
     }
 
     private void pushAudioFrame() {
-        byte[] writtenSamples = this.sampleFrameCallback == null ? this.emptySamples : this.sampleFrameCallback.get();
+        Supplier<byte[]> callback;
+        synchronized (this.currentLineLock) {
+            callback = this.sampleFrameCallback;
+        }
+        byte[] writtenSamples = callback == null ? this.emptySamples : callback.get();
         synchronized (this.currentLineLock) {
             if (this.currentSourceDataLine == null) {
                 return;
@@ -224,10 +242,14 @@ public class AudioEngine implements Closeable {
             return buf;
         }
         byte[] actualBuf = new byte[this.bytesPerFrame];
-        System.arraycopy(buf, 0, actualBuf, 0, buf.length);
-        int frameSize = this.getBytesPerOutputSample();
-        for (int i = buf.length; i < actualBuf.length; i += frameSize) {
-            System.arraycopy(buf, buf.length - frameSize, actualBuf, i, frameSize);
+        int copyLength = Math.min(buf.length, this.bytesPerFrame);
+        System.arraycopy(buf, 0, actualBuf, 0, copyLength);
+        if (copyLength < this.bytesPerFrame) {
+            int frameSize = this.getBytesPerOutputSample();
+            int alignedLength = (copyLength / frameSize) * frameSize;
+            for (int i = alignedLength; i < actualBuf.length; i += frameSize) {
+                System.arraycopy(buf, alignedLength - frameSize, actualBuf, i, frameSize);
+            }
         }
         return actualBuf;
     }
