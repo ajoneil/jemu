@@ -5,7 +5,7 @@ import io.github.arkosammy12.jemu.app.adapters.*;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.core.rca.cosmacvip.CosmacVIPHost;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
-import io.github.arkosammy12.jemu.core.gameboy.GameBoyHost;
+import io.github.arkosammy12.jemu.core.nintendo.gameboy.GameBoyHost;
 import io.github.arkosammy12.jemu.frontend.SystemDescriptor;
 import picocli.CommandLine;
 

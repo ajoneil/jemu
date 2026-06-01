@@ -6,8 +6,8 @@ import io.github.arkosammy12.jemu.app.Jemu;
 import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.core.common.Emulator;
-import io.github.arkosammy12.jemu.core.nes.NESController;
-import io.github.arkosammy12.jemu.core.nes.NESEmulator;
+import io.github.arkosammy12.jemu.core.nintendo.nes.NESController;
+import io.github.arkosammy12.jemu.core.nintendo.nes.NESEmulator;
 import org.jetbrains.annotations.Nullable;
 
 import java.awt.event.KeyEvent;
