@@ -300,6 +300,7 @@ public final class Jemu {
                 } catch (Exception _) {
                 }
                 this.mainWindow.getSystemViewport().setSystemDisplay(null);
+                this.mainWindow.getSystemViewport().setSystemKeyListener(null);
                 this.currentSystem = null;
             }
         }

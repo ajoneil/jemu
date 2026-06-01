@@ -16,6 +16,8 @@ import java.util.function.Supplier;
 public class SystemViewport {
 
     private final JPanel viewportPanel;
+
+    @Nullable
     private Component systemDisplayPanel;
     private final SystemKeyListener systemKeyListener;
 
@@ -42,10 +44,12 @@ public class SystemViewport {
         return this.viewportPanel;
     }
 
-    public void setSystemKeyListener(KeyListener keyListener) {
+    public void setSystemKeyListener(@Nullable KeyListener keyListener) {
         SwingUtilities.invokeLater(() -> {
             this.systemKeyListener.setDelegate(keyListener);
-            this.viewportPanel.requestFocusInWindow();
+            if (keyListener != null) {
+                this.viewportPanel.requestFocusInWindow();
+            }
         });
     }
 
@@ -80,9 +84,10 @@ public class SystemViewport {
 
     private static class SystemKeyListener implements KeyListener {
 
+        @Nullable
         private KeyListener delegate;
 
-        private void setDelegate(KeyListener keyListener) {
+        private void setDelegate(@Nullable KeyListener keyListener) {
             this.delegate = keyListener;
         }
 
