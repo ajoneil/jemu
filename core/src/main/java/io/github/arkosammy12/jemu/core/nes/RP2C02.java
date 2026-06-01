@@ -212,11 +212,11 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private int fineXScroll; // x
     private boolean writeLatch; // w
 
-    private int primaryOamAddress;
-    private int secondaryOamAddress;
-    // TODO: Update on $2004 writes, expose on $2004 reads. Constantly refill on every second half dots except during sprite eval
-    // PPU accesses OAM on every dot
+    private int primaryOAMAddress;
+    private int secondaryOAMAddress;
+
     private int oamBuffer;
+	private int oamDataReadBuffer;
 
     private DotHalf currentDotHalf = DotHalf.FIRST;
     private int dotNumber;
@@ -261,8 +261,9 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private int spriteEvaluationStep = 0;
     private int spriteEvaluationOamReadingCounter = 0;
     private boolean spriteEvaluationOriginalPrimaryOamAddressOverflowed;
-    private boolean spriteEvaluationPrimaryOamAddressOverflowed;
+    private boolean spriteEvaluationPrimaryOAMAddressOverflowed;
     private boolean spriteEvaluationSecondaryOamAddressOverflowed;
+	private int spriteEvaluationOverflowMode = 0;
 
     private final SpriteShifter[] spriteShifters = new SpriteShifter[8];
     private int spriteShifterInitIndex;
@@ -363,16 +364,29 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                 yield ret;
             }
             case OAMDATA_ADDR -> {
-                int ret = this.primaryOAM[this.primaryOamAddress];
-                if ((this.primaryOamAddress & 3) == 2) {
-                    ret &= ~0b00011100;
-                }
-                if (this.isVisibleScanline() && ((this.dotNumber >= OAM2_INIT_START && this.dotNumber <= OAM2_INIT_END) || (this.dotNumber >= SPRITE_EVAL_END && this.dotNumber <= SPRITE_FETCH_END)) && this.isRenderingEnabled()) {
-                    ret = 0xFF;
-                }
-                this.setDataBus(ret);
-                yield ret;
-            }
+				int ret;
+
+				if (this.isVisibleScanline() && this.isRenderingEnabled()) {
+					if (this.dotNumber == 0) {
+						ret = this.maskOAMDataRead(this.secondaryOAM[0], 0, true);
+					} else if (this.dotNumber == SPRITE_FETCH_END + 1) {
+						ret = this.oamDataReadBuffer;
+					} else if (this.dotNumber > SPRITE_FETCH_END + 1 && this.dotNumber < DOTS_PER_SCANLINE) {
+						ret = this.maskOAMDataRead(this.secondaryOAM[0], 0, true);
+					} else if (this.dotNumber >= SPRITE_FETCH_START && this.dotNumber <= SPRITE_FETCH_END) {
+						int addr = this.secondaryOAMAddress;
+						boolean copiedSpriteByte = addr < 8;
+						ret = this.maskOAMDataRead(this.oamDataReadBuffer, addr, copiedSpriteByte);
+					} else {
+						ret = this.oamDataReadBuffer;
+					}
+				} else {
+					ret = this.maskOAMDataRead(this.primaryOAM[this.primaryOAMAddress], this.primaryOAMAddress, true);
+				}
+
+				this.setDataBus(ret);
+				yield ret;
+			}
             // TODO: 5 dot (?) delay between $2007 access and the memory access happening. Ask 100th Coin for more details.
             case PPUDATA_ADDR -> {
                 int readAddress = this.getV() & 0x3FFF;
@@ -427,13 +441,13 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                 }
             }
             case PPUSTATUS_ADDR -> {}
-            case OAMADDR_ADDR -> this.primaryOamAddress = value & 0xFF;
+            case OAMADDR_ADDR -> this.primaryOAMAddress = value & 0xFF;
             case OAMDATA_ADDR -> {
                 if (this.isRenderScanline() && this.isRenderingEnabled()) {
-                    this.primaryOamAddress = (this.primaryOamAddress + 4) & 0xFC;
+                    this.primaryOAMAddress = (this.primaryOAMAddress + 4) & 0xFC;
                 } else {
-                    this.primaryOAM[this.primaryOamAddress] = value & 0xFF;
-                    this.primaryOamAddress = (this.primaryOamAddress + 1) & 0xFF;
+                    this.primaryOAM[this.primaryOAMAddress] = value & 0xFF;
+                    this.primaryOAMAddress = (this.primaryOAMAddress + 1) & 0xFF;
                 }
             }
             case PPUSCROLL_ADDR -> {
@@ -575,8 +589,9 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
                     if (this.dotNumber == SPRITE_EVAL_START || this.dotNumber == SPRITE_FETCH_START || (this.dotSkipped && this.dotNumber == 1) || (!this.dotSkipped && this.dotNumber == 0)) {
                         if (isRenderingEnabled) {
-                            this.secondaryOamAddress = 0;
+                            this.secondaryOAMAddress = 0;
                             this.spriteEvaluationSecondaryOamAddressOverflowed = false;
+							this.spriteEvaluationOverflowMode = 0;
                         }
                     }
 
@@ -584,9 +599,10 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                         this.spriteEvaluationStep = 0;
                         this.spriteEvaluationOamReadingCounter = 0;
                         this.spriteEvaluationOriginalPrimaryOamAddressOverflowed = false;
+						this.spriteEvaluationOverflowMode = 0;
                         if (isRenderingEnabled) {
-                            this.primaryOamAddress = 0;
-                            this.spriteEvaluationPrimaryOamAddressOverflowed = false;
+                            this.primaryOAMAddress = 0;
+                            this.spriteEvaluationPrimaryOAMAddressOverflowed = false;
                             this.sprite0OnThisScanline = this.sprite0OnNextScanline;
                         }
                     }
@@ -609,6 +625,10 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
             case SECOND -> {
                 boolean isRenderingEnabled = this.isRenderingEnabled();
 
+				if (isRenderScanline && isRenderingEnabled && !(this.isVisibleScanline() &&	this.dotNumber >= SPRITE_EVAL_START && this.dotNumber <= SPRITE_EVAL_END)) {
+					this.oamDataReadBuffer = this.oamBuffer;
+				}
+
                 if (isRenderScanline) {
 
                     boolean isVisibleDot = this.isVisibleDot();
@@ -622,16 +642,17 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                     this.refreshSpriteShiftersSignal.tick();
 
                     if (isVisibleScanline) {
-                        if (this.dotNumber == 0) {
-                            if (isRenderingEnabled) {
-                                this.readBytePPU(this.getBackgroundPatternByteAddress(false));
-                            }
-                        } else if (this.dotNumber >= OAM2_INIT_START && this.dotNumber <= OAM2_INIT_END) {
-                            this.tickSecondaryOamClear();
-                        } else if (this.dotNumber >= SPRITE_EVAL_START && this.dotNumber <= SPRITE_EVAL_END) {
-                            this.tickSpriteEvaluation(isRenderingEnabled);
-                        }
-                    }
+						if (this.dotNumber == 0) {
+							if (isRenderingEnabled) {
+								this.oamDataReadBuffer = this.secondaryOAM[0];
+								this.readBytePPU(this.getBackgroundPatternByteAddress(false));
+							}
+						} else if (this.dotNumber >= OAM2_INIT_START && this.dotNumber <= OAM2_INIT_END) {
+							this.tickSecondaryOamClear();
+						} else if (this.dotNumber >= SPRITE_EVAL_START && this.dotNumber <= SPRITE_EVAL_END) {
+							this.tickSpriteEvaluation(isRenderingEnabled);
+						}
+					}
 
                     if (this.dotNumber >= SPRITE_FETCH_START && this.dotNumber <= SPRITE_FETCH_END) {
                         this.tickSpriteFetcher(isRenderingEnabled);
@@ -639,13 +660,14 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                         this.spriteEvaluationStep = 0;
                         this.spriteEvaluationOamReadingCounter = 0;
                         this.spriteEvaluationOriginalPrimaryOamAddressOverflowed = false;
+						this.spriteEvaluationOverflowMode = 0;
                         if (isRenderingEnabled) {
-                            this.primaryOamAddress = 0;
-                            this.spriteEvaluationPrimaryOamAddressOverflowed = false;
+                            this.primaryOAMAddress = 0;
+                            this.spriteEvaluationPrimaryOAMAddressOverflowed = false;
                         }
                     } else if (this.dotNumber == SPRITE_FETCH_END + 1) {
                         // Extra OAM2ADDR increment that occurs 321 as a result of a timing hazard. Critical for games.
-                        this.incrementSecondaryOamAddress();
+                        this.incrementSecondaryOAMAddress();
                     }
 
                     if (this.isPreRenderScanline()) {
@@ -905,32 +927,36 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     // Assumes called once per full dot, on the second half
     // TODO: Half-dot step this
     private void tickSecondaryOamClear() {
-        switch (this.secondaryOamClearStep) {
-            case 0 -> {
-                this.secondaryOamClearStep = 1;
-            }
-            case 1 -> {
-                this.secondaryOAM[this.secondaryOamAddress] = 0xFF;
-                this.incrementSecondaryOamAddress();
-                this.secondaryOamClearStep = 0;
-            }
-        }
-    }
+		switch (this.secondaryOamClearStep) {
+			case 0 -> {
+				this.oamBuffer = 0xFF;
+				this.oamDataReadBuffer = 0xFF;
+				this.secondaryOamClearStep = 1;
+			}
+			case 1 -> {
+				this.oamBuffer = 0xFF;
+				this.oamDataReadBuffer = 0xFF;
+				this.secondaryOAM[this.secondaryOAMAddress] = 0xFF;
+				this.incrementSecondaryOAMAddress();
+				this.secondaryOamClearStep = 0;
+			}
+		}
+	}
 
     private boolean isSpriteYInRange(int spriteY) {
         int difference = (this.scanlineNumber & 0xFF) - spriteY;
         return difference >= 0 && difference < (this.getSpriteSize() ? 16 : 8);
     }
 
-    private void incrementSecondaryOamAddress() {
+    private void incrementSecondaryOAMAddress() {
         if (!this.isRenderingEnabled()) {
             return;
         }
 
         if (!this.spriteEvaluationSecondaryOamAddressOverflowed) {
-            int originalSecondaryOamAddress = this.secondaryOamAddress;
-            this.secondaryOamAddress = (this.secondaryOamAddress + 1) & 0x1F;
-            this.spriteEvaluationSecondaryOamAddressOverflowed = this.secondaryOamAddress < originalSecondaryOamAddress;
+            int originalSecondaryOamAddress = this.secondaryOAMAddress;
+            this.secondaryOAMAddress = (this.secondaryOAMAddress + 1) & 0x1F;
+            this.spriteEvaluationSecondaryOamAddressOverflowed = this.secondaryOAMAddress < originalSecondaryOamAddress;
         }
     }
 
@@ -939,22 +965,26 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
             return;
         }
 
-        if (!this.spriteEvaluationPrimaryOamAddressOverflowed) {
-            int originalPrimaryOamAddress = this.primaryOamAddress;
-            this.primaryOamAddress = (this.primaryOamAddress + 1) & 0xFF;
-            this.spriteEvaluationPrimaryOamAddressOverflowed = this.primaryOamAddress < originalPrimaryOamAddress;
+        if (!this.spriteEvaluationPrimaryOAMAddressOverflowed) {
+            int originalPrimaryOamAddress = this.primaryOAMAddress;
+            this.primaryOAMAddress = (this.primaryOAMAddress + 1) & 0xFF;
+            this.spriteEvaluationPrimaryOAMAddressOverflowed = this.primaryOAMAddress < originalPrimaryOamAddress;
         }
     }
 
-    private void incrementPrimaryOamAddressHigh() {
+    private void incrementPrimaryOamAddressHighAndLowAfterSecondaryOverflowSearch() {
         if (!this.isRenderingEnabled()) {
             return;
         }
 
-        if (!this.spriteEvaluationPrimaryOamAddressOverflowed) {
-            int originalPrimaryOamAddress = this.primaryOamAddress;
-            this.primaryOamAddress = (this.primaryOamAddress + 4) & 0xFF;
-            this.spriteEvaluationPrimaryOamAddressOverflowed = this.primaryOamAddress < originalPrimaryOamAddress;
+        if (!this.spriteEvaluationPrimaryOAMAddressOverflowed) {
+            int originalPrimaryOAMAddress = this.primaryOAMAddress;
+
+            int high = (this.primaryOAMAddress + 4) & 0xFC;
+            int low = (this.primaryOAMAddress + 1) & 0x03;
+            this.primaryOAMAddress = high | low;
+
+            this.spriteEvaluationPrimaryOAMAddressOverflowed = this.primaryOAMAddress < originalPrimaryOAMAddress;
         }
     }
 
@@ -963,141 +993,214 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
             return;
         }
 
-        if (!this.spriteEvaluationPrimaryOamAddressOverflowed) {
-            int originalPrimaryOamAddress = this.primaryOamAddress;
-            this.primaryOamAddress = (this.primaryOamAddress + 4) & 0xFF;
-            this.primaryOamAddress &= ~0b11;
-            this.spriteEvaluationPrimaryOamAddressOverflowed = this.primaryOamAddress < originalPrimaryOamAddress;
+        if (!this.spriteEvaluationPrimaryOAMAddressOverflowed) {
+            int originalPrimaryOAMAddress = this.primaryOAMAddress;
+            this.primaryOAMAddress = (this.primaryOAMAddress + 4) & 0xFF;
+            this.primaryOAMAddress &= ~0b11;
+            this.spriteEvaluationPrimaryOAMAddressOverflowed = this.primaryOAMAddress < originalPrimaryOAMAddress;
         }
     }
+
+	private void incrementPrimaryOAMAddressHighClearLowAfterOverflow() {
+		if (!this.isRenderingEnabled()) {
+			return;
+		}
+
+		int originalPrimaryOamAddress = this.primaryOAMAddress;
+		this.primaryOAMAddress = (this.primaryOAMAddress + 4) & 0xFF;
+		this.primaryOAMAddress &= ~0b11;
+		this.spriteEvaluationPrimaryOAMAddressOverflowed = this.spriteEvaluationPrimaryOAMAddressOverflowed || this.primaryOAMAddress < originalPrimaryOamAddress;
+	}
 
     // Assumes called once per full dot, on the second half
     // TODO: Half-dot step this
     private void tickSpriteEvaluation(boolean isRenderingEnabled) {
         switch (this.spriteEvaluationStep) {
             case 0 -> { // Read cycle
-                this.spriteEvaluationOriginalPrimaryOamAddressOverflowed = this.spriteEvaluationPrimaryOamAddressOverflowed;
-                this.oamBuffer = this.primaryOAM[this.primaryOamAddress];
+                this.spriteEvaluationOriginalPrimaryOamAddressOverflowed = this.spriteEvaluationPrimaryOAMAddressOverflowed;
+				this.oamBuffer = this.primaryOAM[this.primaryOAMAddress];
+
+				int evalOamValue = this.maskOAMDataRead(this.oamBuffer, this.primaryOAMAddress, true);
+				if (this.spriteEvaluationSecondaryOamAddressOverflowed && this.spriteEvaluationOverflowMode == 2 && (this.primaryOAMAddress & 0x03) == 0x03) {
+					this.oamDataReadBuffer = this.secondaryOAM[0];
+				} else {
+					this.oamDataReadBuffer = evalOamValue;
+				}
+			
+				if (this.spriteEvaluationPrimaryOAMAddressOverflowed && this.secondaryOAMAddress == 0x08 && this.dotNumber >= 204 && this.dotNumber < SPRITE_EVAL_END) {
+					this.incrementPrimaryOAMAddressHighClearLowAfterOverflow();
+					this.spriteEvaluationStep = 1;
+					break;
+				}
+				
                 if (this.dotNumber == SPRITE_EVAL_START && isRenderingEnabled) {
-                    this.sprite0OnNextScanline = this.isSpriteYInRange(this.oamBuffer);
-                }
+					this.sprite0OnNextScanline = this.isSpriteYInRange(evalOamValue);
+				}
                 if (this.spriteEvaluationOamReadingCounter > 0) {
-                    this.spriteEvaluationOamReadingCounter--;
-                    this.incrementPrimaryOamAddressLow();
-                } else {
-                    if (this.isSpriteYInRange(this.oamBuffer) && !this.spriteEvaluationPrimaryOamAddressOverflowed) {
-                        this.spriteEvaluationOamReadingCounter = 7;
-                        this.incrementPrimaryOamAddressLow();
-                        if (this.spriteEvaluationSecondaryOamAddressOverflowed && isRenderingEnabled) {
-                            this.setSpriteOverflowFlag(true);
-                        }
-                    } else {
-                        if (this.spriteEvaluationSecondaryOamAddressOverflowed) {
-                            this.incrementPrimaryOamAddressHigh();
-                            this.incrementPrimaryOamAddressLow();
-                        } else {
-                            this.incrementPrimaryOamAddressHighClearLow();
-                        }
-                    }
-                }
+					this.spriteEvaluationOamReadingCounter--;
+
+					if (this.spriteEvaluationSecondaryOamAddressOverflowed) {
+						this.spriteEvaluationOverflowMode = 1;
+
+						if ((this.primaryOAMAddress & 0x03) != 0x03) {
+							this.incrementPrimaryOamAddressLow();
+						} else {
+							this.incrementPrimaryOamAddressHighClearLow();
+						}
+
+						if (this.spriteEvaluationOamReadingCounter == 0) {
+							this.spriteEvaluationOverflowMode = 2;
+						}
+					} else {
+						this.incrementPrimaryOamAddressLow();
+					}
+				} else {
+					if (this.isSpriteYInRange(evalOamValue) && !this.spriteEvaluationPrimaryOAMAddressOverflowed) {
+						this.spriteEvaluationOamReadingCounter =
+								this.spriteEvaluationSecondaryOamAddressOverflowed ? 3 : 7;
+						this.incrementPrimaryOamAddressLow();
+
+						if (this.spriteEvaluationSecondaryOamAddressOverflowed && isRenderingEnabled) {
+							this.setSpriteOverflowFlag(true);
+							this.spriteEvaluationOverflowMode = 1;
+						}
+					} else {
+						if (this.spriteEvaluationSecondaryOamAddressOverflowed) {
+							if (this.spriteEvaluationOverflowMode == 2) {
+								this.incrementPrimaryOAMAddressHighClearLowAfterOverflow();
+							} else if (this.isSpriteYInRange(evalOamValue) && !this.spriteEvaluationPrimaryOAMAddressOverflowed) {
+								this.spriteEvaluationOamReadingCounter = 3;
+								this.incrementPrimaryOamAddressLow();
+								if (isRenderingEnabled) {
+									this.setSpriteOverflowFlag(true);
+									this.spriteEvaluationOverflowMode = 1;
+								}
+							} else {
+								this.incrementPrimaryOamAddressHighAndLowAfterSecondaryOverflowSearch();
+							}
+						} else {
+							if (this.isSpriteYInRange(evalOamValue) && !this.spriteEvaluationPrimaryOAMAddressOverflowed) {
+								this.spriteEvaluationOamReadingCounter = 7;
+								this.incrementPrimaryOamAddressLow();
+							} else {
+								this.incrementPrimaryOamAddressHighClearLow();
+							}
+						}
+					}
+				}
                 this.spriteEvaluationStep = 1;
             }
             case 1 -> { // Write cycle
-                if (!this.spriteEvaluationOriginalPrimaryOamAddressOverflowed && !this.spriteEvaluationSecondaryOamAddressOverflowed) {
-                    this.secondaryOAM[this.secondaryOamAddress] = this.oamBuffer;
-                    if (this.spriteEvaluationOamReadingCounter > 0) {
-                        this.spriteEvaluationOamReadingCounter--;
-                        this.incrementSecondaryOamAddress();
-                    }
-                } else {
-                    if (this.spriteEvaluationOamReadingCounter > 0) {
-                        this.spriteEvaluationOamReadingCounter--;
-                    }
-                    // TODO: OAM2 writes become reads
-                }
-                this.spriteEvaluationStep = 0;
-            }
+				if (!this.spriteEvaluationOriginalPrimaryOamAddressOverflowed && !this.spriteEvaluationSecondaryOamAddressOverflowed) {
+
+					int readbackAddress = (this.primaryOAMAddress - 1) & 0xFF;
+					this.oamDataReadBuffer = this.maskOAMDataRead(this.oamBuffer, readbackAddress, true);
+
+					this.secondaryOAM[this.secondaryOAMAddress] = this.oamBuffer;
+					if (this.spriteEvaluationOamReadingCounter > 0) {
+						this.spriteEvaluationOamReadingCounter--;
+						this.incrementSecondaryOAMAddress();
+					}
+				} else {
+					this.oamBuffer = this.secondaryOAM[this.secondaryOAMAddress];
+					this.oamDataReadBuffer = this.oamBuffer;
+				}
+				this.spriteEvaluationStep = 0;
+			}
         }
     }
 
     // Assumes called once per full dot, on the second half
     // TODO: Half-dot step this
     private void tickSpriteFetcher(boolean isRenderingEnabled) {
-        switch (this.spriteFetcherStep) {
-            case 0 -> {
-                if (isRenderingEnabled) {
-                    this.bgFetcherTileNumber = this.readBytePPU(this.getNametableFetchAddress());
-                }
+		switch (this.spriteFetcherStep) {
+			case 0 -> {
+				if (isRenderingEnabled) {
+					this.bgFetcherTileNumber = this.readBytePPU(this.getNametableFetchAddress());
+				}
 
-                if (this.dotNumber != SPRITE_FETCH_START) {
-                    this.incrementSecondaryOamAddress();
-                }
+				if (this.dotNumber != SPRITE_FETCH_START) {
+					this.incrementSecondaryOAMAddress();
+				}
 
-                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress];
+				this.oamBuffer = this.secondaryOAM[this.secondaryOAMAddress];
+                this.oamDataReadBuffer = this.oamBuffer;
+
                 this.spriteFetcherStep = 1;
-            }
-            case 1 -> {
-                this.spriteFetcherYPosition = this.oamBuffer;
+			}
+			case 1 -> {
+				this.spriteFetcherYPosition = this.oamBuffer;
 
-                this.incrementSecondaryOamAddress();
-                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress];
+				this.incrementSecondaryOAMAddress();
+				this.oamBuffer = this.secondaryOAM[this.secondaryOAMAddress];
+                this.oamDataReadBuffer = this.oamBuffer;
 
                 this.spriteFetcherStep = 2;
-            }
-            case 2 -> {
-                if (isRenderingEnabled) {
-                    this.bgFetcherTileNumber = this.readBytePPU(this.getNametableFetchAddress());
-                }
+			}
+			case 2 -> {
+				if (isRenderingEnabled) {
+					this.bgFetcherTileNumber = this.readBytePPU(this.getNametableFetchAddress());
+				}
 
-                this.spriteFetcherTileNumber = this.oamBuffer;
+				this.spriteFetcherTileNumber = this.oamBuffer;
 
-                this.incrementSecondaryOamAddress();
-                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress];
+				this.incrementSecondaryOAMAddress();
+				this.oamBuffer = this.secondaryOAM[this.secondaryOAMAddress];
+                this.oamDataReadBuffer = this.oamBuffer;
 
                 this.spriteFetcherStep = 3;
-            }
-            case 3 -> {
-                this.spriteFetcherAttributeByte = this.oamBuffer;
+			}
+			case 3 -> {
+				this.spriteFetcherAttributeByte = this.oamBuffer;
 
-                this.incrementSecondaryOamAddress();
-                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress];
+				this.incrementSecondaryOAMAddress();
+				this.oamBuffer = this.secondaryOAM[this.secondaryOAMAddress];
+                this.oamDataReadBuffer = this.oamBuffer;
 
                 this.spriteFetcherStep = 4;
-            }
-            case 4 -> {
-                if (isRenderingEnabled) {
-                    this.spriteFetcherPatternTableLow = this.readBytePPU(this.getSpritePatternByteAddress(false));
-                }
+			}
+			case 4 -> {
+				if (isRenderingEnabled) {
+					this.spriteFetcherPatternTableLow = this.readBytePPU(this.getSpritePatternByteAddress(false));
+				}
 
-                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress];
+				this.oamBuffer = this.secondaryOAM[this.secondaryOAMAddress];
+                this.oamDataReadBuffer = this.oamBuffer;
+
                 this.spriteFetcherStep = 5;
-            }
-            case 5 -> {
-                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress];
-                this.spriteFetcherStep = 6;
-            }
-            case 6 -> {
-                if (isRenderingEnabled) {
-                    this.spriteFetcherPatternTableHigh = this.readBytePPU(this.getSpritePatternByteAddress(true));
-                }
+			}
+			case 5 -> {
+				this.oamBuffer = this.secondaryOAM[this.secondaryOAMAddress];
+                this.oamDataReadBuffer = this.oamBuffer;
 
-                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress];
+                this.spriteFetcherStep = 6;
+			}
+			case 6 -> {
+				if (isRenderingEnabled) {
+					this.spriteFetcherPatternTableHigh = this.readBytePPU(this.getSpritePatternByteAddress(true));
+				}
+
+				this.oamBuffer = this.secondaryOAM[this.secondaryOAMAddress];
+                this.oamDataReadBuffer = this.oamBuffer;
+
                 this.spriteFetcherStep = 7;
-            }
-            case 7 -> {
-                this.oamBuffer = this.secondaryOAM[this.secondaryOamAddress];
+			}
+			case 7 -> {
+				this.oamBuffer = this.secondaryOAM[this.secondaryOAMAddress];
+                this.oamDataReadBuffer = this.oamBuffer;
+
                 int spriteFetcherXPosition = this.oamBuffer;
 
-                if (isRenderingEnabled) {
-                    boolean inRange = this.isSpriteYInRange(this.spriteFetcherYPosition);
-                    this.spriteShifters[this.spriteShifterInitIndex].initialize(inRange ? this.spriteFetcherPatternTableLow : 0, inRange ? this.spriteFetcherPatternTableHigh : 0, spriteFetcherXPosition, this.spriteFetcherAttributeByte);
-                }
+				if (isRenderingEnabled) {
+					boolean inRange = this.isSpriteYInRange(this.spriteFetcherYPosition);
+					this.spriteShifters[this.spriteShifterInitIndex].initialize(inRange ? this.spriteFetcherPatternTableLow : 0, inRange ? this.spriteFetcherPatternTableHigh : 0, spriteFetcherXPosition, this.spriteFetcherAttributeByte);
+				}
 
-                this.spriteShifterInitIndex++;
-                this.spriteFetcherStep = 0;
-            }
-        }
-    }
+				this.spriteShifterInitIndex++;
+				this.spriteFetcherStep = 0;
+			}
+		}
+	}
 
     private int getNametableFetchAddress() {
         return 0x2000 | (this.getV() & 0x0FFF);
@@ -1209,6 +1312,16 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
             paletteAddr &= ~0x10;
         }
         return paletteAddr;
+    }
+
+    private int maskOAMDataRead(int value, int oamAddress, boolean copiedSpriteByte) {
+        value &= 0xFF;
+
+        if (copiedSpriteByte && (oamAddress & 3) == 2) {
+            value &= ~0b00011100;
+        }
+
+        return value;
     }
 
     private enum DotHalf {
