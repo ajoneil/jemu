@@ -17,6 +17,7 @@ import org.tinylog.Logger;
 import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Optional;
@@ -29,6 +30,7 @@ public abstract class AbstractSystemAdapter implements SystemAdapter {
     private final Emulator emulator;
     private final DefaultAudioRendererDriver audioDriver;
     private final JoypadDriver joypadDriver;
+    private final KeyListener keyListener;
 
     @Nullable
     private DefaultSystemVideoDriver videoDriver;
@@ -47,6 +49,28 @@ public abstract class AbstractSystemAdapter implements SystemAdapter {
         this.emulator = this.createEmulator();
         this.joypadDriver = new JoypadDriver(this);
         this.audioDriver = this.emulator.getAudioGenerator().isStereo() ? new StereoAudioRendererDriver(jemu, this.emulator.getAudioGenerator()) : new MonoAudioRendererDriver(jemu, this.emulator.getAudioGenerator());
+
+        this.keyListener = new KeyAdapter() {
+
+            @Override
+            public void keyPressed(KeyEvent e) {
+                int keyCode = e.getKeyCode();
+                SystemController.Action action = getActionForKeyCode(keyCode);
+                if (action != null) {
+                    getEmulator().getSystemController().onActionPressed(action);
+                }
+            }
+
+            @Override
+            public void keyReleased(KeyEvent e) {
+                int keyCode = e.getKeyCode();
+                SystemController.Action action = getActionForKeyCode(keyCode);
+                if (action != null) {
+                    getEmulator().getSystemController().onActionReleased(action);
+                }
+            }
+
+        };
     }
 
     protected abstract Emulator createEmulator();
@@ -82,29 +106,12 @@ public abstract class AbstractSystemAdapter implements SystemAdapter {
         return Optional.of(this.audioDriver);
     }
 
+    public KeyListener getSystemKeyListener() {
+        return this.keyListener;
+    }
+
     public Component createAWTComponentVideoDriver() {
-        KeyAdapter keyAdapter = new KeyAdapter() {
-
-            @Override
-            public void keyPressed(KeyEvent e) {
-                int keyCode = e.getKeyCode();
-                SystemController.Action action = getActionForKeyCode(keyCode);
-                if (action != null) {
-                    getEmulator().getSystemController().onActionPressed(action);
-                }
-            }
-
-            @Override
-            public void keyReleased(KeyEvent e) {
-                int keyCode = e.getKeyCode();
-                SystemController.Action action = getActionForKeyCode(keyCode);
-                if (action != null) {
-                    getEmulator().getSystemController().onActionReleased(action);
-                }
-            }
-
-        };
-        this.videoDriver = new DefaultSystemVideoDriver(this.emulator.getVideoGenerator(), keyAdapter);
+        this.videoDriver = new DefaultSystemVideoDriver(this.emulator.getVideoGenerator());
         return this.videoDriver;
     }
 

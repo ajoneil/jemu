@@ -34,14 +34,12 @@ public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Clo
     private int lastWidth = -1;
     private int lastHeight = -1;
 
-    public DefaultSystemVideoDriver(VideoGenerator<?> videoGenerator, KeyListener keyListener) {
+    public DefaultSystemVideoDriver(VideoGenerator<?> videoGenerator) {
         this.displayWidth = videoGenerator.getImageWidth();
         this.displayHeight = videoGenerator.getImageHeight();
 
         this.renderBuffer = new int[displayWidth * displayHeight];
         this.bufferedImage = new BufferedImage(displayWidth, displayHeight, BufferedImage.TYPE_INT_RGB);
-
-        this.addKeyListener(keyListener);
 
         this.renderThread = new Thread(this::renderLoop, "%s-render-thread".formatted(MavenProperties.ARTIFACT_ID));
         this.renderThread.setDaemon(true);

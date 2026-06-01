@@ -205,6 +205,7 @@ public final class Jemu {
         this.audioEngine.setAudioChannels(this.currentSystem.getEmulator().getAudioGenerator().isStereo() ? AudioChannels.STEREO : AudioChannels.MONO);
         this.audioEngine.start();
         this.mainWindow.getSystemViewport().setSystemDisplay(() -> this.currentSystem.createAWTComponentVideoDriver());
+        this.mainWindow.getSystemViewport().setSystemKeyListener(this.currentSystem.getSystemKeyListener());
 
         boolean resetIntoPaused = resetEvent.resetIntoPaused();
         this.audioEngine.setPaused(resetIntoPaused);
