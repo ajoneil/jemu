@@ -132,7 +132,7 @@ public class RCAStudioIIEmulator implements CDP1802System, CDP1802.SystemBus {
     }
 
     public int readIO(int ioPort) {
-        if (ioPort == 1) {
+        if ((ioPort & 1) != 0) {
             this.vdp.setDisplayEnable(true);
         }
         return 0xFF;
