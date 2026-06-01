@@ -13,7 +13,8 @@ import org.tinylog.Logger;
 
 import java.io.IOException;
 
-
+// input4j not working as expected; limited to 1 controller
+// TODO: find better library or work around
 public class JoypadDriver implements AutoCloseable {
 
     private static final float JOYSTICK_ENGAGED_THRESH = 0.5f;
@@ -35,6 +36,7 @@ public class JoypadDriver implements AutoCloseable {
     private volatile boolean running = true;
 
     private InputDevicePlugin inputDevicePlugin;
+    private InputDevice device;
 
     public JoypadDriver(AbstractSystemAdapter systemAdapter) {
         this.systemAdapter = systemAdapter;
@@ -51,8 +53,6 @@ public class JoypadDriver implements AutoCloseable {
     }
 
     private void pollLoop() {
-        this.tryInitDevices();
-
         while (this.running) {
             try {
                 synchronized (this.joypadLock) {
@@ -60,44 +60,78 @@ public class JoypadDriver implements AutoCloseable {
                     if (!this.running) {
                         break;
                     }
-                    this.tryInitDevices();
-                    if (this.inputDevicePlugin != null) {
-                        this.inputDevicePlugin.getAll().forEach(InputDevice::poll);
-                    }
+
+                    tryInitDevices();
+                    tryPoll();
                 }
             } catch (InterruptedException e) {}
         }
 
-        if (this.inputDevicePlugin != null) {
-            try {
-                this.inputDevicePlugin.close();
-            } catch (IOException e) {
-                Logger.error("Error releasing joypad driver resources: {}", e);
-            }
-        }
+        closeJoypadDevicePlugin();
     }
 
-    private void registerCallbacks(InputDevice device) {
-        device.onButtonPressed(XInput.DPAD_UP, () -> pressButton(XInput.DPAD_UP));
-        device.onButtonPressed(XInput.DPAD_DOWN, () -> pressButton(XInput.DPAD_DOWN));
-        device.onButtonPressed(XInput.DPAD_LEFT, () -> pressButton(XInput.DPAD_LEFT));
-        device.onButtonPressed(XInput.DPAD_RIGHT, () -> pressButton(XInput.DPAD_RIGHT));
-        device.onButtonPressed(XInput.START, () -> pressButton(XInput.START));
-        device.onButtonPressed(XInput.BACK, () -> pressButton(XInput.BACK));
-        device.onButtonPressed(XInput.X, () -> pressButton(XInput.X));
-        device.onButtonPressed(XInput.A, () -> pressButton(XInput.A));
+    private void deRegisterDevice(InputDevice device) {
+        System.out.println("Deregistering: " + device);
 
-        device.onButtonReleased(XInput.DPAD_UP, () -> releaseButton(XInput.DPAD_UP));
-        device.onButtonReleased(XInput.DPAD_DOWN, () -> releaseButton(XInput.DPAD_DOWN));
-        device.onButtonReleased(XInput.DPAD_LEFT, () -> releaseButton(XInput.DPAD_LEFT));
-        device.onButtonReleased(XInput.DPAD_RIGHT, () -> releaseButton(XInput.DPAD_RIGHT));
-        device.onButtonReleased(XInput.START, () -> releaseButton(XInput.START));
-        device.onButtonReleased(XInput.BACK, () -> releaseButton(XInput.BACK));
-        device.onButtonReleased(XInput.X, () -> releaseButton(XInput.X));
-        device.onButtonReleased(XInput.A, () -> releaseButton(XInput.A));
+        // DT 01/06/2026:
+        // Only support 1 device until a better library/solution is found
+        if(this.device != device)
+            return;
 
-        device.onAxisChanged(XInput.LEFT_THUMB_X, this::xAxisChange);
-        device.onAxisChanged(XInput.LEFT_THUMB_Y, this::yAxisChange);
+        this.device.clearButtonPressedListeners(XInput.DPAD_UP);
+        this.device.clearButtonPressedListeners(XInput.DPAD_DOWN);
+        this.device.clearButtonPressedListeners(XInput.DPAD_LEFT);
+        this.device.clearButtonPressedListeners(XInput.DPAD_RIGHT);
+        this.device.clearButtonPressedListeners(XInput.START);
+        this.device.clearButtonPressedListeners(XInput.BACK);
+        this.device.clearButtonPressedListeners(XInput.X);
+        this.device.clearButtonPressedListeners(XInput.A);
+
+        this.device.clearButtonReleasedListeners(XInput.DPAD_UP);
+        this.device.clearButtonReleasedListeners(XInput.DPAD_DOWN);
+        this.device.clearButtonReleasedListeners(XInput.DPAD_LEFT);
+        this.device.clearButtonReleasedListeners(XInput.DPAD_RIGHT);
+        this.device.clearButtonReleasedListeners(XInput.START);
+        this.device.clearButtonReleasedListeners(XInput.BACK);
+        this.device.clearButtonReleasedListeners(XInput.X);
+        this.device.clearButtonReleasedListeners(XInput.A);
+
+        this.device.clearAxisChangedListeners(XInput.LEFT_THUMB_X);
+        this.device.clearAxisChangedListeners(XInput.LEFT_THUMB_Y);
+
+        this.device = null;
+    }
+
+    private void registerDevice(InputDevice device) {
+        System.out.println("Registering: " + device);
+
+        // DT 01/06/2026:
+        // Only support 1 device until a better library/solution is found
+        if(this.device != null)
+            return;
+
+        this.device = device;
+
+        this.device.onButtonPressed(XInput.DPAD_UP, () -> pressButton(XInput.DPAD_UP));
+        this.device.onButtonPressed(XInput.DPAD_DOWN, () -> pressButton(XInput.DPAD_DOWN));
+        this.device.onButtonPressed(XInput.DPAD_LEFT, () -> pressButton(XInput.DPAD_LEFT));
+        this.device.onButtonPressed(XInput.DPAD_RIGHT, () -> pressButton(XInput.DPAD_RIGHT));
+        this.device.onButtonPressed(XInput.START, () -> pressButton(XInput.START));
+        this.device.onButtonPressed(XInput.BACK, () -> pressButton(XInput.BACK));
+        this.device.onButtonPressed(XInput.X, () -> pressButton(XInput.X));
+        this.device.onButtonPressed(XInput.A, () -> pressButton(XInput.A));
+
+        this.device.onButtonReleased(XInput.DPAD_UP, () -> releaseButton(XInput.DPAD_UP));
+        this.device.onButtonReleased(XInput.DPAD_DOWN, () -> releaseButton(XInput.DPAD_DOWN));
+        this.device.onButtonReleased(XInput.DPAD_LEFT, () -> releaseButton(XInput.DPAD_LEFT));
+        this.device.onButtonReleased(XInput.DPAD_RIGHT, () -> releaseButton(XInput.DPAD_RIGHT));
+        this.device.onButtonReleased(XInput.START, () -> releaseButton(XInput.START));
+        this.device.onButtonReleased(XInput.BACK, () -> releaseButton(XInput.BACK));
+        this.device.onButtonReleased(XInput.X, () -> releaseButton(XInput.X));
+        this.device.onButtonReleased(XInput.A, () -> releaseButton(XInput.A));
+
+        this.device.onAxisChanged(XInput.LEFT_THUMB_X, this::xAxisChange);
+        this.device.onAxisChanged(XInput.LEFT_THUMB_Y, this::yAxisChange);
     }
 
     private void pressButton(InputComponent.ID id) {
@@ -160,13 +194,49 @@ public class JoypadDriver implements AutoCloseable {
         }
     }
 
+    private void tryPoll(){
+        if(this.device != null)
+            this.device.poll();
+    }
+
     private void tryInitDevices() {
-        if (this.inputDevicePlugin != null) {
+        if (this.device != null && this.inputDevicePlugin != null) {
             return;
         }
+
+        if(this.inputDevicePlugin != null)
+            closeJoypadDevicePlugin();
+
         this.inputDevicePlugin = InputDevices.init();
-        this.inputDevicePlugin.getAll().forEach(this::registerCallbacks);
-        this.inputDevicePlugin.onDeviceConnected(this::registerCallbacks);
+
+        if(inputDevicePlugin.getAll().isEmpty()){
+            closeJoypadDevicePlugin();
+            return;
+        }
+
+        // DT 01/06/2026:
+        // input4j with default plugin (windows) seems to never call onDeviceConnected() when a controller is connected.
+        // The only reliable way to test for connection is to check all devices after a call to init().
+        // Unfortunately this limits the number of controllers usable by this library to 1, as it is not feasible to
+        // constantly call init() and re-initialize already connected controllers.
+        //
+        // Since onDeviceConnected() does nothing, we must call registerDevice() on the first found controller
+
+        //this.inputDevicePlugin.onDeviceConnected(this::registerCallbacks);
+        this.inputDevicePlugin.getAll().stream().findFirst().ifPresent(this::registerDevice);
+        this.inputDevicePlugin.onDeviceDisconnected(this::deRegisterDevice);
+    }
+
+    private void closeJoypadDevicePlugin(){
+        if (this.inputDevicePlugin != null) {
+            try {
+                this.inputDevicePlugin.close();
+            } catch (IOException e) {
+                Logger.error("Error releasing joypad driver resources: {}", e);
+            }
+
+            this.inputDevicePlugin = null;
+        }
     }
 
     @Override
@@ -178,6 +248,7 @@ public class JoypadDriver implements AutoCloseable {
         try {
             this.pollThread.join();
         } catch (InterruptedException _) {}
-    }
 
+        closeJoypadDevicePlugin();
+    }
 }
