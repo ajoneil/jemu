@@ -9,6 +9,7 @@ import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.app.util.MavenProperties;
 import io.github.arkosammy12.jemu.frontend.audio.AudioChannels;
 import io.github.arkosammy12.jemu.frontend.audio.AudioEngine;
+import io.github.arkosammy12.jemu.frontend.gui.swing.PendingEmulatorCommand;
 import io.github.arkosammy12.jemu.frontend.gui.swing.commands.*;
 import io.github.arkosammy12.jemu.frontend.gui.swing.events.Event;
 import io.github.arkosammy12.jemu.frontend.gui.swing.events.MuteEvent;
@@ -20,7 +21,6 @@ import net.harawata.appdirs.AppDirsFactory;
 import org.jetbrains.annotations.Nullable;
 import org.tinylog.Logger;
 
-import javax.sound.sampled.LineUnavailableException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Optional;
@@ -109,16 +109,24 @@ public final class Jemu {
     private void emulatorCommandListenerLoop() {
         while (this.running) {
             try {
-                EmulatorCommand enqueuedEmulatorCommand = this.mainWindow.waitEmulatorCommand();
+                PendingEmulatorCommand enqueuedEmulatorCommand = this.mainWindow.waitEmulatorCommand();
+                if (enqueuedEmulatorCommand == null) {
+                    continue;
+                }
                 synchronized (this.systemLock) {
-                    State enqueuedState = switch (enqueuedEmulatorCommand) {
-                        case ResetEmulatorCommand resetEvent -> this.onEmulatorResetCommand(resetEvent);
-                        case StopEmulatorCommand _ -> this.onEmulatorStopCommand();
-                        case PauseEmulatorCommand pauseEmulatorCommand -> this.onEmulatorPauseCommand(pauseEmulatorCommand);
-                        case StepFrameEmulatorCommand _ -> this.onEmulatorStepFrameCommand();
-                        case StepCycleEmulatorCommand _ -> this.onEmulatorStepCycleCommand();
-                        case null -> null;
-                    };
+                    State enqueuedState;
+                    try {
+                        enqueuedState = switch (enqueuedEmulatorCommand.getEmulatorCommand()) {
+                            case ResetEmulatorCommand resetEvent -> this.onEmulatorResetCommand(resetEvent);
+                            case StopEmulatorCommand _ -> this.onEmulatorStopCommand();
+                            case PauseEmulatorCommand pauseEmulatorCommand -> this.onEmulatorPauseCommand(pauseEmulatorCommand);
+                            case StepFrameEmulatorCommand _ -> this.onEmulatorStepFrameCommand();
+                            case StepCycleEmulatorCommand _ -> this.onEmulatorStepCycleCommand();
+                            case null -> null;
+                        };
+                    } finally {
+                        enqueuedEmulatorCommand.acknowledge();
+                    }
                     if (enqueuedState == null) {
                         continue;
                     }

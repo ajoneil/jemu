@@ -270,11 +270,11 @@ public class MainWindow implements Closeable {
     }
 
     @Nullable
-    public EmulatorCommand pollEmulatorCommand() throws InterruptedException {
+    public PendingEmulatorCommand pollEmulatorCommand() throws InterruptedException {
         return this.getEmulatorCommand(false);
     }
 
-    public EmulatorCommand waitEmulatorCommand() throws InterruptedException {
+    public PendingEmulatorCommand waitEmulatorCommand() throws InterruptedException {
         return this.getEmulatorCommand(true);
     }
 
@@ -283,37 +283,39 @@ public class MainWindow implements Closeable {
     }
 
     @Nullable
-    private EmulatorCommand getEmulatorCommand(boolean wait) throws InterruptedException {
+    private PendingEmulatorCommand getEmulatorCommand(boolean wait) throws InterruptedException {
         EmulatorCommand emulatorCommand = wait ? this.emulatorCommandQueue.take() : this.emulatorCommandQueue.poll();
-        switch (emulatorCommand) {
-            case null -> {}
-            case PauseEmulatorCommand command -> this.emulatorCommandCallbacks.forEach(c -> {
+        if (emulatorCommand == null) {
+            return null;
+        }
+        Runnable acknowledgeFunction = switch (emulatorCommand) {
+            case PauseEmulatorCommand command -> () -> this.emulatorCommandCallbacks.forEach(c -> {
                 if (c instanceof PauseCommandCallback pauseCallback) {
                     pauseCallback.onPause(command);
                 }
             });
-            case ResetEmulatorCommand command -> this.emulatorCommandCallbacks.forEach(c -> {
+            case ResetEmulatorCommand command -> () -> this.emulatorCommandCallbacks.forEach(c -> {
                 if (c instanceof ResetCommandCallback resetCallback) {
                     resetCallback.onReset(command);
                 }
             });
-            case StepCycleEmulatorCommand command -> this.emulatorCommandCallbacks.forEach(c -> {
+            case StepCycleEmulatorCommand command -> () -> this.emulatorCommandCallbacks.forEach(c -> {
                 if (c instanceof StepCycleCommandCallback stepCycleCallback) {
                     stepCycleCallback.onStepCycle(command);
                 }
             });
-            case StepFrameEmulatorCommand command -> this.emulatorCommandCallbacks.forEach(c -> {
+            case StepFrameEmulatorCommand command -> () -> this.emulatorCommandCallbacks.forEach(c -> {
                 if (c instanceof StepFrameCommandCallback stepFrameCallback) {
                     stepFrameCallback.onStepFrame(command);
                 }
             });
-            case StopEmulatorCommand command -> this.emulatorCommandCallbacks.forEach(c -> {
+            case StopEmulatorCommand command -> () -> this.emulatorCommandCallbacks.forEach(c -> {
                 if (c instanceof StopCommandCallback stopCallback) {
                     stopCallback.onStop(command);
                 }
             });
-        }
-        return emulatorCommand;
+        };
+        return new PendingEmulatorCommandImpl(emulatorCommand, acknowledgeFunction);
     }
 
     @NotNull
@@ -459,6 +461,27 @@ public class MainWindow implements Closeable {
                             JOptionPane.ERROR_MESSAGE
                     )
             );
+        }
+    }
+
+    static final class PendingEmulatorCommandImpl implements PendingEmulatorCommand {
+
+        private final EmulatorCommand emulatorCommand;
+        private final Runnable acknowledgeFunction;
+
+        private PendingEmulatorCommandImpl(EmulatorCommand emulatorCommand, Runnable acknowledgeFunction) {
+            this.emulatorCommand = emulatorCommand;
+            this.acknowledgeFunction = acknowledgeFunction;
+        }
+
+        @Override
+        public EmulatorCommand getEmulatorCommand() {
+            return this.emulatorCommand;
+        }
+
+        @Override
+        public void acknowledge() {
+            this.acknowledgeFunction.run();
         }
     }
 

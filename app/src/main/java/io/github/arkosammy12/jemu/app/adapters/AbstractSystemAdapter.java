@@ -11,7 +11,6 @@ import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
 import io.github.arkosammy12.jemu.core.common.Emulator;
 import io.github.arkosammy12.jemu.core.common.SystemController;
 import io.github.arkosammy12.jemu.core.drivers.VideoDriver;
-import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import org.jetbrains.annotations.Nullable;
 import org.tinylog.Logger;
 
