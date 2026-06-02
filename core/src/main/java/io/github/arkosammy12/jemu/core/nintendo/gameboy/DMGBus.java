@@ -39,9 +39,6 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
     };
 
     public static final int ROM0_START = 0x0000;
-    public static final int ROM0_END = 0x3FFF;
-
-    public static final int ROMX_START = 0x4000;
     public static final int ROMX_END = 0x7FFF;
 
     public static final int VRAM_START = 0x8000;
