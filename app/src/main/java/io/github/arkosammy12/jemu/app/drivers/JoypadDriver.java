@@ -61,22 +61,23 @@ public class JoypadDriver implements AutoCloseable {
                         break;
                     }
 
-                    tryInitDevices();
-                    tryPoll();
+                    this.tryInitDevices();
+                    this.tryPoll();
                 }
             } catch (InterruptedException e) {}
         }
 
-        closeJoypadDevicePlugin();
+        this.closeJoypadDevicePlugin();
     }
 
     private void deRegisterDevice(InputDevice device) {
-        System.out.println("Deregistering: " + device);
+        Logger.info("Deregistering device: " + device);
 
         // DT 01/06/2026:
         // Only support 1 device until a better library/solution is found
-        if(this.device != device)
+        if (this.device != device) {
             return;
+        }
 
         this.device.clearButtonPressedListeners(XInput.DPAD_UP);
         this.device.clearButtonPressedListeners(XInput.DPAD_DOWN);
@@ -103,12 +104,13 @@ public class JoypadDriver implements AutoCloseable {
     }
 
     private void registerDevice(InputDevice device) {
-        System.out.println("Registering: " + device);
+        Logger.info("Registering device: " + device);
 
         // DT 01/06/2026:
         // Only support 1 device until a better library/solution is found
-        if(this.device != null)
+        if (this.device != null) {
             return;
+        }
 
         this.device = device;
 
@@ -195,8 +197,9 @@ public class JoypadDriver implements AutoCloseable {
     }
 
     private void tryPoll(){
-        if(this.device != null)
+        if (this.device != null) {
             this.device.poll();
+        }
     }
 
     private void tryInitDevices() {
@@ -204,13 +207,14 @@ public class JoypadDriver implements AutoCloseable {
             return;
         }
 
-        if(this.inputDevicePlugin != null)
-            closeJoypadDevicePlugin();
+        if (this.inputDevicePlugin != null) {
+            this.closeJoypadDevicePlugin();
+        }
 
         this.inputDevicePlugin = InputDevices.init();
 
-        if(inputDevicePlugin.getAll().isEmpty()){
-            closeJoypadDevicePlugin();
+        if (inputDevicePlugin.getAll().isEmpty()) {
+            this.closeJoypadDevicePlugin();
             return;
         }
 
@@ -249,6 +253,6 @@ public class JoypadDriver implements AutoCloseable {
             this.pollThread.join();
         } catch (InterruptedException _) {}
 
-        closeJoypadDevicePlugin();
+        this.closeJoypadDevicePlugin();
     }
 }
