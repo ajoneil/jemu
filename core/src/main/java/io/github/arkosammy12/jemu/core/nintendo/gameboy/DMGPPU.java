@@ -42,7 +42,23 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     private final byte[] oam = new byte[0x00A0]; // TODO: OAM BUG (ONLY FOR DMG) GODDAMMIT!
 
     private int lcdControl;
+    private boolean lcdPPUEnable;
+    private int windowTileMap = 0x9800;
+    private boolean windowEnable;
+    private boolean backgroundAndWindowTiles;
+    private int backgroundTileMap = 0x9800;
+    private boolean objectSize;
+    private boolean objectEnable;
+    private boolean backgroundAndWindowEnable;
+
     private int ppuStatus;
+    private boolean lycInterruptSelect;
+    private boolean mode2InterruptSelect;
+    private boolean mode1InterruptSelect;
+    private boolean mode0InterruptSelect;
+    private boolean lyEqualsLYCFlag;
+    private int ppuMode;
+
     protected int scrollY;
     protected int scrollX;
     private int lcdY;
@@ -170,7 +186,17 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             switch (address) {
                 case LCDC_ADDR -> {
                     boolean oldLcdEnable = this.getLCDPPUEnable();
+
                     this.lcdControl = value & 0xFF;
+                    this.lcdPPUEnable = (value & 0b10000000) != 0;
+                    this.windowTileMap = (value & 0b01000000) != 0? 0x9C00 : 0x9800;
+                    this.windowEnable = (value & 0b00100000) != 0;
+                    this.backgroundAndWindowTiles = (value & 0b00010000) != 0;
+                    this.backgroundTileMap = (value & 0b00001000) != 0 ? 0x9C00 : 0x9800;
+                    this.objectSize = (value & 0b00000100) != 0;
+                    this.objectEnable = (value & 0b00000010) != 0;
+                    this.backgroundAndWindowEnable = (value & 0b00000001) != 0;
+
                     boolean newLcdEnable = this.getLCDPPUEnable();
                     if (oldLcdEnable != newLcdEnable) {
                         this.scanlineNumber = 0;
@@ -189,6 +215,11 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 case STAT_ADDR -> {
                     this.checkSTATWriteBug();
                     this.ppuStatus = (value & 0b11111000) | (this.ppuStatus & 0b111);
+                    this.lycInterruptSelect = (value & 0b01000000) != 0;
+                    this.mode2InterruptSelect = (value & 0b00100000) != 0;
+                    this.mode1InterruptSelect = (value & 0b00010000) != 0;
+                    this.mode0InterruptSelect = (value & 0b00001000) != 0;
+
                 }
                 case SCY_ADDR -> this.scrollY = value & 0xFF;
                 case SCX_ADDR -> this.scrollX = value & 0xFF;
@@ -576,20 +607,18 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             }
             case 1 -> {
                 if (this.isRenderingWindow()) {
-                    int tileMapBase = this.getWindowTileMap() ? 0x9C00 : 0x9800;
                     int tileX = this.bgFifoFetcherX & 0x1F;
                     int tileY = this.windowLine >>> 3;
                     int tileMapIndex = tileX + (tileY * 32);
                     tileMapIndex &= 0x3FF;
-                    int address = tileMapBase + tileMapIndex;
+                    int address = this.getWindowTileMap() + tileMapIndex;
                     this.bgFifoCurrentTileNumber = this.getVRAMByte(address);
                 } else {
-                    int tileMapBase = this.getBackgroundTileMap() ? 0x9C00 : 0x9800;
                     int tileX = ((this.pixelX + this.scrollX) >> 3) & 0x1F;
                     int tileY = ((this.scanlineNumber + this.scrollY) & 0xFF) >>> 3;
                     int tileMapIndex = tileX + (tileY * 32);
                     tileMapIndex &= 0x3FF;
-                    int address = tileMapBase + tileMapIndex;
+                    int address = this.getBackgroundTileMap() + tileMapIndex;
                     this.bgFifoCurrentTileNumber = this.getVRAMByte(address);
                 }
                 this.bgFifoStep = 2;
@@ -778,64 +807,75 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     }
 
     protected boolean getLCDPPUEnable() {
-        return (this.lcdControl & 0b10000000) != 0;
+        return this.lcdPPUEnable;
     }
 
-    protected boolean getWindowTileMap() {
-        return (this.lcdControl & 0b01000000) != 0;
+    protected int getWindowTileMap() {
+        return this.windowTileMap;
     }
 
     private boolean getWindowEnable() {
-        return (this.lcdControl & 0b00100000) != 0;
+        return this.windowEnable;
     }
 
     protected boolean getBackgroundAndWindowTiles() {
-        return (this.lcdControl & 0b00010000) != 0;
+        return this.backgroundAndWindowTiles;
     }
 
-    protected boolean getBackgroundTileMap() {
-        return (this.lcdControl & 0b00001000) != 0;
+    protected int getBackgroundTileMap() {
+        return this.backgroundTileMap;
     }
 
     protected boolean getObjectSize() {
-        return (this.lcdControl & 0b00000100) != 0;
+        return this.objectSize;
     }
 
     protected boolean getObjectEnable() {
-        return (this.lcdControl & 0b00000010) != 0;
+        return this.objectEnable;
     }
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     protected boolean getBackgroundAndWindowEnable() {
-        return (this.lcdControl & 0b00000001) != 0;
+        return this.backgroundAndWindowEnable;
     }
 
     private boolean getLYCInterruptSelect() {
-        return (this.ppuStatus & 0b01000000) != 0;
+        return this.lycInterruptSelect;
     }
 
     private boolean getMode2InterruptSelect() {
-        return (this.ppuStatus & 0b00100000) != 0;
+        return this.mode2InterruptSelect;
     }
 
     private boolean getMode1InterruptSelect() {
-        return (this.ppuStatus & 0b00010000) != 0;
+        return this.mode1InterruptSelect;
     }
 
     private boolean getMode0InterruptSelect() {
-        return (this.ppuStatus & 0b00001000) != 0;
+        return this.mode0InterruptSelect;
     }
 
     public boolean getLYEqualsLYCFlag() {
-        return (this.ppuStatus & 0b00000100) != 0;
+        return this.lyEqualsLYCFlag;
     }
 
     protected int getPPUMode() {
-        return this.ppuStatus & 0b11;
+        return this.ppuMode;
+    }
+
+    private void setLYEqualsLYCFlag(boolean value) {
+        if (value) {
+            this.ppuStatus |= 0b100;
+            this.lyEqualsLYCFlag = true;
+        } else {
+            this.ppuStatus &= ~0b100;
+            this.lyEqualsLYCFlag = false;
+        }
     }
 
     private void setPPUMode(int mode) {
         this.ppuStatus = (this.ppuStatus & 0b11111100) | (mode & 0b11);
+        this.ppuMode = mode & 0b11;
     }
 
     private void setSTATModeForInterrupt(int mode) {
@@ -843,14 +883,6 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             throw new EmulatorException(new IllegalArgumentException("Invalid GameBoy PPU STAT mode for interrupt value %d!".formatted(mode)));
         }
         this.statModeForInterrupt = mode;
-    }
-
-    private void setLYEqualsLYCFlag(boolean value) {
-        if (value) {
-            this.ppuStatus |= 0b100;
-        } else {
-            this.ppuStatus &= ~0b100;
-        }
     }
 
     public void writeOAMDMA(int address, int value) {
