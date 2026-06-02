@@ -451,10 +451,6 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
                 12, 16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30
         };
 
-        protected int volume;
-        protected int lo;
-        protected int hi;
-
         // VOL registers
         private boolean haltLengthCounter;
 
@@ -469,17 +465,15 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         // TODO: Delay on the halt flag. Writes to $4000 and equivalent for pulse1, pulse2, triangle and noise have a delay when changing the halt flag
 
         protected void setVolume(int value) {
-            this.volume = value & 0xFF;
             this.haltLengthCounter = (value & (1 << 5)) != 0;
             this.haltFlagPending = true;
         }
 
         protected void setLO(int value) {
-            this.lo = value & 0xFF;
+
         }
 
         protected void setHI(int value) {
-            this.hi = value & 0xFF;
             this.lengthCounterReload = (value >>> 3) & 0b11111;
             if (this.isEnabled()) {
                 this.lengthCounterReloadPending = true;
@@ -667,8 +661,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
                 this.sweepDividerCounter--;
             } else {
                 if (this.getSweepEnableFlag() && this.getSweepShiftCount() != 0 && this.sweepTargetPeriod <= 0x7FF) {
-                    this.lo = this.sweepTargetPeriod & 0xFF;
-                    this.hi = (this.hi & ~0b111) | ((this.sweepTargetPeriod >>> 8) & 0b111);
+                    this.timerReload = this.sweepTargetPeriod;
                 }
                 this.sweepDividerCounter = this.getSweepDividerPeriod();
             }
