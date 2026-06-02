@@ -151,23 +151,21 @@ public class JoypadDriver implements AutoCloseable {
     }
 
     private void xAxisChange(float val) {
-        if(val >= JOYSTICK_ENGAGED_THRESH && !joyRight){
+        if (val >= JOYSTICK_ENGAGED_THRESH && !joyRight) {
             joyRight = true;
             SystemController.Action action = systemAdapter.getActionForJoypadEvent(XInput.DPAD_RIGHT);
             systemAdapter.getEmulator().getSystemController().onActionPressed(action);
-        }
-        else if (val < JOYSTICK_DISENGAGED_THRESH && joyRight){
+        } else if (val < JOYSTICK_DISENGAGED_THRESH && joyRight) {
             joyRight = false;
             SystemController.Action action = systemAdapter.getActionForJoypadEvent(XInput.DPAD_RIGHT);
             systemAdapter.getEmulator().getSystemController().onActionReleased(action);
         }
 
-        if(val <= -JOYSTICK_ENGAGED_THRESH && !joyLeft){
+        if (val <= -JOYSTICK_ENGAGED_THRESH && !joyLeft) {
             joyLeft = true;
             SystemController.Action action = systemAdapter.getActionForJoypadEvent(XInput.DPAD_LEFT);
             systemAdapter.getEmulator().getSystemController().onActionPressed(action);
-        }
-        else if (val > -JOYSTICK_DISENGAGED_THRESH && joyLeft){
+        } else if (val > -JOYSTICK_DISENGAGED_THRESH && joyLeft) {
             joyLeft = false;
             SystemController.Action action = systemAdapter.getActionForJoypadEvent(XInput.DPAD_LEFT);
             systemAdapter.getEmulator().getSystemController().onActionReleased(action);
@@ -252,7 +250,6 @@ public class JoypadDriver implements AutoCloseable {
         try {
             this.pollThread.join();
         } catch (InterruptedException _) {}
-
-        this.closeJoypadDevicePlugin();
     }
+
 }
