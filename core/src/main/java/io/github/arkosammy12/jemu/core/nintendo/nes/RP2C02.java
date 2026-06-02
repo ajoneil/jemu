@@ -228,6 +228,8 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
     private FrameParity frameParity = FrameParity.EVEN;
     private boolean dotSkipped;
+	private boolean skipDot0NextFrame;
+	private boolean blockSpriteHBlankReload;
     private int ppuDataReadBuffer;
     private boolean sprite0OnNextScanline;
     private boolean sprite0OnThisScanline;
@@ -432,14 +434,15 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                 this.setNMISignal(this.getVBlankNMIEnable());
             }
             // TODO: Greyscale flag has a delay and stuff. Check out https://forums.nesdev.org/viewtopic.php?p=256737#p256737
-            case PPUMASK_ADDR -> {
-                boolean originalEnableRendering = this.enableBackgroundRendering() || this.enableSpriteRendering();
-                this.ppuMask = value & 0xFF;
-                if (originalEnableRendering != (this.enableBackgroundRendering() || this.enableSpriteRendering())) {
-                    // Change in rendering behavior takes 3 - 4 dots
-                    this.signalDispatcher.trigger(this.toggleRenderingSignalId, 7, 0);
-                }
-            }
+			case PPUMASK_ADDR -> {
+				boolean originalEnableRendering = this.enableBackgroundRendering() || this.enableSpriteRendering();
+
+				this.ppuMask = value & 0xFF;
+
+				if (originalEnableRendering != (this.enableBackgroundRendering() || this.enableSpriteRendering())) {
+					this.signalDispatcher.trigger(this.toggleRenderingSignalId, 5, 0);
+				}
+			}
             case PPUSTATUS_ADDR -> {}
             case OAMADDR_ADDR -> this.primaryOAMAddress = value & 0xFF;
             case OAMDATA_ADDR -> {
@@ -614,11 +617,19 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                         }
                     }
 
-                    if (this.dotNumber == 339) {
-                        if (isRenderingEnabled) {
-                            this.refreshSpriteShiftersSignal.trigger(4, 0);
-                        }
-                    }
+                    if (this.dotNumber == SPRITE_FETCH_START) {
+						this.blockSpriteHBlankReload = !isRenderingEnabled;
+					} else if (this.dotNumber > SPRITE_FETCH_START && this.dotNumber <= 339) {
+						if (!isRenderingEnabled) {
+							this.blockSpriteHBlankReload = true;
+						}
+					}
+
+					if (this.dotNumber == 339) {
+						if (isRenderingEnabled && !this.blockSpriteHBlankReload) {
+							this.refreshSpriteShiftersSignal.trigger(4, 0);
+						}
+					}
 
                 }
             }
@@ -725,24 +736,27 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                     this.spriteShifterInitIndex = 0;
                 }
 
-                this.dotNumber++;
-                if (this.dotNumber >= DOTS_PER_SCANLINE) {
-                    this.dotSkipped = false;
-                    this.dotNumber = 0;
-                    this.scanlineNumber++;
-                    if (this.scanlineNumber >= this.scanlinesPerFrame) {
-                        this.scanlineNumber = 0;
-                        this.frameParity = this.frameParity.getOpposite();
-                        // TODO: Use signal for dot skipping.
-                        // Attempt to go with setup where decision to skip dot is taken in dot 339 of the pre-render scanline,
-                        // and dot 0 of the next frame is skipped. Also try using the rendering flag directly from the PPUMASK register
-                        // instead of the delayed internal one
-                        if (this.frameParity.isEven() && isRenderingEnabled && this.doOddFrameDotSkipping) {
-                            this.dotNumber = 1;
-                            this.dotSkipped = true;
-                        }
-                    }
-                }
+				if (this.isPreRenderScanline() && this.dotNumber == 340) {
+					this.skipDot0NextFrame = this.frameParity.getOpposite().isEven() && this.isRenderingEnabled() && this.doOddFrameDotSkipping;
+				}
+
+				this.dotNumber++;
+				if (this.dotNumber >= DOTS_PER_SCANLINE) {
+					this.dotSkipped = false;
+					this.dotNumber = 0;
+					this.scanlineNumber++;
+					if (this.scanlineNumber >= this.scanlinesPerFrame) {
+						this.scanlineNumber = 0;
+						this.frameParity = this.frameParity.getOpposite();
+
+						if (this.skipDot0NextFrame) {
+							this.dotNumber = 1;
+							this.dotSkipped = true;
+						}
+
+						this.skipDot0NextFrame = false;
+					}
+				}
             }
         }
         this.currentDotHalf = this.currentDotHalf.getOpposite();
