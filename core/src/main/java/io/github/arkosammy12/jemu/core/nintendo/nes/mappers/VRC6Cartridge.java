@@ -48,7 +48,10 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     private int R6;
     private int R7;
 
-    private int frequencyControl;
+    //private int frequencyControl;
+    private boolean halt;
+    private boolean frequency16x;
+    private boolean frequency256x;
 
     public VRC6Cartridge(E emulator, INESFile iNESFile) {
         super(emulator, iNESFile);
@@ -157,7 +160,11 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
                 case 0 -> this.pulseChannel1.writeVolume(value);
                 case 1 -> this.pulseChannel1.writeLO(value);
                 case 2 -> this.pulseChannel1.writeHI(value);
-                case 3 -> this.frequencyControl = value & 0b111;
+                case 3 -> {
+                    this.halt = (value & 1) != 0;
+                    this.frequency16x = (value & (1 << 1)) != 0;
+                    this.frequency256x = (value & (1 << 2)) != 0;
+                }
             }
         } else if (address >= 0xA000 && address <= 0xAFFF) {
             switch (this.getRegisterSlot(address)) {
@@ -460,53 +467,50 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     }
 
     private boolean getHalt() {
-        return (this.frequencyControl & 1) != 0;
+        return this.halt;
     }
 
     private boolean getFrequency16x() {
-        return (this.frequencyControl & (1 << 1)) != 0;
+        return this.frequency16x;
     }
 
     private boolean getFrequency256x() {
-        return (this.frequencyControl & (1 << 2)) != 0;
+        return this.frequency256x;
     }
 
     private abstract class WaveformChannel {
 
+        private int dividerReload;
+        private boolean enabled;
+
         protected int divider;
         protected int step;
 
-        protected int volume;
-        protected int lo;
-        protected int hi;
-
-        protected void writeVolume(int value) {
-            this.volume = value & 0xFF;
-        }
+        protected abstract void writeVolume(int value);
 
         protected void writeLO(int value) {
-            this.lo = value & 0xFF;
+            this.dividerReload = (this.dividerReload & 0b1111_0000_0000) | (value & 0xFF);
         }
 
         protected void writeHI(int value) {
-            this.hi = value & 0x8F;
+            this.enabled = (value & (1 << 7)) != 0;
+            this.dividerReload = (this.dividerReload & 0b0000_1111_1111) | ((value & 0b1111) << 8);
         }
 
         @SuppressWarnings("BooleanMethodIsAlwaysInverted")
         protected boolean getEnabled() {
-            return (this.hi & (1 << 7)) != 0;
+            return this.enabled;
         }
 
         protected int getDividerReload() {
-            int period = this.lo | ((this.hi & 0b1111) << 8);
             if (getHalt()) {
-                return period;
+                return dividerReload;
             } else if (getFrequency256x()) {
-                return period >> 8;
+                return dividerReload >> 8;
             } else if (getFrequency16x()) {
-                return period >> 4;
+                return dividerReload >> 4;
             }
-            return period;
+            return dividerReload;
         }
 
         protected abstract void clock();
@@ -517,6 +521,10 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
 
     private class PulseChannel extends WaveformChannel {
 
+        private int currentVolume;
+        private int dutyCycle;
+        private boolean mode;
+
         @Override
         protected void writeHI(int value) {
             super.writeHI(value);
@@ -526,16 +534,23 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
             }
         }
 
+        @Override
+        protected void writeVolume(int value) {
+            this.currentVolume = value & 0b1111;
+            this.dutyCycle = (value >>> 4) & 0b111;
+            this.mode = (value & (1 << 7)) != 0;
+        }
+
         private int getCurrentVolume() {
-            return this.volume & 0b1111;
+            return this.currentVolume;
         }
 
         private int getDutyCycle() {
-            return (this.volume >>> 4) & 0b111;
+            return this.dutyCycle;
         }
 
         private boolean getMode() {
-            return (this.volume & (1 << 7)) != 0;
+            return this.mode;
         }
 
         @Override
@@ -568,8 +583,15 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
 
     private class SawtoothChannel extends WaveformChannel {
 
+        private int sawVolume;
+
         private int accumulator;
         private boolean subClock = true;
+
+        @Override
+        protected void writeVolume(int value) {
+            this.sawVolume = value & 0x3F;
+        }
 
         @Override
         protected void writeHI(int value) {
@@ -578,11 +600,6 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
                 this.accumulator = 0;
                 this.subClock = true;
             }
-        }
-
-        @Override
-        protected void writeVolume(int value) {
-            this.volume = value & 0x3F;
         }
 
         @Override
@@ -600,7 +617,7 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
                         this.accumulator = 0;
                         this.step = 0;
                     } else {
-                        this.accumulator = (this.accumulator + this.volume) & 0xFF;
+                        this.accumulator = (this.accumulator + this.sawVolume) & 0xFF;
                     }
                 }
             }
