@@ -5,6 +5,12 @@ import io.github.arkosammy12.jemu.core.nintendo.nes.ines.INESFile;
 
 public class MMC6Cartridge<E extends NESEmulator> extends MMC3Cartridge<E> {
 
+    private boolean prgRamEnabled;
+    private boolean allowPrgRamWritesFirstHalf;
+    private boolean allowPrgRamReadsFirstHalf;
+    private boolean allowPrgRamWritesSecondHalf;
+    private boolean allowPrgRamReadsSecondHalf;
+
     public MMC6Cartridge(E emulator, INESFile iNESFile) {
         super(emulator, iNESFile);
     }
@@ -59,24 +65,39 @@ public class MMC6Cartridge<E extends NESEmulator> extends MMC3Cartridge<E> {
         }
     }
 
+
+    protected void setBankSelect(int value) {
+        super.setBankSelect(value);
+        this.prgRamEnabled = (value & (1 << 5)) != 0;
+    }
+
+    @Override
+    protected void setPrgRamProtect(int value) {
+        super.setPrgRamProtect(value);
+        this.allowPrgRamWritesFirstHalf = (value & (1 << 4)) != 0;
+        this.allowPrgRamReadsFirstHalf = (value & (1 << 5)) != 0;
+        this.allowPrgRamWritesSecondHalf = (value & (1 << 6)) != 0;
+        this.allowPrgRamReadsSecondHalf = (value & (1 << 7)) != 0;
+    }
+
     protected boolean isPrgRamEnabled() {
-        return (this.bankSelect & (1 << 5)) != 0;
+        return this.prgRamEnabled;
     }
 
     private boolean allowPrgRamWritesFirstHalf() {
-        return (this.prgRamProtect & (1 << 4)) != 0;
+        return this.allowPrgRamWritesFirstHalf;
     }
 
     private boolean allowPrgRamReadsFirstHalf() {
-        return (this.prgRamProtect & (1 << 5)) != 0;
+        return this.allowPrgRamReadsFirstHalf;
     }
 
     private boolean allowPrgRamWritesSecondHalf() {
-        return (this.prgRamProtect & (1 << 6)) != 0;
+        return this.allowPrgRamWritesSecondHalf;
     }
 
     private boolean allowPrgRamReadsSecondHalf() {
-        return (this.prgRamProtect & (1 << 7)) != 0;
+        return this.allowPrgRamReadsSecondHalf;
     }
 
     // If making changes to this, also change in MMC3 if needed

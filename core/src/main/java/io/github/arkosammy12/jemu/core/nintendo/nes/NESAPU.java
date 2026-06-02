@@ -455,6 +455,12 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         protected int lo;
         protected int hi;
 
+        // VOL registers
+        private boolean haltLengthCounter;
+
+        // HI registers
+        private int lengthCounterReload;
+
         private int lengthCounter;
         private boolean lengthCounterReloadPending;
         private int lengthCounterReloadValue;
@@ -464,6 +470,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
         protected void setVolume(int value) {
             this.volume = value & 0xFF;
+            this.haltLengthCounter = (value & (1 << 5)) != 0;
             this.haltFlagPending = true;
         }
 
@@ -473,6 +480,7 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
         protected void setHI(int value) {
             this.hi = value & 0xFF;
+            this.lengthCounterReload = (value >>> 3) & 0b11111;
             if (this.isEnabled()) {
                 this.lengthCounterReloadPending = true;
                 this.lengthCounterReloadValue = LENGTH_COUNTER_LUT[this.getLengthCounterLoad()];
@@ -488,11 +496,11 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         }
 
         protected boolean haltLengthCounter() {
-            return (this.volume & (1 << 5)) != 0;
+            return this.haltLengthCounter;
         }
 
         protected int getLengthCounterLoad() {
-            return (this.hi >>> 3) & 0b11111;
+            return this.lengthCounterReload;
         }
 
         protected void clockLength() {
@@ -538,7 +546,18 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
                 {1, 1, 1, 1, 1, 1, 0, 0}
         };
 
-        private int sweep;
+        // VOL registers
+        private int dutyCycle;
+        private boolean constantVolumeFlag;
+        private int envelopeDividerPeriod;
+
+        // SWEEP registers
+        private boolean sweepEnableFlag;
+        private int sweepDividerPeriod;
+        private boolean sweepNegateFlag;
+        private int sweepShiftCount;
+
+        private int timerReload;
 
         protected int timer;
         private int sequencerStep;
@@ -552,46 +571,65 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         private int sweepDividerCounter;
 
         protected int getTimerReload() {
-            return this.lo | ((this.hi & 0b111) << 8);
+            return this.timerReload;
         }
 
         private int getDutyCycle() {
-            return (this.volume >>> 6) & 0b11;
+            return this.dutyCycle;
         }
 
         private boolean getConstantVolumeFlag() {
-            return (this.volume & (1 << 4)) != 0;
+            return this.constantVolumeFlag;
         }
 
         private int getEnvelopeDividerPeriod() {
-            return this.volume & 0b1111;
+            return this.envelopeDividerPeriod;
         }
 
         private boolean getSweepEnableFlag() {
-            return (this.sweep & (1 << 7)) != 0;
+            return this.sweepEnableFlag;
         }
 
         private int getSweepDividerPeriod() {
-            return (this.sweep >>> 4) & 0b111;
+            return this.sweepDividerPeriod;
         }
 
         protected boolean getSweepNegateFlag() {
-            return (this.sweep & (1 << 3)) != 0;
+            return this.sweepNegateFlag;
         }
 
         protected int getSweepShiftCount() {
-            return this.sweep & 0b111;
+            return this.sweepShiftCount;
+        }
+
+        @Override
+        protected void setVolume(int value) {
+            super.setVolume(value);
+            this.dutyCycle = (value >>> 6) & 0b11;
+            this.constantVolumeFlag = (value & (1 << 4)) != 0;
+            this.envelopeDividerPeriod = value & 0b1111;
+        }
+
+        @Override
+        protected void setLO(int value) {
+            super.setLO(value);
+            this.timerReload = (this.timerReload & 0b111_0000_0000) | (value & 0xFF);
         }
 
         @Override
         protected void setHI(int value) {
             super.setHI(value);
+            this.timerReload = (this.timerReload & 0b000_1111_1111) | ((value & 0b111) << 8);
             this.envelopeStartFlag = true;
             this.sequencerStep = 0;
         }
 
         protected void setSweep(int value) {
-            this.sweep = value & 0xFF;
+            this.sweepEnableFlag = (value & (1 << 7)) != 0;
+            this.sweepDividerPeriod = (value >>> 4) & 0b111;
+            this.sweepNegateFlag = (value & (1 << 3)) != 0;
+            this.sweepShiftCount = value & 0b111;
+
             this.sweepReloadFlag = true;
         }
 
@@ -678,7 +716,11 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
                 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15
         };
 
-        private int linear;
+        private int timerReload;
+
+        // LINEAR registers
+        private int linearCounterReload;
+        private boolean haltLengthCounter;
 
         private int timer;
 
@@ -689,13 +731,13 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         private boolean linearCounterReloadFlag;
         private int linearCounter;
 
-        @Override
-        protected boolean haltLengthCounter() {
-            return (this.linear & (1 << 7)) != 0;
+        protected int getTimerReload() {
+            return this.timerReload;
         }
 
-        protected int getTimerReload() {
-            return this.lo | ((this.hi & 0b111) << 8);
+        @Override
+        protected boolean haltLengthCounter() {
+            return this.haltLengthCounter;
         }
 
         private boolean getControlFlag() {
@@ -703,17 +745,25 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         }
 
         private int getLinearCounterReload() {
-            return this.linear & 0b1111111;
+            return this.linearCounterReload;
+        }
+
+        @Override
+        protected void setLO(int value) {
+            super.setLO(value);
+            this.timerReload = (this.timerReload & 0b111_0000_0000) | (value & 0xFF);
         }
 
         @Override
         protected void setHI(int value) {
             super.setHI(value);
+            this.timerReload = (this.timerReload & 0b000_1111_1111) | ((value & 0b111) << 8);
             this.linearCounterReloadFlag = true;
         }
 
         protected void setLinear(int value) {
-            this.linear = value & 0xFF;
+            this.linearCounterReload = value & 0b1111111;
+            this.haltLengthCounter = (value & (1 << 7)) != 0;
         }
 
         @Override
@@ -764,6 +814,14 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
         private final int[] cpuCyclesPeriodLut;
 
+        // VOL registers
+        private int envelopeDividerPeriod;
+        private boolean constantVolumeFlag;
+
+        // LO registers
+        private boolean mode;
+        private int timerPeriod;
+
         private int lfsr;
 
         private int timer;
@@ -783,19 +841,33 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         }
 
         private boolean getConstantVolumeFlag() {
-            return (this.volume & (1 << 4)) != 0;
+            return this.constantVolumeFlag;
         }
 
         private int getEnvelopeDividerPeriod() {
-            return this.volume & 0b1111;
+            return this.envelopeDividerPeriod;
         }
 
         private boolean getMode() {
-            return (this.lo & (1 << 7)) != 0;
+            return this.mode;
         }
 
         private int getTimerPeriod() {
-            return this.lo & 0b1111;
+            return this.timerPeriod;
+        }
+
+        @Override
+        protected void setVolume(int value) {
+            super.setVolume(value);
+            this.envelopeDividerPeriod = value & 0b1111;
+            this.constantVolumeFlag = (value & (1 << 4)) != 0;
+        }
+
+        @Override
+        protected void setLO(int value) {
+            super.setLO(value);
+            this.timerPeriod = value & 0b1111;
+            this.mode = (value & (1 << 7)) != 0;
         }
 
         @Override
@@ -859,9 +931,18 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
 
         private final int[] ratePeriodLut;
 
-        private int freq;
-        private int start;
-        private int length;
+        // FREQ registers
+        private boolean irqEnableFlag;
+        private boolean loopFlag;
+        private int rateIndex;
+
+        // START register
+        private int sampleAddress;
+
+        // LENGTH register
+        private int sampleLength;
+
+        //private int length;
 
         private boolean interruptFlag;
 
@@ -889,27 +970,27 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         }
 
         @Override
-			protected void setEnabled(boolean value) {
-				boolean wasEnabled = this.isEnabled();
+        protected void setEnabled(boolean value) {
+            boolean wasEnabled = this.isEnabled();
 
-				super.setEnabled(value);
+            super.setEnabled(value);
 
-				if (this.isEnabled()) {
-					this.checkImplicitStopDmcDma();
+            if (this.isEnabled()) {
+                this.checkImplicitStopDmcDma();
 
-					if (this.bytesRemainingCounter <= 0) {
-						this.resetSample();
-					}
+                if (this.bytesRemainingCounter <= 0) {
+                    this.resetSample();
+                }
 
-					this.checkStartDmcDma(DmcDmaType.LOAD);
-				} else {
-					if (wasEnabled) {
-						this.checkExplicitStopDmcDma();
-					}
+                this.checkStartDmcDma(DmcDmaType.LOAD);
+            } else {
+                if (wasEnabled) {
+                    this.checkExplicitStopDmcDma();
+                }
 
-					this.bytesRemainingCounter = 0;
-				}
-			}
+                this.bytesRemainingCounter = 0;
+            }
+        }
 
         private void resetSample() {
             this.currentAddress = this.getSampleAddress();
@@ -917,7 +998,9 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         }
 
         protected void setFreq(int value) {
-            this.freq = value & 0xFF;
+            this.irqEnableFlag = (value & (1 << 7)) != 0;
+            this.loopFlag = (value & (1 << 6)) != 0;
+            this.rateIndex = value & 0b1111;
             if (!this.getIRQEnabledFlag()) {
                 this.interruptFlag = false;
             }
@@ -928,31 +1011,31 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
         }
 
         protected void setStart(int value) {
-            this.start = value & 0xFF;
+            this.sampleAddress = 0xC000 + (value * 64);
         }
 
         protected void setLength(int value) {
-            this.length = value & 0xFF;
+            this.sampleLength = (value * 16) + 1;
         }
 
         private boolean getIRQEnabledFlag() {
-            return (this.freq & (1 << 7)) != 0;
+            return this.irqEnableFlag;
         }
 
         private boolean getLoopFlag() {
-            return (this.freq & (1 << 6)) != 0;
+            return this.loopFlag;
         }
 
         private int getRateIndex() {
-            return this.freq & 0b1111;
+            return this.rateIndex;
         }
 
         private int getSampleAddress() {
-            return 0xC000 + (this.start * 64);
+            return this.sampleAddress;
         }
 
         private int getSampleLength() {
-            return (this.length * 16) + 1;
+            return this.sampleLength;
         }
 
         protected void clearInterruptFlag() {

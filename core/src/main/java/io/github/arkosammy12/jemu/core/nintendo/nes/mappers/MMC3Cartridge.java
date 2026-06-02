@@ -27,11 +27,18 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
 
     private final Supplier<NametableArrangement> nametableArrangementSupplier;
 
-    protected int bankSelect;
     private NametableArrangement nametableArrangement = NametableArrangement.HORIZONTAL;
-    protected int prgRamProtect;
     protected int irqCounterReload;
     protected boolean irqEnabled;
+
+    // Bank select registers
+    private int bankSelectIndex;
+    private boolean prgRomBankMode;
+    private boolean chrA12Inversion;
+
+    // PRG RAM protect registers
+    private boolean enablePrgRam;
+    private boolean allowPrgRamWrites;
 
     private int R0;
     private int R1;
@@ -154,9 +161,9 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
             }
         } else if (address >= 0x8000 && address <= 0x9FFF) {
             if ((address & 1) == 0) {
-                this.bankSelect = value & 0xFF;
+                this.setBankSelect(value);
             } else {
-                switch (this.bankSelect & 0b111) {
+                switch (this.bankSelectIndex) {
                     case 0 -> this.R0 = value & 0xFE;
                     case 1 -> this.R1 = value & 0xFE;
                     case 2 -> this.R2 = value & 0xFF;
@@ -171,7 +178,7 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
             if ((address & 1) == 0) {
                 this.nametableArrangement = (value & 1) != 0 ? NametableArrangement.VERTICAL : NametableArrangement.HORIZONTAL;
             } else {
-                this.prgRamProtect = value & 0xFF;
+                this.setPrgRamProtect(value);
             }
         } else if (address >= 0xC000 && address <= 0xDFFF) {
             if ((address & 1) == 0) {
@@ -208,31 +215,28 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
         this.setIRQSignal.tick();
     }
 
+    protected void setBankSelect(int value) {
+        this.bankSelectIndex = value & 0b111;
+        this.prgRomBankMode = (value & (1 << 6)) != 0;
+        this.chrA12Inversion = (value & (1 << 7)) != 0;
+    }
+
+    protected void setPrgRamProtect(int value) {
+        this.enablePrgRam = (value & (1 << 7)) != 0;
+        this.allowPrgRamWrites = (value & (1 << 6)) == 0;
+    }
+
     protected boolean isPrgRamEnabled() {
-        return (this.prgRamProtect & (1 << 7)) != 0;
+        return this.enablePrgRam;
     }
 
     protected boolean allowPrgRamWrites() {
-        return (this.prgRamProtect & (1 << 6)) == 0;
+        return this.allowPrgRamWrites;
     }
 
     private int mapChrAddress(int address) {
         address &= 0x1FFF;
-        if ((this.bankSelect & (1 << 7)) == 0) {
-            if (address <= 0x07FF) {
-                return (address & 0x7FF) | (this.R0 << 10);
-            } else if (address <= 0x0FFF) {
-                return (address & 0x7FF) | (this.R1 << 10);
-            } else if (address <= 0x13FF) {
-                return (address & 0x3FF) | (this.R2 << 10);
-            } else if (address <= 0x17FF) {
-                return (address & 0x3FF) | (this.R3 << 10);
-            } else if (address <= 0x1BFF) {
-                return (address & 0x3FF) | (this.R4 << 10);
-            } else {
-                return (address & 0x3FF) | (this.R5 << 10);
-            }
-        } else {
+        if (this.chrA12Inversion) {
             if (address <= 0x03FF) {
                 return (address & 0x3FF) | (this.R2 << 10);
             } else if (address <= 0x07FF) {
@@ -246,28 +250,42 @@ public class MMC3Cartridge<E extends NESEmulator> extends NESCartridge<E> {
             } else {
                 return (address & 0x7FF) | (this.R1 << 10);
             }
+        } else {
+            if (address <= 0x07FF) {
+                return (address & 0x7FF) | (this.R0 << 10);
+            } else if (address <= 0x0FFF) {
+                return (address & 0x7FF) | (this.R1 << 10);
+            } else if (address <= 0x13FF) {
+                return (address & 0x3FF) | (this.R2 << 10);
+            } else if (address <= 0x17FF) {
+                return (address & 0x3FF) | (this.R3 << 10);
+            } else if (address <= 0x1BFF) {
+                return (address & 0x3FF) | (this.R4 << 10);
+            } else {
+                return (address & 0x3FF) | (this.R5 << 10);
+            }
         }
     }
 
     private int mapPrgRomAddress(int address) {
         address &= 0x7FFF;
-        if ((this.bankSelect & (1 << 6)) == 0) {
+        if (this.prgRomBankMode) {
             if (address <= 0x1FFF) {
-                return (address & 0x1FFF) | (this.R6 << 13);
+                return (address & 0x1FFF) | (0xFE << 13);
             } else if (address <= 0x3FFF) {
                 return (address & 0x1FFF) | (this.R7 << 13);
             } else if (address <= 0x5FFF) {
-                return (address & 0x1FFF) | (0xFE << 13);
+                return (address & 0x1FFF) | (this.R6 << 13);
             } else {
                 return (address & 0x1FFF) | (0xFF << 13);
             }
         } else {
             if (address <= 0x1FFF) {
-                return (address & 0x1FFF) | (0xFE << 13);
+                return (address & 0x1FFF) | (this.R6 << 13);
             } else if (address <= 0x3FFF) {
                 return (address & 0x1FFF) | (this.R7 << 13);
             } else if (address <= 0x5FFF) {
-                return (address & 0x1FFF) | (this.R6 << 13);
+                return (address & 0x1FFF) | (0xFE << 13);
             } else {
                 return (address & 0x1FFF) | (0xFF << 13);
             }

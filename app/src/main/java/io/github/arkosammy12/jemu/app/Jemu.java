@@ -5,6 +5,7 @@ import io.github.arkosammy12.jemu.app.adapters.SystemAdapter;
 import io.github.arkosammy12.jemu.app.drivers.DefaultAudioRendererDriver;
 import io.github.arkosammy12.jemu.app.io.CLIArgs;
 import io.github.arkosammy12.jemu.app.io.initializers.EmulatorInitializer;
+import io.github.arkosammy12.jemu.app.util.GitProperties;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.app.util.MavenProperties;
 import io.github.arkosammy12.jemu.frontend.audio.AudioChannels;
@@ -259,7 +260,7 @@ public final class Jemu {
         helpManager.setProjectName(MavenProperties.ARTIFACT_ID);
         helpManager.setAuthorString(MavenProperties.AUTHOR);
         helpManager.setVersionString(MavenProperties.VERSION);
-        helpManager.setCommitIDString(Version.COMMIT_ID);
+        helpManager.setCommitIDString(GitProperties.COMMIT_ID);
         helpManager.setBuildDateString(MavenProperties.BUILD_DATE);
         helpManager.setProjectSourceLink("https://github.com/ArkoSammy12/jemu");
         helpManager.setProjectBugReportLink("https://github.com/ArkoSammy12/jemu/issues");

@@ -201,8 +201,21 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private final int[] secondaryOAM = new int[32];
     private final int[] paletteRam = new int[0x20];
 
-    private int ppuControl;
-    private int ppuMask;
+    // PPUCTRL registers
+    private int vramAddressIncrement = 1;
+    private int spritePatternTableAddress8x8 = 0x0000;
+    private int backgroundPatternTableAddress = 0x0000;
+    private boolean spriteSize;
+    private boolean vblankNMIEnable;
+
+    // PPUMASK registers
+    private boolean useGreyscaleColors;
+    private boolean showBackgroundInLeftmost8Pixels;
+    private boolean showSpritesInLeftmost8Pixels;
+    private boolean enableBackgroundRendering;
+    private boolean enableSpriteRendering;
+    private int emphasisBits = 0b000;
+
     private int ppuStatus;
 
     private int dataBus;
@@ -233,7 +246,6 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private int ppuDataReadBuffer;
     private boolean sprite0OnNextScanline;
     private boolean sprite0OnThisScanline;
-
 
     private final ActionSignalDispatcher signalDispatcher = new ActionSignalDispatcher();
     private final int copyTtoVSignalId;
@@ -429,7 +441,12 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         address = 0x2000 | (address & 7);
         switch (address) {
             case PPUCTRL_ADDR -> {
-                this.ppuControl = value & 0xFC;
+                this.vramAddressIncrement = (value & (1 << 2)) != 0 ? 32 : 1;
+                this.spritePatternTableAddress8x8 = (value & (1 << 3)) != 0 ? 0x1000 : 0x0000;
+                this.backgroundPatternTableAddress = (value & (1 << 4)) != 0 ? 0x1000 : 0x0000;
+                this.spriteSize = (value & (1 << 5)) != 0;
+                this.vblankNMIEnable = (value & (1 << 7)) != 0;
+
                 setT((getT() &  ~0xC00) | ((value & 0b11) << 10));
                 this.setNMISignal(this.getVBlankNMIEnable());
             }
@@ -437,7 +454,12 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 			case PPUMASK_ADDR -> {
 				boolean originalEnableRendering = this.enableBackgroundRendering() || this.enableSpriteRendering();
 
-				this.ppuMask = value & 0xFF;
+				this.useGreyscaleColors = (value & 1) != 0;
+                this.showBackgroundInLeftmost8Pixels = (value & (1 << 1)) != 0;
+                this.showSpritesInLeftmost8Pixels = (value & (1 << 2)) != 0;
+                this.enableBackgroundRendering = (value & (1 << 3)) != 0;
+                this.enableSpriteRendering = (value & (1 << 4)) != 0;
+                this.emphasisBits = (value >>> 5) & 0b111;
 
 				if (originalEnableRendering != (this.enableBackgroundRendering() || this.enableSpriteRendering())) {
 					this.signalDispatcher.trigger(this.toggleRenderingSignalId, 5, 0);
@@ -1220,7 +1242,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     }
 
     private int getBackgroundPatternByteAddress(boolean highBitPlane) {
-        return (((this.ppuControl & (1 << 4)) != 0 ? 0x1000 : 0x0000)) | ((this.getV() >>> 12) & 0b111) | (highBitPlane ? (1 << 3) : 0) | ((this.bgFetcherTileNumber & 0xFF) << 4);
+        return this.backgroundPatternTableAddress | ((this.getV() >>> 12) & 0b111) | (highBitPlane ? (1 << 3) : 0) | ((this.bgFetcherTileNumber & 0xFF) << 4);
     }
 
     private int getSpritePatternByteAddress(boolean highBitPlane) {
@@ -1235,44 +1257,44 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
             }
             return (patternTable << 12) | (tileNumber << 4) | (highBitPlane ? 1 << 3 : 0) | ((spriteYInRange & 0b1000) << 1) | (spriteYInRange & 0b111);
         } else {
-            return ((this.ppuControl & (1 << 3)) != 0 ? 0x1000 : 0x0000) | ((yFlip ? ~spriteY : spriteY) & 0b111) | (highBitPlane ? 1 << 3 : 0) | (this.spriteFetcherTileNumber << 4);
+            return this.spritePatternTableAddress8x8 | ((yFlip ? ~spriteY : spriteY) & 0b111) | (highBitPlane ? 1 << 3 : 0) | (this.spriteFetcherTileNumber << 4);
         }
     }
 
     private int getVRAMAddressIncrement() {
-        return (this.ppuControl & (1 << 2)) != 0 ? 32 : 1;
+        return this.vramAddressIncrement;
     }
 
     private boolean getSpriteSize() {
-        return (this.ppuControl & (1 << 5)) != 0;
+        return this.spriteSize;
     }
 
     private boolean getVBlankNMIEnable() {
-        return (this.ppuControl & (1 << 7)) != 0;
+        return this.vblankNMIEnable;
     }
 
     private boolean useGrayscaleColors() {
-        return (this.ppuMask & 1) != 0;
+        return this.useGreyscaleColors;
     }
 
     private boolean showBackgroundInLeftmost8Pixels() {
-        return (this.ppuMask & (1 << 1)) != 0;
+        return this.showBackgroundInLeftmost8Pixels;
     }
 
     private boolean showSpritesInLeftmost8Pixels() {
-        return (this.ppuMask & (1 << 2)) != 0;
+        return this.showSpritesInLeftmost8Pixels;
     }
 
     private boolean enableBackgroundRendering() {
-        return (this.ppuMask & (1 << 3)) != 0;
+        return this.enableBackgroundRendering;
     }
 
     private boolean enableSpriteRendering() {
-        return (this.ppuMask & (1 << 4)) != 0;
+        return this.enableSpriteRendering;
     }
 
     private int getEmphasisBits() {
-        return ((this.ppuMask) >>> 5) & 0b111;
+        return this.emphasisBits;
     }
 
     private void setSpriteOverflowFlag(boolean value) {
