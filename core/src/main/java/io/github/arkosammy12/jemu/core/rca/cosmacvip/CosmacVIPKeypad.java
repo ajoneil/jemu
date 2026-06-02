@@ -6,7 +6,6 @@ public class CosmacVIPKeypad<E extends CosmacVIPEmulator> extends SystemControll
 
     private final boolean[] keys = new boolean[16];
     private int latchedKey = 0;
-    private boolean efx;
 
     public CosmacVIPKeypad(E emulator) {
         super(emulator);
@@ -29,34 +28,30 @@ public class CosmacVIPKeypad<E extends CosmacVIPEmulator> extends SystemControll
     }
 
     public boolean getEFX() {
-        return this.efx;
+        return this.keys[this.latchedKey];
     }
 
     public void setLatchedKey(int value) {
         this.latchedKey = value & 0xF;
     }
 
-    public void cycle() {
-        this.efx = this.keys[this.latchedKey];
-    }
-
     public enum Actions implements Action {
-        KEY_0("0", 0x0),
-        KEY_1("1", 0x1),
-        KEY_2("2", 0x2),
-        KEY_3("3", 0x3),
-        KEY_4("4", 0x4),
-        KEY_5("5", 0x5),
-        KEY_6("6", 0x6),
-        KEY_7("7", 0x7),
-        KEY_8("8", 0x8),
-        KEY_9("9", 0x9),
-        KEY_A("A", 0xA),
-        KEY_B("B", 0xB),
-        KEY_C("C", 0xC),
-        KEY_D("D", 0xD),
-        KEY_E("E", 0xE),
-        KEY_F("F", 0xF);
+        KEY_0("Key 0", 0x0),
+        KEY_1("Key 1", 0x1),
+        KEY_2("Key 2", 0x2),
+        KEY_3("Key 3", 0x3),
+        KEY_4("Key 4", 0x4),
+        KEY_5("Key 5", 0x5),
+        KEY_6("Key 6", 0x6),
+        KEY_7("Key 7", 0x7),
+        KEY_8("Key 8", 0x8),
+        KEY_9("Key 9", 0x9),
+        KEY_A("Key A", 0xA),
+        KEY_B("Key B", 0xB),
+        KEY_C("Key C", 0xC),
+        KEY_D("Key D", 0xD),
+        KEY_E("Key E", 0xE),
+        KEY_F("Key F", 0xF);
 
         private final String label;
         private final int key;

@@ -70,7 +70,6 @@ public class RCAStudioIIEmulator implements CDP1802System, CDP1802.SystemBus {
     private void runCycle() {
         this.cpu.cycle();
         this.vdp.cycle();
-        this.keypad.cycle();
         this.cpu.nextState();
     }
 

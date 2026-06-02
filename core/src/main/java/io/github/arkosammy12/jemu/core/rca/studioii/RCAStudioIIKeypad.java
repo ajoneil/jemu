@@ -5,11 +5,7 @@ import io.github.arkosammy12.jemu.core.common.SystemController;
 public class RCAStudioIIKeypad<E extends RCAStudioIIEmulator> extends SystemController<E> {
 
     private final boolean[] keypad1Keys = new boolean[10];
-    private boolean keypad1Efx;
-
     private final boolean[] keypad2Keys = new boolean[10];
-    private boolean keypad2Efx;
-
     private int latchedKey;
 
     public RCAStudioIIKeypad(E emulator) {
@@ -39,25 +35,23 @@ public class RCAStudioIIKeypad<E extends RCAStudioIIEmulator> extends SystemCont
     }
 
     public boolean getKeypad1EFX() {
-        return this.keypad1Efx;
+        if (this.latchedKey <= 9) {
+            return this.keypad1Keys[this.latchedKey];
+        } else {
+            return false;
+        }
     }
 
     public boolean getKeypad2EFX() {
-        return this.keypad2Efx;
+        if (this.latchedKey <= 9) {
+            return this.keypad2Keys[this.latchedKey];
+        } else {
+            return false;
+        }
     }
 
     public void setLatchedKey(int value) {
         this.latchedKey = value & 0xF;
-    }
-
-    public void cycle() {
-        if (this.latchedKey <= 9) {
-            this.keypad1Efx = this.keypad1Keys[this.latchedKey];
-            this.keypad2Efx = this.keypad2Keys[this.latchedKey];
-        } else {
-            this.keypad1Efx = false;
-            this.keypad2Efx = false;
-        }
     }
 
     public enum Actions implements Action {
