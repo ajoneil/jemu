@@ -8,9 +8,9 @@ import java.util.Optional;
 
 public interface SystemHost {
 
-    byte[] getRom();
+    Optional<byte[]> getRom();
 
-    Path getRomPath();
+    Optional<Path> getRomPath();
 
     String getSystemName();
 

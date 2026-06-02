@@ -34,14 +34,12 @@ public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Clo
     private int lastWidth = -1;
     private int lastHeight = -1;
 
-    public DefaultSystemVideoDriver(VideoGenerator<?> videoGenerator, KeyListener keyListener) {
+    public DefaultSystemVideoDriver(VideoGenerator<?> videoGenerator) {
         this.displayWidth = videoGenerator.getImageWidth();
         this.displayHeight = videoGenerator.getImageHeight();
 
         this.renderBuffer = new int[displayWidth * displayHeight];
         this.bufferedImage = new BufferedImage(displayWidth, displayHeight, BufferedImage.TYPE_INT_RGB);
-
-        this.addKeyListener(keyListener);
 
         this.renderThread = new Thread(this::renderLoop, "%s-render-thread".formatted(MavenProperties.ARTIFACT_ID));
         this.renderThread.setDaemon(true);
@@ -88,15 +86,19 @@ public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Clo
 
     private void renderLoop() {
         while (this.running) {
-            synchronized (this.renderLock) {
-                while (this.running && !this.frameRequested) {
-                    try {
-                        this.renderLock.wait();
-                    } catch (InterruptedException _) {}
+            try {
+                synchronized (this.renderLock) {
+                    while (this.running && !this.frameRequested) {
+                        try {
+                            this.renderLock.wait();
+                        } catch (InterruptedException _) {}
+                    }
+                    this.frameRequested = false;
                 }
-                this.frameRequested = false;
+                this.renderFrame();
+            } catch (Exception e) {
+                Logger.warn("Render thread encountered an unexpected error, continuing: {}", e.getMessage());
             }
-            this.renderFrame();
         }
     }
 
@@ -114,14 +116,18 @@ public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Clo
         synchronized (this.renderBufferLock) {
             System.arraycopy(this.renderBuffer, 0, ((DataBufferInt) this.bufferedImage.getRaster().getDataBuffer()).getData(), 0, this.renderBuffer.length);
         }
-        Graphics2D g = (Graphics2D) bufferStrategy.getDrawGraphics();
-        g.setColor(Color.BLACK);
-        g.fillRect(0, 0, getWidth(), getHeight());
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-        g.drawImage(this.bufferedImage, this.drawTransform, null);
-        g.dispose();
-        bufferStrategy.show();
-        Toolkit.getDefaultToolkit().sync();
+        try {
+            Graphics2D g = (Graphics2D) bufferStrategy.getDrawGraphics();
+            g.setColor(Color.BLACK);
+            g.fillRect(0, 0, getWidth(), getHeight());
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            g.drawImage(this.bufferedImage, this.drawTransform, null);
+            g.dispose();
+            bufferStrategy.show();
+            Toolkit.getDefaultToolkit().sync();
+        } catch (Exception e) {
+            Logger.warn("Failed to render frame to canvas: {}", e.getMessage());
+        }
     }
 
     @Override

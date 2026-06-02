@@ -152,6 +152,7 @@ public class EmulatorMenu extends MenuBarMenu implements EmulatorManager {
             stepFrameButton.setEnabled(false);
             stepCycleButton.setEnabled(false);
             mainWindow.getSystemViewport().setSystemDisplay(null);
+            mainWindow.getSystemViewport().setSystemKeyListener(null);
             emulatorStopped = true;
         }));
     }
@@ -170,6 +171,10 @@ public class EmulatorMenu extends MenuBarMenu implements EmulatorManager {
                 }
             }
         });
+    }
+
+    void submitStop() {
+        this.mainWindow.submitEmulatorCommand(new StopEmulatorCommand());
     }
 
     void submitReset() {

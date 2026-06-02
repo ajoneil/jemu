@@ -1,111 +1,93 @@
 package io.github.arkosammy12.jemu.app;
 
-import io.github.arkosammy12.jemu.app.adapters.DefaultSystemAdapter;
+import io.github.arkosammy12.jemu.app.adapters.AbstractSystemAdapter;
 import io.github.arkosammy12.jemu.app.adapters.SystemAdapter;
+import io.github.arkosammy12.jemu.app.drivers.DefaultAudioRendererDriver;
 import io.github.arkosammy12.jemu.app.io.CLIArgs;
 import io.github.arkosammy12.jemu.app.io.initializers.EmulatorInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.app.util.MavenProperties;
+import io.github.arkosammy12.jemu.frontend.audio.AudioChannels;
+import io.github.arkosammy12.jemu.frontend.audio.AudioEngine;
+import io.github.arkosammy12.jemu.frontend.audio.SampleRate;
+import io.github.arkosammy12.jemu.frontend.gui.swing.PendingEmulatorCommand;
 import io.github.arkosammy12.jemu.frontend.gui.swing.commands.*;
 import io.github.arkosammy12.jemu.frontend.gui.swing.events.Event;
 import io.github.arkosammy12.jemu.frontend.gui.swing.events.MuteEvent;
+import io.github.arkosammy12.jemu.frontend.gui.swing.events.SampleRateChangedEvent;
 import io.github.arkosammy12.jemu.frontend.gui.swing.events.VolumeChangedEvent;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
-import io.github.arkosammy12.jemu.frontend.audio.AudioRenderer;
 import io.github.arkosammy12.jemu.frontend.gui.swing.MainWindow;
 import io.github.arkosammy12.jemu.frontend.gui.swing.managers.HelpManager;
 import net.harawata.appdirs.AppDirsFactory;
 import org.jetbrains.annotations.Nullable;
 import org.tinylog.Logger;
 
-import java.awt.*;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Optional;
 
 public final class Jemu {
 
-    private static final Path APP_DIR = Path.of(AppDirsFactory.getInstance().getUserDataDir("jemu", null, null));
+    private static final Path APP_DIR = Path.of(AppDirsFactory.getInstance().getUserDataDir(MavenProperties.ARTIFACT_ID, null, null));
 
-    private volatile DefaultSystemAdapter currentSystem = null;
+    private volatile AbstractSystemAdapter currentSystem = null;
     private volatile State currentState = State.STOPPED;
 
-    @Nullable
-    private final Thread emulatorThread;
+    private final MainWindow mainWindow;
+    private final AudioEngine audioEngine;
 
-    @Nullable
+    private final Thread emulatorCommandListenerThread;
     private final Thread uiEventListenerThread;
 
-    private MainWindow mainWindow;
-    private volatile boolean running = true;
+    private volatile boolean running;
+    private final Object systemLock = new Object();
+    private volatile boolean shutdownStarted = false;
 
-    public Jemu(String[] args) {
+    public Jemu(@Nullable CLIArgs cliArgs) throws Exception {
         try {
-
-            CLIArgs cliArgs = null;
-            if (args.length > 0) {
-                cliArgs = new CLIArgs(args);
-                if (cliArgs.exitImmediately()) {
-                    this.running = false;
-                    this.emulatorThread = null;
-                    this.uiEventListenerThread = null;
-                    return;
-                }
-            }
 
             Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
                 Logger.error("Uncaught exception in thread {}: {}", thread.getName(), throwable, throwable.getStackTrace());
+                try {
+                    this.onShutdown();
+                } catch (Exception e) {}
             });
 
             this.mainWindow = new MainWindow(MavenProperties.ARTIFACT_ID, APP_DIR, Arrays.stream(System.values()).toList());
-            this.mainWindow.setClosingHook(() -> {
-                this.running = false;
-                try {
-                    this.onShutdown();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            });
+            this.initMainWindow();
 
-            HelpManager helpManager = this.mainWindow.getHelpManager();
-            helpManager.setProjectName(MavenProperties.ARTIFACT_ID);
-            helpManager.setAuthorString(MavenProperties.AUTHOR);
-            helpManager.setVersionString(MavenProperties.VERSION);
-            helpManager.setCommitIDString(Version.COMMIT_ID);
-            helpManager.setBuildDateString(MavenProperties.BUILD_DATE);
-            helpManager.setProjectSourceLink("https://github.com/ArkoSammy12/jemu");
-            helpManager.setProjectBugReportLink("https://github.com/ArkoSammy12/jemu/issues");
+            this.audioEngine = new AudioEngine("%s-audio-thread".formatted(MavenProperties.ARTIFACT_ID));
+            this.initAudioEngine();
 
-            this.emulatorThread = new Thread(this::emulatorLoop, "%s-emulator-thread".formatted(MavenProperties.ARTIFACT_ID));
+            this.emulatorCommandListenerThread = new Thread(this::emulatorCommandListenerLoop, "%s-emulator-command-listener-thread".formatted(MavenProperties.ARTIFACT_ID));
             this.uiEventListenerThread = new Thread(this::eventListenerLoop, "%s-event-listener-thread".formatted(MavenProperties.ARTIFACT_ID));
-
-            this.mainWindow.show();
 
             if (cliArgs != null) {
                 Optional<System> system = cliArgs.getSystem();
                 this.mainWindow.getFileManager().loadFile(cliArgs.getRomPath(), system.isPresent());
                 system.ifPresent(s -> this.mainWindow.getEmulatorManager().setCurrentSystemDescriptor(s));
             }
+
+            this.mainWindow.show();
+
         } catch (Exception e) {
-            if (this.mainWindow != null) {
-                this.mainWindow.close();
-            }
-            throw new RuntimeException("Failed to initialize jemu: " + e);
+            this.onShutdown();
+            throw new RuntimeException("Failed to initialize %s: ".formatted(MavenProperties.ARTIFACT_ID), e);
         }
     }
 
-    public Optional<AudioRenderer> getCurrentAudioRenderer() {
-        return Optional.ofNullable(this.currentSystem).map(DefaultSystemAdapter::getAudioRenderer);
+    public AudioEngine getAudioEngine() {
+        return this.audioEngine;
     }
 
     public void start() {
-        if (this.running) {
-            if (this.uiEventListenerThread != null) {
-                this.uiEventListenerThread.start();
-            }
-            if (this.emulatorThread != null) {
-                this.emulatorThread.start();
-            }
+        this.running = true;
+        if (this.uiEventListenerThread != null) {
+            this.uiEventListenerThread.start();
+        }
+        if (this.emulatorCommandListenerThread != null) {
+            this.emulatorCommandListenerThread.start();
         }
     }
 
@@ -114,8 +96,9 @@ public final class Jemu {
             try {
                 Event uiEvent = this.mainWindow.waitEvent();
                 switch (uiEvent) {
-                    case MuteEvent(boolean mute) -> this.getCurrentAudioRenderer().ifPresent(audioRenderer -> audioRenderer.setMuted(mute));
-                    case VolumeChangedEvent(int newVolume) -> this.getCurrentAudioRenderer().ifPresent(audioRenderer -> audioRenderer.setVolume(newVolume));
+                    case MuteEvent(boolean mute) -> this.audioEngine.setMuted(mute);
+                    case VolumeChangedEvent(int newVolume) -> this.audioEngine.setVolume(newVolume);
+                    case SampleRateChangedEvent(SampleRate sampleRate) -> this.audioEngine.setSampleRate(sampleRate);
                     case null, default -> {}
                 }
             } catch (InterruptedException _) {
@@ -126,125 +109,72 @@ public final class Jemu {
         }
     }
 
-    private void emulatorLoop() {
+    private void emulatorCommandListenerLoop() {
         while (this.running) {
             try {
-                while (this.currentSystem == null) {
-                    this.updateState(true);
-                    this.processState(this.currentState);
-                }
-
-                if (this.currentSystem == null) {
+                PendingEmulatorCommand enqueuedEmulatorCommand = this.mainWindow.waitEmulatorCommand();
+                if (enqueuedEmulatorCommand == null) {
                     continue;
                 }
-
-                // TODO: Formalize the syncing of the core to either audio or wall clock time
-                if (!this.currentSystem.getAudioRenderer().needsFrame()) {
-                    Thread.sleep(1);
-                    continue;
+                synchronized (this.systemLock) {
+                    State enqueuedState;
+                    try {
+                        enqueuedState = switch (enqueuedEmulatorCommand.getEmulatorCommand()) {
+                            case ResetEmulatorCommand resetEvent -> this.onEmulatorResetCommand(resetEvent);
+                            case StopEmulatorCommand _ -> this.onEmulatorStopCommand();
+                            case PauseEmulatorCommand pauseEmulatorCommand -> this.onEmulatorPauseCommand(pauseEmulatorCommand);
+                            case StepFrameEmulatorCommand _ -> this.onEmulatorStepFrameCommand();
+                            case StepCycleEmulatorCommand _ -> this.onEmulatorStepCycleCommand();
+                            case null -> null;
+                        };
+                    } finally {
+                        enqueuedEmulatorCommand.acknowledge();
+                    }
+                    if (enqueuedState == null) {
+                        continue;
+                    }
+                    this.currentState = enqueuedState;
                 }
-
-                this.updateState(false);
-                this.processState(this.currentState);
-                if (this.currentSystem != null) {
-                    this.currentSystem.onFrame();
-                }
-
             } catch (EmulatorException e) {
-                Logger.error("Emulation error: {}", e);
-                this.onExceptionThrownInEmulatorLoop(e);
+                Logger.error("Error initializing emulator: {}", e);
+                this.onEmulatorException(e);
             } catch (InterruptedException _) {
 
             } catch (Exception e) {
-                Logger.error("Unexpected error while initializing or running emulator: {}", e);
-                this.onExceptionThrownInEmulatorLoop(new EmulatorException("Unexpected error while initializing or running emulator!", e));
+                Logger.error("Unexpected error while processing emulator command: {}", e);
+                this.onEmulatorException(new EmulatorException("Unexpected error while processing emulator command!", e));
             }
         }
     }
 
-    private void onExceptionThrownInEmulatorLoop(Exception e) {
-        this.mainWindow.showCoreError(e);
-        if (this.currentSystem != null) {
-            try {
-                this.currentSystem.close();
-            } catch (Exception _) {}
-            this.mainWindow.getSystemViewport().setSystemDisplay(null);
-            this.currentSystem = null;
-        }
-        this.mainWindow.submitEmulatorCommand(new StopEmulatorCommand());
+    private void onEmulatorIdle() {
     }
 
-    private void updateState(boolean take) throws Exception {
-        EmulatorCommand enqueuedEmulatorCommand = take ? this.mainWindow.waitEmulatorCommand() : this.mainWindow.pollEmulatorCommand();
-        State enqueuedState = switch (enqueuedEmulatorCommand) {
-            case ResetEmulatorCommand resetEvent -> {
-                this.onResetting(resetEvent);
-                this.mainWindow.getSystemViewport().setSystemDisplay(this.currentSystem.getVideoDriver().orElse(null) instanceof Component c ? () -> c : null);
-                yield resetEvent.resetIntoPaused() ? State.PAUSED : State.RUNNING;
-            }
-            case StopEmulatorCommand _ -> {
-                this.onStopping();
-                yield State.STOPPED;
-            }
-            case PauseEmulatorCommand(boolean pause) -> {
-                boolean stopped = this.currentSystem == null;
-                if (pause) {
-                    yield stopped ? State.PAUSE_STOPPED : State.PAUSED;
-                } else {
-                    yield stopped ? State.STOPPED : State.RUNNING;
-                }
-            }
-            case StepFrameEmulatorCommand _ -> State.STEPPING_FRAME;
-            case StepCycleEmulatorCommand _ -> State.STEPPING_CYCLE;
-            case null -> null;
-        };
-        if (enqueuedState == null) {
-            return;
-        }
-        this.currentState = enqueuedState;
-    }
-
-    private void processState(State state) {
-        switch (state) {
-            case STOPPED, PAUSED, PAUSE_STOPPED -> onIdle();
-            case RUNNING -> onRunning();
-            case STEPPING_FRAME -> onSteppingFrame();
-            case STEPPING_CYCLE -> onSteppingCycle();
-        }
-    }
-
-    private void onIdle() {
-        this.getCurrentAudioRenderer().ifPresent(renderer -> renderer.setPaused(true));
-    }
-
-    private void onRunning() {
+    private void onEmulatorRunning() {
         if (currentSystem == null) {
             return;
         }
-        this.getCurrentAudioRenderer().ifPresent(renderer -> renderer.setPaused(false));
         this.currentSystem.getEmulator().executeFrame();
         this.mainWindow.getTitleManager().update(this.currentSystem.getRomTitle().orElse("No title"));
     }
 
-    private void onSteppingFrame() {
+    private void onEmulatorSteppingFrame() {
         if (this.currentSystem == null) {
             return;
         }
-        this.getCurrentAudioRenderer().ifPresent(renderer -> renderer.setPaused(true));
         this.currentSystem.getEmulator().executeFrame();
         this.currentState = State.PAUSED;
     }
 
-    private void onSteppingCycle() {
+    private void onEmulatorSteppingCycle() {
         if (this.currentSystem == null) {
             return;
         }
-        this.getCurrentAudioRenderer().ifPresent(renderer -> renderer.setPaused(true));
         this.currentSystem.getEmulator().executeCycle();
         this.currentState = State.PAUSED;
     }
 
-    private void onResetting(ResetEmulatorCommand resetEvent) throws Exception {
+    private State onEmulatorResetCommand(ResetEmulatorCommand resetEvent) throws Exception {
         if (this.currentSystem != null) {
             this.currentSystem.close();
         }
@@ -268,31 +198,124 @@ public final class Jemu {
 
         };
 
-        this.initializeEmulator(emulatorInitializer);
+        // TODO: If there was a current emulator running before initializing a new one, just reset the current one and update its loaded ROM if any
+        // TODO: Do not require a ROM to be selected to initialize it
+        this.currentSystem = System.getSystemAdapter(this, emulatorInitializer);
+        this.audioEngine.setFramerate(this.currentSystem.getEmulator().getFramerate());
+        this.audioEngine.setAudioChannels(this.currentSystem.getEmulator().getAudioGenerator().isStereo() ? AudioChannels.STEREO : AudioChannels.MONO);
+        this.audioEngine.start();
+        this.mainWindow.getSystemViewport().setSystemDisplay(() -> this.currentSystem.createAWTComponentVideoDriver());
+        this.mainWindow.getSystemViewport().setSystemKeyListener(this.currentSystem.getSystemKeyListener());
+
+        boolean resetIntoPaused = resetEvent.resetIntoPaused();
+        this.audioEngine.setPaused(resetIntoPaused);
+        return resetIntoPaused ? State.PAUSED : State.RUNNING;
     }
 
-    private void onStopping() throws Exception {
+    private State onEmulatorStopCommand() {
         if (this.currentSystem != null) {
             this.currentSystem.close();
             this.currentSystem = null;
         }
+        this.audioEngine.stop();
+        this.audioEngine.setPaused(true);
+        return State.STOPPED;
     }
 
-    private void initializeEmulator(EmulatorInitializer initializer) {
-        // TODO: If there was a current emulator running before initializing a new one, just reset the current one and update its loaded ROM if any
-        // TODO: Do not require a ROM to be selected to initialize it
-        this.currentSystem = System.getSystemAdapter(this, initializer);
-        this.getCurrentAudioRenderer().ifPresent(audioRenderer -> {
-            audioRenderer.setMuted(this.mainWindow.getSettingsManager().getMuted());
-            audioRenderer.setVolume(this.mainWindow.getSettingsManager().getVolume());
+    private State onEmulatorPauseCommand(PauseEmulatorCommand pauseEmulatorCommand) {
+        boolean stopped = this.currentSystem == null;
+        if (pauseEmulatorCommand.pause()) {
+            this.audioEngine.setPaused(true);
+            return stopped ? State.PAUSE_STOPPED : State.PAUSED;
+        } else {
+            if (stopped) {
+                return State.STOPPED;
+            } else {
+                this.audioEngine.setPaused(false);
+                return State.RUNNING;
+            }
+        }
+    }
+
+    private State onEmulatorStepFrameCommand() {
+        return State.STEPPING_FRAME;
+    }
+
+    private State onEmulatorStepCycleCommand() {
+        return State.STEPPING_CYCLE;
+    }
+
+    private void initMainWindow() {
+        this.mainWindow.setClosingHook(() -> {
+            this.running = false;
+            try {
+                this.onShutdown();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        HelpManager helpManager = this.mainWindow.getHelpManager();
+        helpManager.setProjectName(MavenProperties.ARTIFACT_ID);
+        helpManager.setAuthorString(MavenProperties.AUTHOR);
+        helpManager.setVersionString(MavenProperties.VERSION);
+        helpManager.setCommitIDString(Version.COMMIT_ID);
+        helpManager.setBuildDateString(MavenProperties.BUILD_DATE);
+        helpManager.setProjectSourceLink("https://github.com/ArkoSammy12/jemu");
+        helpManager.setProjectBugReportLink("https://github.com/ArkoSammy12/jemu/issues");
+    }
+
+    private void initAudioEngine() {
+        this.audioEngine.setSampleFrameCallback(() -> {
+            try {
+                synchronized (this.systemLock) {
+                    if (this.currentSystem == null) {
+                        return null;
+                    }
+
+                    switch (this.currentState) {
+                        case STOPPED, PAUSED, PAUSE_STOPPED -> this.onEmulatorIdle();
+                        case RUNNING -> this.onEmulatorRunning();
+                        case STEPPING_FRAME -> this.onEmulatorSteppingFrame();
+                        case STEPPING_CYCLE -> this.onEmulatorSteppingCycle();
+                    }
+
+                    this.currentSystem.onFrame();
+                    return this.currentSystem.getAudioDriver().map(DefaultAudioRendererDriver::getSampleFrame).orElse(null);
+                }
+            } catch (Exception e) {
+                Logger.error("Unexpected error while running emulator: {}", e);
+                this.onEmulatorException(new EmulatorException("Unexpected error while running emulator!", e));
+                return null;
+            }
         });
     }
 
-    void onShutdown() throws Exception {
+    private void onEmulatorException(Exception e) {
+        this.mainWindow.showCoreError(e);
+        synchronized (this.systemLock) {
+            if (this.currentSystem != null) {
+                try {
+                    this.currentSystem.close();
+                } catch (Exception _) {
+                }
+                this.mainWindow.getSystemViewport().setSystemDisplay(null);
+                this.mainWindow.getSystemViewport().setSystemKeyListener(null);
+                this.currentSystem = null;
+            }
+        }
+        this.mainWindow.submitEmulatorCommand(new StopEmulatorCommand());
+    }
+
+    private void onShutdown() {
+        if (this.shutdownStarted) {
+            return;
+        }
+        this.shutdownStarted = true;
         try {
-            if (this.emulatorThread != null) {
-                this.emulatorThread.interrupt();
-                this.emulatorThread.join();
+            if (this.emulatorCommandListenerThread != null) {
+                this.emulatorCommandListenerThread.interrupt();
+                this.emulatorCommandListenerThread.join();
             }
         } catch (InterruptedException _) {}
 
@@ -303,13 +326,18 @@ public final class Jemu {
             }
         } catch (InterruptedException _) {}
 
-        if (this.currentSystem != null) {
-            this.currentSystem.close();
-            this.currentSystem = null;
+        synchronized (this.systemLock) {
+            if (this.currentSystem != null) {
+                this.currentSystem.close();
+                this.currentSystem = null;
+            }
         }
 
         if (this.mainWindow != null) {
             this.mainWindow.close();
+        }
+        if (this.audioEngine != null) {
+            this.audioEngine.close();
         }
     }
 

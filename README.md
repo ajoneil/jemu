@@ -11,7 +11,7 @@ Multi-system emulator written in Java.
 | System                              | CLI identifier  | Status      |
 |-------------------------------------|-----------------|-------------|
 | COSMAC VIP                          | `cosmac-vip`    | ✅ Supported |
-| RCA Studio II                       | —               | 🗓 Planned  |
+| RCA Studio II                       | `rca-studioii`  | ✅ Supported |
 | VIP CHIP-8                          | `vip-chip8`     | ✅ Supported |
 | VIP CHIP-8X                         | `vip-chip8x`    | ✅ Supported |
 | Game Boy (DMG)                      | `gameboy`       | ✅ Supported |
@@ -35,6 +35,24 @@ Multi-system emulator written in Java.
 | `4 5 6 D`  | `Q W E R`    |
 | `7 8 9 E`  | `A S D F`    |
 | `A 0 B F`  | `Z X C V`    |
+
+## RCA Studio II
+
+
+| Keypad 1 | Keyboard key |
+|----------|--------------|
+| `1 2 3`  | `Q W E`      |
+| `4 5 6`  | `A S D`      |
+| `7 8 9`  | `Z X C`      |
+| `- 0 -`  | `- Alt -`    |
+
+
+| Keypad 2 | Keyboard or numpad key |
+|----------|------------------------|
+| `1 2 3`  | `1 2 3`                |
+| `4 5 6`  | `4 5 6`                |
+| `7 8 9`  | `7 9 9`                |
+| `- 0 -`  | `- 0 -`                |
 
 ### Game Boy / Game Boy Color / Nintendo Entertainment System
 
@@ -67,6 +85,12 @@ jemu [-hV] -r=<romPath> [-s=<system>]
 | `-V, --version`             | Print version information and exit.                                                                                                             | —       |
 
 
+## Dev Builds
+
+The repository has a Github Actions workflow that runs on every push to the `dev` branch and contains native app image artifacts for Windows, MacOS and Linux, which will stay available for 90 days afterwards: https://github.com/ArkoSammy12/jemu/actions/workflows/dev-build.yml
+
+These builds are not well tested and may have bugs.
+
 ## Building
 
 A Java Development Kit targeting Java version 25 or later is required to build this project.
@@ -87,5 +111,6 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Special thanks
 
-- Matt Sutton(sutton.matthew at gmail): Significant accuracy improvements to the NES core.
-
+- [Mathew "theklap" Sutton](https://github.com/theklap): Significant accuracy improvements to the NES core.
+- [dtabacaru](https://github.com/dtabacaru/): Providing audio filtering logic to system's audio processing units.
+- [Shawn (L. Spiro) Wilcoxen](https://github.com/L-Spiro): Provide accurate audio filtering classes useful for quality NES APU output.

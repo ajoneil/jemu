@@ -1,0 +1,81 @@
+package io.github.arkosammy12.jemu.app.adapters;
+
+import de.gurkenlabs.input4j.InputComponent;
+import de.gurkenlabs.input4j.components.XInput;
+import io.github.arkosammy12.jemu.app.Jemu;
+import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
+import io.github.arkosammy12.jemu.app.util.System;
+import io.github.arkosammy12.jemu.core.common.Emulator;
+import io.github.arkosammy12.jemu.core.nintendo.nes.NESController;
+import io.github.arkosammy12.jemu.core.nintendo.nes.NESEmulator;
+import org.jetbrains.annotations.Nullable;
+
+import java.awt.event.KeyEvent;
+import java.util.Map;
+import java.util.Optional;
+
+public class NESAdapter extends AbstractSystemAdapter {
+
+    private final String romTitle;
+    private final System system;
+
+    private static final Map<InputComponent.ID, NESController.Actions> XINPUT_MAPPINGS = Map.of(
+            XInput.DPAD_UP, NESController.Actions.JOY1_UP,
+            XInput.DPAD_DOWN, NESController.Actions.JOY1_DOWN,
+            XInput.DPAD_LEFT, NESController.Actions.JOY1_LEFT,
+            XInput.DPAD_RIGHT, NESController.Actions.JOY1_RIGHT,
+            XInput.START, NESController.Actions.JOY1_START,
+            XInput.BACK, NESController.Actions.JOY1_SELECT,
+            XInput.A, NESController.Actions.JOY1_A,
+            XInput.B, NESController.Actions.JOY1_B
+    );
+
+    public NESAdapter(Jemu jemu, CoreInitializer initializer) {
+        this.romTitle = initializer.getRomPath().map(path -> path.getFileName().toString()).orElse(null);
+        this.system = System.NES;
+        super(jemu, initializer);
+    }
+
+    @Override
+    protected Emulator createEmulator() {
+        return new NESEmulator(this);
+    }
+
+    @Override
+    @Nullable
+    protected NESController.Actions getActionForKeyCode(int keyCode) {
+        return switch (keyCode) {
+            case KeyEvent.VK_W -> NESController.Actions.JOY1_UP;
+            case KeyEvent.VK_S -> NESController.Actions.JOY1_DOWN;
+            case KeyEvent.VK_A -> NESController.Actions.JOY1_LEFT;
+            case KeyEvent.VK_D -> NESController.Actions.JOY1_RIGHT;
+            case KeyEvent.VK_ENTER -> NESController.Actions.JOY1_START;
+            case KeyEvent.VK_BACK_SPACE -> NESController.Actions.JOY1_SELECT;
+            case KeyEvent.VK_J -> NESController.Actions.JOY1_A;
+            case KeyEvent.VK_K -> NESController.Actions.JOY1_B;
+            default -> null;
+        };
+    }
+
+    @Override
+    @Nullable
+    public NESController.Actions getActionForJoypadEvent(InputComponent.ID id) {
+        return XINPUT_MAPPINGS.get(id);
+    }
+
+    @Override
+    public String getSystemName() {
+        return this.system.getName();
+    }
+
+    @Override
+    public Optional<String> getRomTitle() {
+        return Optional.ofNullable(this.romTitle);
+    }
+
+    @Override
+    public System getSystem() {
+        return this.system;
+    }
+
+}

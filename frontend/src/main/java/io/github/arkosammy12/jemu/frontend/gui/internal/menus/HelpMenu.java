@@ -52,24 +52,6 @@ public class HelpMenu extends MenuBarMenu implements HelpManager {
 
         };
 
-        Runnable addAboutItem = () -> {
-            JMenuItem aboutItem = new JMenuItem("About");
-            aboutItem.setMnemonic(KeyEvent.VK_A);
-            aboutItem.addActionListener(_ -> showAboutDialog.run());
-            this.getJMenu().add(aboutItem);
-        };
-
-        if (SystemInfo.isMacOS) {
-            Desktop desktop = Desktop.getDesktop();
-            if (desktop.isSupported(Desktop.Action.APP_ABOUT)) {
-                desktop.setAboutHandler(_ -> showAboutDialog.run());
-            } else {
-                addAboutItem.run();
-            }
-        } else {
-            addAboutItem.run();
-        }
-
         JMenuItem sourceItem = new JMenuItem("Source");
         sourceItem.setMnemonic(KeyEvent.VK_S);
         sourceItem.addActionListener(_ -> {
@@ -92,6 +74,25 @@ public class HelpMenu extends MenuBarMenu implements HelpManager {
 
         this.getJMenu().add(sourceItem);
         this.getJMenu().add(reportItem);
+
+        Runnable addAboutItem = () -> {
+            JMenuItem aboutItem = new JMenuItem("About");
+            aboutItem.setMnemonic(KeyEvent.VK_A);
+            aboutItem.addActionListener(_ -> showAboutDialog.run());
+            this.getJMenu().addSeparator();
+            this.getJMenu().add(aboutItem);
+        };
+
+        if (SystemInfo.isMacOS) {
+            Desktop desktop = Desktop.getDesktop();
+            if (desktop.isSupported(Desktop.Action.APP_ABOUT)) {
+                desktop.setAboutHandler(_ -> showAboutDialog.run());
+            } else {
+                addAboutItem.run();
+            }
+        } else {
+            addAboutItem.run();
+        }
 
     }
 

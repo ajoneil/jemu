@@ -1,0 +1,108 @@
+package io.github.arkosammy12.jemu.core.nintendo.gameboy.mbcs;
+
+import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
+import io.github.arkosammy12.jemu.core.nintendo.gameboy.GameBoyCartridge;
+import io.github.arkosammy12.jemu.core.nintendo.gameboy.GameBoyEmulator;
+import org.jetbrains.annotations.Nullable;
+import org.tinylog.Logger;
+
+import java.util.Optional;
+
+public class MBC2 extends GameBoyCartridge {
+
+    private static final int A8_MASK = 1 << 8;
+
+    private final byte[][] romBanks;
+    private final byte @Nullable [] sram;
+    private final boolean hasBattery;
+
+    private final int romBankMask;
+
+    private int romBankNumber = 0xF1;
+    private int ramGate = 0xF0;
+
+    public MBC2(GameBoyEmulator emulator, int cartridgeType) {
+        super(emulator, cartridgeType);
+
+        this.romBanks = switch (this.romSizeHeader) {
+            case 0x00 -> new byte[2][0x4000];
+            case 0x01 -> new byte[4][0x4000];
+            case 0x02 -> new byte[8][0x4000];
+            case 0x03 -> new byte[16][0x4000];
+            default -> throw new EmulatorException("Incompatible ROM size header $%02X for MBC2 GameBoy cartridge type!".formatted(this.romSizeHeader));
+        };
+
+        if (cartridgeType == 0x06) {
+            this.sram = new byte[512];
+            this.hasBattery = true;
+        } else {
+            this.sram = null;
+            this.hasBattery = false;
+        }
+
+        try {
+            for (int i = 0; i < this.romBanks.length; i++) {
+                byte[] romBank = this.romBanks[i];
+                int start = i * romBank.length;
+                System.arraycopy(this.originalRom, start, romBank, 0, romBank.length);
+            }
+        } catch (Exception e) {
+            throw new EmulatorException("Error initializing GameBoy cartridge ROM!", e);
+        }
+
+        this.romBankMask = ((1 << (32 - Integer.numberOfLeadingZeros(this.romBanks.length))) - 1) >> 1;
+
+        if (this.hasBattery) {
+            this.readSaveData().ifPresent(saveData -> {
+                try {
+                    System.arraycopy(saveData, 0, this.sram, 0, Math.min(saveData.length, this.sram.length));
+                } catch (Exception e) {
+                    Logger.error("Error reading save data for GameBoy MBC2 cartridge: {}", e);
+                }
+            });
+        }
+
+    }
+
+    @Override
+    public int readByte(int address) {
+        if (address >= 0x0000 && address <= 0x3FFF) {
+            return (int) this.romBanks[0][address] & 0xFF;
+        } else if (address >= 0x4000 && address <= 0x7FFF) {
+            return (int) this.romBanks[(this.romBankNumber & 0xF) & this.romBankMask][address - 0x4000] & 0xFF;
+        } else if (address >= 0xA000 && address <= 0xBFFF) {
+            if ((this.ramGate & 0xF) == 0b1010 && this.sram != null) {
+                return ((int) this.sram[address & 0x1FF] & 0xFF) | 0xF0;
+            } else {
+                return 0xFF;
+            }
+        } else {
+            throw new EmulatorException("Invalid GameBoy MBC2 cartridge read address $%04X!".formatted(address));
+        }
+    }
+
+    @Override
+    public void writeByte(int address, int value) {
+        if (address >= 0x0000 && address <= 0x3FFF) {
+            if ((address & A8_MASK) == 0) {
+                this.ramGate = value & 0xF;
+            } else {
+                int effectiveBankNumber = value & 0xF;
+                if (effectiveBankNumber == 0) {
+                    effectiveBankNumber = 1;
+                }
+                this.romBankNumber = effectiveBankNumber & this.romBankMask;
+            }
+        } else if (address >= 0xA000 && address <= 0xBFFF) {
+            if ((this.ramGate & 0xF) == 0b1010 && this.sram != null) {
+                this.sram[address & 0x1FF] = (byte) value;
+            }
+        }
+    }
+
+    @Override
+    protected Optional<byte[]> getSaveData() {
+        return Optional.ofNullable(this.hasBattery ? this.sram : null);
+    }
+
+}
