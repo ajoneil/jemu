@@ -24,7 +24,7 @@ public class CosmacVIPEmulator implements CDP1802System, CDP1802.SystemBus {
         try {
             this.host = host;
             this.chip8Interpreter = host.getChip8Interpreter();
-            this.keypad = new CosmacVIPKeypad<>(this);
+            this.keypad = new CosmacVIPKeypad<>(this, host.getRom().isEmpty());
             this.cpu = new CDP1802(this);
             if (this.chip8Interpreter == CosmacVIPHost.Chip8Interpreter.CHIP_8X) {
                 this.bus = new HybridChip8XBus(this);

@@ -1,5 +1,8 @@
 package io.github.arkosammy12.jemu.core.rca.cosmacvip;
 
+import io.github.arkosammy12.jemu.core.exceptions.MissingROMException;
+import org.jetbrains.annotations.Nullable;
+
 import static io.github.arkosammy12.jemu.core.common.SystemHost.intToByteArray;
 
 public class HybridChip8XBus extends CosmacVIPBus {
@@ -111,8 +114,11 @@ public class HybridChip8XBus extends CosmacVIPBus {
     }
 
     @Override
-    protected void initializeRam(CosmacVIPEmulator emulator, byte[] rom) {
+    protected void initializeRam(CosmacVIPEmulator emulator, byte @Nullable [] rom) {
         if (emulator.getChip8Interpreter() == CosmacVIPHost.Chip8Interpreter.CHIP_8X) {
+            if (rom == null) {
+                throw new MissingROMException(emulator.getHost().getSystemName());
+            }
             System.arraycopy(CHIP_8X_INTERPRETER, 0, this.ram, 0, CHIP_8X_INTERPRETER.length);
             System.arraycopy(rom, 0, this.ram, CHIP_8X_INTERPRETER.length, rom.length);
         } else {

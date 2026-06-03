@@ -3,6 +3,7 @@ package io.github.arkosammy12.jemu.core.rca.cosmacvip;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import io.github.arkosammy12.jemu.core.common.Bus;
 import io.github.arkosammy12.jemu.core.exceptions.MissingROMException;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Optional;
@@ -150,28 +151,27 @@ public class CosmacVIPBus implements Bus {
     protected int dataBus = 0;
 
     public CosmacVIPBus(CosmacVIPEmulator emulator) {
-        Optional<byte[]> optionalHostRom = emulator.getHost().getRom();
-        if (optionalHostRom.isEmpty()) {
-            throw new MissingROMException(emulator.getHost().getSystemName());
-        }
-        byte[] hostRom = optionalHostRom.get();
-        byte[] rom = Arrays.copyOf(hostRom, hostRom.length);
         this.ram = new byte[0x1000];
         try {
-            this.initializeRam(emulator, rom);
+            this.initializeRam(emulator, emulator.getHost().getRom().map(rom -> Arrays.copyOf(rom, rom.length)).orElse(null));
         } catch (ArrayIndexOutOfBoundsException e) {
             throw new EmulatorException("ROM size too big for Cosmac VIP system!");
         } catch (Exception e) {
-            throw new RuntimeException("Failed to initialize memory for Cosmac VIP system!", e);
+            throw new RuntimeException("Failed to initialize memory for Cosmac VIP system: " + e.getMessage(), e);
         }
     }
 
-    protected void initializeRam(CosmacVIPEmulator emulator, byte[] rom) {
+    protected void initializeRam(CosmacVIPEmulator emulator, byte @Nullable [] rom) {
         if (emulator.getChip8Interpreter() == CosmacVIPHost.Chip8Interpreter.CHIP_8) {
+            if (rom == null) {
+                throw new MissingROMException(emulator.getHost().getSystemName());
+            }
             System.arraycopy(CHIP_8_INTERPRETER, 0, this.ram, 0, CHIP_8_INTERPRETER.length);
             System.arraycopy(rom, 0, this.ram, CHIP_8_INTERPRETER.length, rom.length);
         } else {
-            System.arraycopy(rom, 0, this.ram, 0, rom.length);
+            if (rom != null) {
+                System.arraycopy(rom, 0, this.ram, 0, rom.length);
+            }
         }
     }
 
