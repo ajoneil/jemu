@@ -603,6 +603,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         }
 
         boolean isRenderScanline = this.isRenderScanline();
+        boolean isRenderingEnabled = this.isRenderingEnabled();
 
         switch (this.currentDotHalf) {
             case FIRST -> {
@@ -610,7 +611,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                 this.refreshSpriteShiftersSignal.tick();
 
                 if (isRenderScanline) {
-                    boolean isRenderingEnabled = this.isRenderingEnabled();
+
                     boolean isPreRenderScanline = this.isPreRenderScanline();
 
                     if (this.dotNumber == SPRITE_EVAL_START || this.dotNumber == SPRITE_FETCH_START || (!isPreRenderScanline && ((this.dotSkipped && this.dotNumber == 1) || (!this.dotSkipped && this.dotNumber == 0)))) {
@@ -659,15 +660,14 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                 }
             }
             case SECOND -> {
-                boolean isRenderingEnabled = this.isRenderingEnabled();
-
-				if (isRenderScanline && isRenderingEnabled && !(this.isVisibleScanline() &&	this.dotNumber >= SPRITE_EVAL_START && this.dotNumber <= SPRITE_EVAL_END)) {
-					this.oamDataReadBuffer = this.oamBuffer;
-				}
 
                 if (isRenderScanline) {
                     boolean isVisibleDot = this.isVisibleDot();
                     boolean isVisibleScanline = this.isVisibleScanline();
+
+                    if (isRenderingEnabled && !(isVisibleScanline && this.dotNumber >= SPRITE_EVAL_START && this.dotNumber <= SPRITE_EVAL_END)) {
+                        this.oamDataReadBuffer = this.oamBuffer;
+                    }
 
                     if (isVisibleDot) {
                         this.tickPixelShifter(isRenderingEnabled, true, isVisibleScanline);
