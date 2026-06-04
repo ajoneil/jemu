@@ -228,6 +228,10 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private int primaryOAMAddress;
     private int secondaryOAMAddress;
 
+    // We technically shouldn't need this for OAM corruption purposes. oam2addr should remain unmodified when rendering is disabled.
+    // However, this works for now to pass Accuracy Coin's OAM corruption test and keep Huge Insect playable
+    private int secondaryOAMAddressWhenRenderingDisabled;
+
     private int oamBuffer;
 	private int oamDataReadBuffer;
 
@@ -309,7 +313,12 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         Arrays.fill(this.secondaryOAM, 0xFF);
 
         this.copyTtoVSignalId = this.signalDispatcher.addSignal(_ -> this.setV(this.getT()));
-        this.toggleRenderingSignalId = this.signalDispatcher.addSignal(_ -> this.isRendering = !this.isRendering);
+        this.toggleRenderingSignalId = this.signalDispatcher.addSignal(_ -> {
+            this.isRendering = !this.isRendering;
+            if (!this.isRendering) {
+                this.secondaryOAMAddressWhenRenderingDisabled = this.secondaryOAMAddress;
+            }
+        });
         this.clearVisibleVblOnPpuStatusReadSignalId = this.signalDispatcher.addSignal(_ -> this.setVBlankFlag(false));
         this.clearInternalVblOnPpuStatusReadSignalId = this.signalDispatcher.addSignal(_ -> this.vBlankFlagForNMI = false);
         this.setSprite0HItSignalId = this.signalDispatcher.addSignal(_ -> {
@@ -1266,13 +1275,13 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     protected void checkOAMCorruption(boolean renderingEnabled) {
         if (renderingEnabled) {
             int oam1Row = this.primaryOAMAddress >>> 3;
-            if (oam1Row != this.secondaryOAMAddress) {
+            if (oam1Row != this.secondaryOAMAddressWhenRenderingDisabled) {
                 int sourceBegin = oam1Row << 3;
-                int destBegin = this.secondaryOAMAddress << 3;
+                int destBegin = this.secondaryOAMAddressWhenRenderingDisabled << 3;
                 for (int i = 0; i < 8; i++) {
                     this.primaryOAM[destBegin + i] = this.primaryOAM[sourceBegin + i];
                 }
-                this.secondaryOAM[this.secondaryOAMAddress] = this.secondaryOAM[oam1Row];
+                this.secondaryOAM[this.secondaryOAMAddressWhenRenderingDisabled] = this.secondaryOAM[oam1Row];
             }
         }
     }
