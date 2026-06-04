@@ -228,10 +228,6 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private int primaryOAMAddress;
     private int secondaryOAMAddress;
 
-    // We technically shouldn't need this for OAM corruption purposes. oam2addr should remain unmodified when rendering is disabled.
-    // However, this works for now to pass Accuracy Coin's OAM corruption test and keep Huge Insect playable
-    private int secondaryOAMAddressWhenRenderingDisabled;
-
     private int oamBuffer;
 	private int oamDataReadBuffer;
 
@@ -313,12 +309,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         Arrays.fill(this.secondaryOAM, 0xFF);
 
         this.copyTtoVSignalId = this.signalDispatcher.addSignal(_ -> this.setV(this.getT()));
-        this.toggleRenderingSignalId = this.signalDispatcher.addSignal(_ -> {
-            this.isRendering = !this.isRendering;
-            if (!this.isRendering) {
-                this.secondaryOAMAddressWhenRenderingDisabled = this.secondaryOAMAddress;
-            }
-        });
+        this.toggleRenderingSignalId = this.signalDispatcher.addSignal(_ -> this.isRendering = !this.isRendering);
         this.clearVisibleVblOnPpuStatusReadSignalId = this.signalDispatcher.addSignal(_ -> this.setVBlankFlag(false));
         this.clearInternalVblOnPpuStatusReadSignalId = this.signalDispatcher.addSignal(_ -> this.vBlankFlagForNMI = false);
         this.setSprite0HItSignalId = this.signalDispatcher.addSignal(_ -> {
@@ -620,12 +611,13 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
                 if (isRenderScanline) {
                     boolean isRenderingEnabled = this.isRenderingEnabled();
+                    boolean isPreRenderScanline = this.isPreRenderScanline();
 
-                    if (this.dotNumber == SPRITE_EVAL_START || this.dotNumber == SPRITE_FETCH_START || (this.dotSkipped && this.dotNumber == 1) || (!this.dotSkipped && this.dotNumber == 0)) {
+                    if (this.dotNumber == SPRITE_EVAL_START || this.dotNumber == SPRITE_FETCH_START || (!isPreRenderScanline && ((this.dotSkipped && this.dotNumber == 1) || (!this.dotSkipped && this.dotNumber == 0)))) {
                         if (isRenderingEnabled) {
                             this.secondaryOAMAddress = 0;
                             this.spriteEvaluationSecondaryOamAddressOverflowed = false;
-							this.spriteEvaluationOverflowMode = 0;
+                            this.spriteEvaluationOverflowMode = 0;
                         }
                     }
 
@@ -641,8 +633,10 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                         }
                     }
 
-                    if (this.isPreRenderScanline()) {
-                        if (this.dotNumber == 1) {
+                    if (isPreRenderScanline) {
+                        if (this.dotNumber == 0) {
+                            this.checkOAMCorruption(isRenderingEnabled);
+                        } else if (this.dotNumber == 1) {
                             this.setSprite0HitFlag(false);
                             this.setSpriteOverflowFlag(false);
                         }
@@ -672,7 +666,6 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 				}
 
                 if (isRenderScanline) {
-
                     boolean isVisibleDot = this.isVisibleDot();
                     boolean isVisibleScanline = this.isVisibleScanline();
 
@@ -714,7 +707,6 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
                     if (this.isPreRenderScanline()) {
                         if (this.dotNumber == 0) {
-                            this.checkOAMCorruption(isRenderingEnabled);
                             this.vBlankFlagForNMI = false;
                         } else if (this.dotNumber == 1) {
                             this.setVBlankFlag(false);
@@ -1271,17 +1263,17 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         }
     }
 
-    // Assumes called on the second half of dot 0 of the pre-render scanline
+    // Assumes called on the first half of dot 0 of the pre-render scanline
     protected void checkOAMCorruption(boolean renderingEnabled) {
         if (renderingEnabled) {
             int oam1Row = this.primaryOAMAddress >>> 3;
-            if (oam1Row != this.secondaryOAMAddressWhenRenderingDisabled) {
+            if (oam1Row != this.secondaryOAMAddress) {
                 int sourceBegin = oam1Row << 3;
-                int destBegin = this.secondaryOAMAddressWhenRenderingDisabled << 3;
+                int destBegin = this.secondaryOAMAddress << 3;
                 for (int i = 0; i < 8; i++) {
                     this.primaryOAM[destBegin + i] = this.primaryOAM[sourceBegin + i];
                 }
-                this.secondaryOAM[this.secondaryOAMAddressWhenRenderingDisabled] = this.secondaryOAM[oam1Row];
+                this.secondaryOAM[this.secondaryOAMAddress] = this.secondaryOAM[oam1Row];
             }
         }
     }
