@@ -664,8 +664,6 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
                 if (isRenderScanline) {
 
-                    this.checkOAMCorruption(isRenderingEnabled);
-
                     boolean isVisibleDot = this.isVisibleDot();
                     boolean isVisibleScanline = this.isVisibleScanline();
 
@@ -707,6 +705,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
                     if (this.isPreRenderScanline()) {
                         if (this.dotNumber == 0) {
+                            this.checkOAMCorruption(isRenderingEnabled);
                             this.vBlankFlagForNMI = false;
                         } else if (this.dotNumber == 1) {
                             this.setVBlankFlag(false);
@@ -1263,8 +1262,9 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         }
     }
 
+    // Assumes called on the second half of dot 0 of the pre-render scanline
     protected void checkOAMCorruption(boolean renderingEnabled) {
-        if (this.isPreRenderScanline() && this.dotNumber == 0 && renderingEnabled) {
+        if (renderingEnabled) {
             int oam1Row = this.primaryOAMAddress >>> 3;
             if (oam1Row != this.secondaryOAMAddress) {
                 int sourceBegin = oam1Row << 3;
