@@ -175,6 +175,9 @@ public class RP2C07<E extends NESEmulator> extends RP2C02<E> {
         return PALETTE_2C07_COMPACT;
     }
 
-    // TODO: Reminder that OAM corruption does not happen on PAL!
+    @Override
+    protected void checkOAMCorruption(boolean renderingEnabled) {
+        //  No OAM corruption on PAL
+    }
 
 }

@@ -664,6 +664,8 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
                 if (isRenderScanline) {
 
+                    this.checkOAMCorruption(isRenderingEnabled);
+
                     boolean isVisibleDot = this.isVisibleDot();
                     boolean isVisibleScanline = this.isVisibleScanline();
 
@@ -1258,6 +1260,20 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
             return (patternTable << 12) | (tileNumber << 4) | (highBitPlane ? 1 << 3 : 0) | ((spriteYInRange & 0b1000) << 1) | (spriteYInRange & 0b111);
         } else {
             return this.spritePatternTableAddress8x8 | ((yFlip ? ~spriteY : spriteY) & 0b111) | (highBitPlane ? 1 << 3 : 0) | (this.spriteFetcherTileNumber << 4);
+        }
+    }
+
+    protected void checkOAMCorruption(boolean renderingEnabled) {
+        if (this.isPreRenderScanline() && this.dotNumber == 0 && renderingEnabled) {
+            int oam1Row = this.primaryOAMAddress >>> 3;
+            if (oam1Row != this.secondaryOAMAddress) {
+                int sourceBegin = oam1Row << 3;
+                int destBegin = this.secondaryOAMAddress << 3;
+                for (int i = 0; i < 8; i++) {
+                    this.primaryOAM[destBegin + i] = this.primaryOAM[sourceBegin + i];
+                }
+                this.secondaryOAM[this.secondaryOAMAddress] = this.secondaryOAM[oam1Row];
+            }
         }
     }
 
