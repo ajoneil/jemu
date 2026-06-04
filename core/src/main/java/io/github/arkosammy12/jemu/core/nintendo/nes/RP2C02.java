@@ -592,7 +592,6 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     public void cycleHalfDot() {
 
         this.signalDispatcher.tick();
-
         this.emulator.getCartridge().onPPUHalfDot();
 
         if (this.decayPPUDataBusCountdown > 0) {
@@ -603,15 +602,13 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         }
 
         boolean isRenderScanline = this.isRenderScanline();
-        boolean isRenderingEnabled = this.isRenderingEnabled();
 
         switch (this.currentDotHalf) {
             case FIRST -> {
-
                 this.refreshSpriteShiftersSignal.tick();
 
                 if (isRenderScanline) {
-
+                    boolean isRenderingEnabled = this.isRenderingEnabled();
                     boolean isPreRenderScanline = this.isPreRenderScanline();
 
                     if (this.dotNumber == SPRITE_EVAL_START || this.dotNumber == SPRITE_FETCH_START || (!isPreRenderScanline && ((this.dotSkipped && this.dotNumber == 1) || (!this.dotSkipped && this.dotNumber == 0)))) {
@@ -656,12 +653,11 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 							this.refreshSpriteShiftersSignal.trigger(4, 0);
 						}
 					}
-
                 }
             }
             case SECOND -> {
-
                 if (isRenderScanline) {
+                    boolean isRenderingEnabled = this.isRenderingEnabled();
                     boolean isVisibleDot = this.isVisibleDot();
                     boolean isVisibleScanline = this.isVisibleScanline();
 
@@ -691,7 +687,6 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
                     if (this.dotNumber >= SPRITE_FETCH_START && this.dotNumber <= SPRITE_FETCH_END) {
                         this.tickSpriteFetcher(isRenderingEnabled);
-
                         this.spriteEvaluationStep = 0;
                         this.spriteEvaluationOamReadingCounter = 0;
                         this.spriteEvaluationOriginalPrimaryOamAddressOverflowed = false;
@@ -717,6 +712,8 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                             if (isRenderingEnabled) {
                                 this.copyVerticalPositionBitsToV();
                             }
+                        } else if (this.dotNumber == 340) {
+                            this.skipDot0NextFrame = this.frameParity == FrameParity.ODD && isRenderingEnabled && this.doOddFrameDotSkipping;
                         }
                     }
 
@@ -743,7 +740,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
                 } else if (this.scanlineNumber == this.vblScanline - 1) {
                     if (this.dotNumber == 0) {
-                        if (isRenderingEnabled) {
+                        if (this.isRenderingEnabled()) {
                             this.readBytePPU(this.getBackgroundPatternByteAddress(false));
                         }
                     }
@@ -759,10 +756,6 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                 if (this.dotNumber == SPRITE_FETCH_START) {
                     this.spriteShifterInitIndex = 0;
                 }
-
-				if (this.isPreRenderScanline() && this.dotNumber == 340) {
-					this.skipDot0NextFrame = this.frameParity.getOpposite().isEven() && this.isRenderingEnabled() && this.doOddFrameDotSkipping;
-				}
 
 				this.dotNumber++;
 				if (this.dotNumber >= DOTS_PER_SCANLINE) {
@@ -1398,14 +1391,6 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
                 case EVEN -> ODD;
                 case ODD -> EVEN;
             };
-        }
-
-        private boolean isEven() {
-            return this == EVEN;
-        }
-
-        private boolean isOdd() {
-            return this == ODD;
         }
 
     }
