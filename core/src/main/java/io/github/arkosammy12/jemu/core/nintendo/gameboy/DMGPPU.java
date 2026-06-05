@@ -142,10 +142,6 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     public int readByte(int address) {
         if (address >= OAM_START && address <= OAM_END) {
             int ppuMode = this.getPPUMode();
-
-            // TODO: Reincorporate when corruption pattern and timings are correct
-            //this.checkArmOAMBugRead(address);
-
             if (Mode.MODE_0_HBLANK.matchesValue(ppuMode) || Mode.MODE_1_VBLANK.matchesValue(ppuMode) || !this.getLCDPPUEnable()) {
                 return (int) this.oam[address - OAM_START] & 0xFF;
             } else {
@@ -180,10 +176,6 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     public void writeByte(int address, int value) {
         if (address >= OAM_START && address <= OAM_END) {
             int ppuMode = this.getPPUMode();
-
-            // TODO: Reincorporate when corruption pattern and timings are correct
-            //this.checkArmOAMBugWrite(address);
-
             if (Mode.MODE_0_HBLANK.matchesValue(ppuMode) || Mode.MODE_1_VBLANK.matchesValue(ppuMode) || !this.getLCDPPUEnable()) {
               this.oam[address - OAM_START] = (byte) value;
             }
@@ -527,7 +519,12 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     }
 
     protected void doOAMBugRead() {
-        int cur = ((this.scannedEntries / 2) + 1) * 8;
+        // The scanner reaches its first entry 4 dots into Mode 2, two entries behind
+        // the scan counter
+        int cur = ((Math.max(this.scannedEntries - 2, 0) / 2) + 1) * 8;
+        if (this.scannedEntries < 2) {
+            return;
+        }
         if (cur < 8 || cur >= 160 || !Mode.MODE_2_OAM_SCAN.matchesValue(this.getPPUMode())) {
             return;
         }
@@ -582,7 +579,10 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     }
 
     protected void doOAMBugWrite() {
-        int cur = ((this.scannedEntries / 2) + 1) * 8;
+        int cur = ((Math.max(this.scannedEntries - 2, 0) / 2) + 1) * 8;
+        if (this.scannedEntries < 2) {
+            return;
+        }
         if (cur < 8 || cur >= 160 || !Mode.MODE_2_OAM_SCAN.matchesValue(this.getPPUMode())) {
             return;
         }
