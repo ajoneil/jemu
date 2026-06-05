@@ -327,11 +327,13 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     }
 
     private boolean evaluateSTATLine(boolean lycSelect, boolean mode0Select, boolean mode1Select, boolean mode2Select) {
+        // The internal OAM-scan signal pulses high at the start of line 144, raising the STAT line for mode 2 at VBlank entry
+        boolean mode2VBlankPulse = this.scanlineNumber == 144 && this.dotNumber >= 1 && this.dotNumber <= 4;
         boolean statInterruptLine = false;
         statInterruptLine |= lycSelect && this.getLYEqualsLYCFlag();
         statInterruptLine |= mode0Select && Mode.MODE_0_HBLANK.matchesValue(this.statModeForInterrupt);
         statInterruptLine |= mode1Select && Mode.MODE_1_VBLANK.matchesValue(this.statModeForInterrupt);
-        statInterruptLine |= mode2Select && Mode.MODE_2_OAM_SCAN.matchesValue(this.statModeForInterrupt);
+        statInterruptLine |= mode2Select && (Mode.MODE_2_OAM_SCAN.matchesValue(this.statModeForInterrupt) || mode2VBlankPulse);
         if (!this.oldStatInterruptLine && statInterruptLine) {
             this.triggerSTATInterrupt();
         }
@@ -379,11 +381,6 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                     this.triggerVBlankInterrupt();
                     this.windowYCondition = false;
                     this.windowLine = 0;
-
-                    // For some reason, Mooneye test vblank_stat_intr-GS.gb expects this
-                    if (this.getMode2InterruptSelect()) {
-                        this.triggerSTATInterrupt();
-                    }
 
                     if (this.enablePixelWritesDelay > 0) {
                         this.enablePixelWritesDelay--;
