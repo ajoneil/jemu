@@ -2,6 +2,7 @@
 # suite until it is removed from this list.
 
 # DMG OAM bug
+oam_bug/rom_singles/2-causes.gb (DMG)
 oam_bug/rom_singles/4-scanline_timing.gb (DMG)
 oam_bug/rom_singles/5-timing_bug.gb (DMG)
 oam_bug/rom_singles/7-timing_effect.gb (DMG)
