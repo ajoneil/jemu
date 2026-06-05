@@ -843,7 +843,9 @@ public class SM83<S extends SM83.SystemBus> implements Processor {
                     switch (machineCycleIndex) {
                         case 0 -> {
                             if (interruptsPending()) {
-                                this.haltBug = true;
+                                if (!getIME()) {
+                                    this.haltBug = true;
+                                }
                                 machineCycleIndex = TERMINATE_INSTRUCTION;
                             } else {
                                 this.mode = Mode.HALTED;
