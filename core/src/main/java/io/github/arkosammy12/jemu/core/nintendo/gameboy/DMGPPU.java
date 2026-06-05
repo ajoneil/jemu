@@ -139,7 +139,10 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     public int readByte(int address) {
         if (address >= OAM_START && address <= OAM_END) {
             int ppuMode = this.getPPUMode();
-            this.checkArmOAMBugRead(address);
+
+            // TODO: Reincorporate when corruption pattern and timings are correct
+            //this.checkArmOAMBugRead(address);
+
             if (Mode.MODE_0_HBLANK.matchesValue(ppuMode) || Mode.MODE_1_VBLANK.matchesValue(ppuMode) || !this.getLCDPPUEnable()) {
                 return (int) this.oam[address - OAM_START] & 0xFF;
             } else {
@@ -174,7 +177,10 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     public void writeByte(int address, int value) {
         if (address >= OAM_START && address <= OAM_END) {
             int ppuMode = this.getPPUMode();
-            this.checkArmOAMBugWrite(address);
+
+            // TODO: Reincorporate when corruption pattern and timings are correct
+            //this.checkArmOAMBugWrite(address);
+
             if (Mode.MODE_0_HBLANK.matchesValue(ppuMode) || Mode.MODE_1_VBLANK.matchesValue(ppuMode) || !this.getLCDPPUEnable()) {
               this.oam[address - OAM_START] = (byte) value;
             } else {
