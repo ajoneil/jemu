@@ -257,6 +257,18 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
         return new byte[8][0x1000];
     }
 
+    @Override
+    protected int readWorkRAM(int address) {
+        int offset = address & 0x1FFF;
+        return (int) this.workRAM[offset < 0x1000 ? 0 : this.workRAMBank][offset & 0xFFF] & 0xFF;
+    }
+
+    @Override
+    protected void writeWorkRAM(int address, int value) {
+        int offset = address & 0x1FFF;
+        this.workRAM[offset < 0x1000 ? 0 : this.workRAMBank][offset & 0xFFF] = (byte) value;
+    }
+
     public boolean haltCPU() {
         return this.haltCPU;
     }
@@ -272,15 +284,6 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
                 return super.readByte(address);
             } else {
                 return SAMEBOY_CGB_BOOT_ROM[address];
-            }
-        } else if (address >= WRAMX_START && address <= WRAMX_END) {
-            return (int) this.workRAM[this.workRAMBank][address & 0xFFF] & 0xFF;
-        } else if (address >= ECHO_START && address <= ECHO_END) {
-            address &= 0x1FFF;
-            if (address < this.workRAM[0].length) {
-                return (int) this.workRAM[0][address] & 0xFF;
-            } else {
-                return (int) this.workRAM[this.workRAMBank][address & 0xFFF] & 0xFF;
             }
         } else if (address >= IO_START && address <= IO_END) {
             return switch (address) {
@@ -314,16 +317,7 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
             super.writeByte(address, value);
             return;
         }
-        if (address >= WRAMX_START && address <= WRAMX_END) {
-            this.workRAM[this.workRAMBank][address & 0xFFF] = (byte) value;
-        } else if (address >= ECHO_START && address <= ECHO_END) {
-            address &= 0x1FFF;
-            if (address < this.workRAM[0].length) {
-                this.workRAM[0][address] = (byte) value;
-            } else {
-                this.workRAM[this.workRAMBank][address & 0xFFF] = (byte) value;
-            }
-        }  else if (address >= IO_START && address <= IO_END) {
+        if (address >= IO_START && address <= IO_END) {
             switch (address) {
                 case KEY_0_ADDR -> this.emulator.writeKey0(value);
                 case KEY_1_ADDR -> this.emulator.writeKEY1(value);
@@ -491,10 +485,8 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
             return this.emulator.getCartridge().readByte(address);
         } else if (address >= VRAM_START && address <= VRAM_END) {
             return 0xFF;
-        } else if (address >= WRAM0_START && address <= WRAM0_END) {
-            return (int) this.workRAM[0][address & 0xFFF] & 0xFF;
-        } else if (address >= WRAMX_START && address <= WRAMX_END) {
-            return (int) this.workRAM[this.workRAMBank][address & 0xFFF] & 0xFF;
+        } else if (address >= WRAM0_START && address <= WRAMX_END) {
+            return this.readWorkRAM(address);
         } else if (address >= 0xE000 && address <= 0xFFFF) {
             return 0xFF;
             //return this.emulator.getCartridge().readByte(0xA000 + (address - 0xE000));
@@ -514,22 +506,6 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
                 return SAMEBOY_CGB_BOOT_ROM[address];
             } else {
                 return super.readByteOAMDMA(address);
-            }
-        } else if (address >= WRAMX_START && address <= WRAMX_END) {
-            return (int) this.workRAM[this.workRAMBank][address & 0xFFF] & 0xFF;
-        } else if (address >= ECHO_START && address <= ECHO_END) {
-            address &= 0x1FFF;
-            if (address < this.workRAM[0].length) {
-                return (int) this.workRAM[0][address] & 0xFF;
-            } else {
-                return (int) this.workRAM[this.workRAMBank][address & 0xFFF] & 0xFF;
-            }
-        } else if (address >= 0xFE00 && address <= 0xFFFF) {
-            address &= 0x1FFF;
-            if (address < this.workRAM[0].length) {
-                return (int) this.workRAM[0][address] & 0xFF;
-            } else {
-                return (int) this.workRAM[this.workRAMBank][address & 0xFFF] & 0xFF;
             }
         } else {
             return super.readByteOAMDMA(address);

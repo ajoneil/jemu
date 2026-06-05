@@ -85,14 +85,14 @@ public abstract class GameBoyCartridge implements Bus {
     }
 
     public void save() {
-        Optional<Path> optionalSaveDataDirectory = this.gameBoyEmulator.getHost().getSaveDataDirectory();
-        if (optionalSaveDataDirectory.isEmpty()) {
-            Logger.warn("Cannot save GameBoy cartridge save data because no save data directory was provided!");
+        Optional<byte[]> saveDataOptional = this.getSaveData();
+        if (saveDataOptional.isEmpty()) {
             return;
         }
 
-        Optional<byte[]> saveDataOptional = this.getSaveData();
-        if (saveDataOptional.isEmpty()) {
+        Optional<Path> optionalSaveDataDirectory = this.gameBoyEmulator.getHost().getSaveDataDirectory();
+        if (optionalSaveDataDirectory.isEmpty()) {
+            Logger.warn("Cannot save GameBoy cartridge save data because no save data directory was provided!");
             return;
         }
         byte[] saveData = saveDataOptional.get();

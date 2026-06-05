@@ -1,0 +1,11 @@
+# Blargg ROMs expected to fail. A listed ROM that starts passing fails the
+# suite until it is removed from this list.
+
+# DMG OAM bug
+oam_bug/rom_singles/4-scanline_timing.gb (DMG)
+oam_bug/rom_singles/5-timing_bug.gb (DMG)
+oam_bug/rom_singles/7-timing_effect.gb (DMG)
+oam_bug/rom_singles/8-instr_effect.gb (DMG)
+
+# CGB interrupt timing
+interrupt_time/interrupt_time.gb (CGB)
