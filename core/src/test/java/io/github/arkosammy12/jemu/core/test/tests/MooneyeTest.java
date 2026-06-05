@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class MooneyeTest {
 
     private static final int TIMEOUT_FRAMES = 20 * 60;
-    private static final String EXPECTED_FAILURES_RESOURCE = "mooneye-expected-failures.txt";
+    private static final String EXPECTED_FAILURES_RESOURCE = "gameboy/mooneye-expected-failures.txt";
 
     @TestFactory
     public Stream<DynamicTest> mooneye_acceptance() throws IOException {

@@ -32,8 +32,7 @@ public final class GameBoyTestHarness implements AutoCloseable {
         TIMED_OUT,
     }
 
-    public record BlarggResult(Result status, String output) {
-    }
+    public record BlarggResult(Result status, String output) { }
 
     /**
      * Runs until the CPU registers contain the Mooneye result signature, polling once

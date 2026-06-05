@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class BlarggTest {
 
     private static final int TIMEOUT_FRAMES = 60 * 60;
-    private static final String EXPECTED_FAILURES_RESOURCE = "blargg-expected-failures.txt";
+    private static final String EXPECTED_FAILURES_RESOURCE = "gameboy/blargg-expected-failures.txt";
 
     private static final List<Map.Entry<String, Set<GameBoyHost.Model>>> ROM_DIRECTORIES = List.of(
             Map.entry("cpu_instrs/individual", EnumSet.allOf(GameBoyHost.Model.class)),
