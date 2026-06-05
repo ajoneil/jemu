@@ -96,6 +96,14 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
         return new byte[1][0x2000];
     }
 
+    protected int readWorkRAM(int address) {
+        return (int) this.workRAM[0][address & 0x1FFF] & 0xFF;
+    }
+
+    protected void writeWorkRAM(int address, int value) {
+        this.workRAM[0][address & 0x1FFF] = (byte) value;
+    }
+
     public boolean isBootRomEnabled() {
         return this.enableBootRom;
     }
@@ -126,7 +134,7 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
         } else if ((address >= VRAM_START && address <= VRAM_END) || (address >= OAM_START && address <= OAM_END)) {
             return this.emulator.getVideoGenerator().readByte(address);
         } else if (address >= WRAM0_START && address <= ECHO_END) {
-            return (int) this.workRAM[0][address & 0x1FFF] & 0xFF;
+            return this.readWorkRAM(address);
         } else if (address >= UNUSED_START && address <= UNUSED_END) {
             return 0x00;
         } else if ((address >= IO_START && address <= IO_END) || address == IE_ADDR) {
@@ -165,7 +173,7 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
         } else if ((address >= VRAM_START && address <= VRAM_END) || (address >= OAM_START && address <= OAM_END)) {
             this.emulator.getVideoGenerator().writeByte(address, value);
         } else if (address >= WRAM0_START && address <= ECHO_END) {
-            this.workRAM[0][address & 0x1FFF] = (byte) value;
+            this.writeWorkRAM(address, value);
         } else if (address >= UNUSED_START && address <= UNUSED_END) {
             // TODO: TRIGGER OAM BUG
         } else if ((address >= IO_START && address <= IO_END) || address == IE_ADDR) {
@@ -225,9 +233,9 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
         } else if (address >= VRAM_START && address <= VRAM_END) {
             return this.emulator.getVideoGenerator().readByte(address);
         } else if (address >= WRAM0_START && address <= ECHO_END) {
-            return (int) this.workRAM[0][address & 0x1FFF] & 0xFF;
+            return this.readWorkRAM(address);
         } else if (address >= 0xFE00 && address <= 0xFFFF) {
-            return (int) this.workRAM[0][address & 0x1FFF] & 0xFF;
+            return this.readWorkRAM(address);
         } else {
             throw new EmulatorException("Invalid GameBoy memory address %04X!".formatted(address));
         }
