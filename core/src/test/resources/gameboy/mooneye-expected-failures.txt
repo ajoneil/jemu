@@ -7,8 +7,6 @@ boot_hwio-dmgABCmgb.gb (DMG)
 serial/boot_sclk_align-dmgABCmgb.gb (DMG)
 
 # PPU timing
-ppu/intr_2_mode0_timing_sprites.gb (DMG)
-ppu/intr_2_mode0_timing_sprites.gb (CGB)
 ppu/lcdon_timing-GS.gb (DMG)
 ppu/lcdon_write_timing-GS.gb (DMG)
 

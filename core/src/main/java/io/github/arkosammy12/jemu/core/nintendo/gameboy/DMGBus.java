@@ -122,6 +122,7 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
 
     @Override
     public int readByte(int address) {
+        this.emulator.syncPpuForCpuRead();
         if (this.isOAMDMABusConflict(address)) {
             // TODO: Perhaps this value is only returned when reading from OAM. Otherwise return the current value being read by OAM. Check numism test ROM for info.
             return 0xFF;
@@ -165,6 +166,9 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
 
     @Override
     public void writeByte(int address, int value) {
+        if ((address >= LCDC_ADDR && address <= LYC_ADDR) || (address >= BGP_ADDR && address <= WX_ADDR)) {
+            this.emulator.syncPpuForCpuPpuRegisterWrite();
+        }
         if (this.oamTransferInProgress && address < 0xFF00) {
             return;
         }

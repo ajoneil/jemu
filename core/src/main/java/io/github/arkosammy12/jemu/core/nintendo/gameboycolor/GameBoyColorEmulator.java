@@ -99,26 +99,33 @@ public class GameBoyColorEmulator extends GameBoyEmulator implements CGBSM83.Sys
         DMGSerialController<?> serialController = this.getSerialController();
 
         if ((this.key1 & 0x80) == 0) {
+            this.mcycleDot = 0;
+            this.cpuMCycleDotBase = 0;
+            this.cpuMCycleDotSpan = 4;
             boolean apuFrameSequencerTick = false;
             if (bus.haltCPU()) {
                 if (cpu.getMode() != SM83.Mode.STOPPED) {
                     apuFrameSequencerTick = timerController.cycle();
                 }
             } else {
+                this.cpuOnBus = true;
                 cpu.cycle();
+                this.cpuOnBus = false;
                 if (cpu.getMode() != SM83.Mode.STOPPED) {
                     apuFrameSequencerTick = timerController.cycle();
                 }
                 cpu.nextState();
             }
 
-            ppu.cycle();
+            this.syncPpuToDot(4);
             apu.cycle(apuFrameSequencerTick);
             serialController.cycle();
             cartridge.cycle();
             bus.cycleOAMDMA();
             bus.cycleVDMA();
         } else {
+            this.mcycleDot = 0;
+            this.cpuMCycleDotSpan = 2;
             boolean apuFrameSequencerTick = false;
             if (bus.haltCPU()) {
                 if (cpu.getMode() != SM83.Mode.STOPPED) {
@@ -126,20 +133,26 @@ public class GameBoyColorEmulator extends GameBoyEmulator implements CGBSM83.Sys
                     apuFrameSequencerTick |= timerController.cycle();
                 }
             } else {
+                this.cpuMCycleDotBase = 0;
+                this.cpuOnBus = true;
                 cpu.cycle();
+                this.cpuOnBus = false;
                 if (cpu.getMode() != SM83.Mode.STOPPED) {
                     apuFrameSequencerTick |= timerController.cycle();
                 }
                 cpu.nextState();
 
+                this.cpuMCycleDotBase = 2;
+                this.cpuOnBus = true;
                 cpu.cycle();
+                this.cpuOnBus = false;
                 if (cpu.getMode() != SM83.Mode.STOPPED) {
                     apuFrameSequencerTick |= timerController.cycle();
                 }
                 cpu.nextState();
             }
 
-            ppu.cycle();
+            this.syncPpuToDot(4);
             apu.cycle(apuFrameSequencerTick);
 
             serialController.cycle();

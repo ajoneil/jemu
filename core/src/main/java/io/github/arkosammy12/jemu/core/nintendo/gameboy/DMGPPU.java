@@ -80,6 +80,9 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
 
     protected boolean enablePixelWrites;
     private int enablePixelWritesDelay;
+    private boolean lcdOnLine;
+    private int pendingVisibleMode = -1;
+    private boolean pendingLyIncrement;
 
     private boolean oldStatInterruptLine;
 
@@ -259,12 +262,15 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
 
     private void onLCDOn() {
         this.enablePixelWritesDelay = 2;
-        this.dotNumber = 4;
+        this.dotNumber = 2;
+        this.lcdOnLine = true;
     }
 
     private void onLCDOff() {
         this.enablePixelWrites = false;
         this.enablePixelWritesDelay = -1;
+        this.lcdOnLine = false;
+        this.pendingVisibleMode = -1;
         this.armOamBugRead = false;
         this.armOamBugWrite = false;
         Arrays.fill(this.lcd, this.getLcdOffColor());
@@ -278,9 +284,20 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         this.cycleDot(3);
     }
 
-    private void cycleDot(int tCycle) {
+    void cycleDot(int tCycle) {
         if (!this.getLCDPPUEnable()) {
             return;
+        }
+        // STAT mode bits latched by a CPU read in the same M-cycle as a mode transition
+        // show the pre-transition value; publish at the next M-cycle boundary
+        if (tCycle == 0 && this.pendingVisibleMode >= 0) {
+            this.setPPUMode(this.pendingVisibleMode);
+            this.pendingVisibleMode = -1;
+        }
+        // LY ripples one dot after the scanline wrap
+        if (this.pendingLyIncrement) {
+            this.lcdY = (this.lcdY + 1) % SCANLINES_PER_FRAME;
+            this.pendingLyIncrement = false;
         }
         this.nextState();
 
@@ -302,14 +319,17 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         }
 
         this.dotNumber++;
-        if (this.dotNumber >= CYCLES_PER_SCANLINE) {
+        // The first scanline after LCD-on is 454 dots, its Mode 0 ending early
+        int lineLength = this.lcdOnLine ? CYCLES_PER_SCANLINE - 2 : CYCLES_PER_SCANLINE;
+        if (this.dotNumber >= lineLength) {
+            this.lcdOnLine = false;
             this.dotNumber = 0;
             this.dotCycleIndex = 0;
 
             int originalScanlineNumber = this.scanlineNumber;
             this.scanlineNumber = (this.scanlineNumber + 1) % SCANLINES_PER_FRAME;
             if (originalScanlineNumber != 153) {
-                this.lcdY = (this.lcdY + 1) % SCANLINES_PER_FRAME;
+                this.pendingLyIncrement = true;
                 this.setLYEqualsLYCFlag(false);
             }
 
@@ -319,7 +339,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             }
         }
 
-        if (this.dotNumber >= 3) {
+        if (this.dotNumber >= 1) {
             this.setLYEqualsLYCFlag(this.lcdY == this.lcdYCompare);
         }
 
@@ -345,7 +365,8 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         if (this.dotNumber == 0) {
             if (this.scanlineNumber >= 144) {
                 this.currentMode = Mode.MODE_1_VBLANK;
-            } else {
+            } else if (!this.lcdOnLine) {
+                // OAM scan is skipped on the first scanline after LCD-on
                 this.currentMode = Mode.MODE_2_OAM_SCAN;
             }
         } else if (this.dotNumber == 80) {
@@ -359,6 +380,14 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         }
         if (oldMode != this.currentMode) {
             this.dotCycleIndex = 0;
+            // The mode-bit bus drivers settle in about a dot and a half: a transition
+            // early in the M-cycle is visible to a read latching at its end, a later
+            // one only from the next M-cycle
+            if (this.emulator.mcycleDot <= 1) {
+                this.setPPUMode(this.currentMode.getValue());
+            } else {
+                this.pendingVisibleMode = this.currentMode.getValue();
+            }
         }
     }
 
@@ -368,15 +397,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 this.dotCycleIndex = 1;
             }
             case 1 -> {
-                this.dotCycleIndex = 2;
-            }
-            case 2 -> {
-                this.dotCycleIndex = 3;
-            }
-            case 3 -> {
                 if (this.scanlineNumber == 144) {
-
-                    this.setPPUMode(Mode.MODE_1_VBLANK.getValue());
                     this.setSTATModeForInterrupt(Mode.MODE_1_VBLANK.getValue());
                     this.triggerVBlankInterrupt();
                     this.windowYCondition = false;
@@ -390,7 +411,14 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                     }
 
                     this.emulator.getHost().getVideoDriver().ifPresent(driver -> driver.outputFrame(this.lcd));
-                } else if (this.scanlineNumber == 153) {
+                }
+                this.dotCycleIndex = 2;
+            }
+            case 2 -> {
+                this.dotCycleIndex = 3;
+            }
+            case 3 -> {
+                if (this.scanlineNumber == 153) {
                     this.lcdY = 0;
                     this.setLYEqualsLYCFlag(false);
                 }
@@ -407,14 +435,13 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 this.dotCycleIndex = 1;
             }
             case 1 -> {
+                this.setSTATModeForInterrupt(Mode.MODE_0_HBLANK.getValue());
                 this.dotCycleIndex = 2;
             }
             case 2 -> {
                 this.dotCycleIndex = 3;
             }
             case 3 -> {
-                this.setSTATModeForInterrupt(Mode.MODE_0_HBLANK.getValue());
-                this.setPPUMode(Mode.MODE_0_HBLANK.getValue());
                 this.dotCycleIndex = 4;
             }
             case 4 -> {}
@@ -459,6 +486,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 this.dotCycleIndex = 1;
             }
             case 1 -> {
+                this.setSTATModeForInterrupt(Mode.MODE_2_OAM_SCAN.getValue());
                 this.tickOAMScan();
                 this.dotCycleIndex = 2;
             }
@@ -466,8 +494,6 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 this.dotCycleIndex = 3;
             }
             case 3 -> {
-                this.setPPUMode(Mode.MODE_2_OAM_SCAN.getValue());
-                this.setSTATModeForInterrupt(Mode.MODE_2_OAM_SCAN.getValue());
                 this.tickOAMScan();
                 this.dotCycleIndex = 4;
             }
@@ -579,6 +605,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 this.dotCycleIndex = 1;
             }
             case 1 -> {
+                this.setSTATModeForInterrupt(Mode.MODE_3_DRAWING.getValue());
                 this.tickDraw();
                 this.dotCycleIndex = 2;
             }
@@ -587,8 +614,6 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 this.dotCycleIndex = 3;
             }
             case 3 -> {
-                this.setPPUMode(Mode.MODE_3_DRAWING.getValue());
-                this.setSTATModeForInterrupt(Mode.MODE_3_DRAWING.getValue());
                 this.tickDraw();
                 this.dotCycleIndex = 4;
             }
