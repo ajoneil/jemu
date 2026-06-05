@@ -73,7 +73,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     protected final int[] lcd;
 
     protected Mode currentMode = Mode.MODE_0_HBLANK;
-    private int scanlineCycle;
+    private int dotNumber;
     private int dotCycleIndex;
     protected int scanlineNumber;
     private int statModeForInterrupt;
@@ -138,8 +138,8 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     @Override
     public int readByte(int address) {
         if (address >= OAM_START && address <= OAM_END) {
-            this.checkArmOamBugRead(address);
             int ppuMode = this.getPPUMode();
+            this.checkArmOAMBugRead(address);
             if (Mode.MODE_0_HBLANK.matchesValue(ppuMode) || Mode.MODE_1_VBLANK.matchesValue(ppuMode) || !this.getLCDPPUEnable()) {
                 return (int) this.oam[address - OAM_START] & 0xFF;
             } else {
@@ -173,10 +173,11 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     @Override
     public void writeByte(int address, int value) {
         if (address >= OAM_START && address <= OAM_END) {
-            this.checkArmOamBugWrite(address);
             int ppuMode = this.getPPUMode();
+            this.checkArmOAMBugWrite(address);
             if (Mode.MODE_0_HBLANK.matchesValue(ppuMode) || Mode.MODE_1_VBLANK.matchesValue(ppuMode) || !this.getLCDPPUEnable()) {
               this.oam[address - OAM_START] = (byte) value;
+            } else {
             }
         } else if (address >= VRAM_START && address <= VRAM_END) {
             if (!Mode.MODE_3_DRAWING.matchesValue(this.getPPUMode()) || !this.getLCDPPUEnable()) {
@@ -201,7 +202,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                     if (oldLcdEnable != newLcdEnable) {
                         this.scanlineNumber = 0;
                         this.lcdY = 0;
-                        this.scanlineCycle = 0;
+                        this.dotNumber = 0;
                         this.currentMode = Mode.MODE_0_HBLANK;
                         this.setPPUMode(Mode.MODE_0_HBLANK.getValue());
                         this.setSTATModeForInterrupt(Mode.MODE_0_HBLANK.getValue());
@@ -239,21 +240,21 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         this.evaluateSTATLine(true, true, true, true);
     }
 
-    public void checkArmOamBugRead(int address) {
-        if (address >= OAM_START && address <= OAM_END && this.getLCDPPUEnable()) {
+    public void checkArmOAMBugRead(int address) {
+        if (address >= OAM_START && address <= UNUSED_END && this.getLCDPPUEnable()) {
             this.armOamBugRead = true;
         }
     }
 
-    public void checkArmOamBugWrite(int address) {
-        if (address >= OAM_START && address <= OAM_END && this.getLCDPPUEnable()) {
+    public void checkArmOAMBugWrite(int address) {
+        if (address >= OAM_START && address <= UNUSED_END && this.getLCDPPUEnable()) {
             this.armOamBugWrite = true;
         }
     }
 
     private void onLCDOn() {
         this.enablePixelWritesDelay = 2;
-        this.scanlineCycle = 4;
+        this.dotNumber = 4;
     }
 
     private void onLCDOff() {
@@ -286,19 +287,18 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         }
 
         if (tCycle == 2) {
-            // TODO: Reincorporate once passing all oam bug tests from blargg's
             if (this.armOamBugRead) {
-                //this.doOamBugRead();
+                this.doOAMBugRead();
             } else if (this.armOamBugWrite) {
-                //this.doOamBugWrite();
+                this.doOAMBugWrite();
             }
             this.armOamBugRead = false;
             this.armOamBugWrite = false;
         }
 
-        this.scanlineCycle++;
-        if (this.scanlineCycle >= CYCLES_PER_SCANLINE) {
-            this.scanlineCycle = 0;
+        this.dotNumber++;
+        if (this.dotNumber >= CYCLES_PER_SCANLINE) {
+            this.dotNumber = 0;
             this.dotCycleIndex = 0;
 
             int originalScanlineNumber = this.scanlineNumber;
@@ -314,7 +314,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             }
         }
 
-        if (this.scanlineCycle >= 3) {
+        if (this.dotNumber >= 3) {
             this.setLYEqualsLYCFlag(this.lcdY == this.lcdYCompare);
         }
 
@@ -335,13 +335,13 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
 
     private void nextState() {
         Mode oldMode = this.currentMode;
-        if (this.scanlineCycle == 0) {
+        if (this.dotNumber == 0) {
             if (this.scanlineNumber >= 144) {
                 this.currentMode = Mode.MODE_1_VBLANK;
             } else {
                 this.currentMode = Mode.MODE_2_OAM_SCAN;
             }
-        } else if (this.scanlineCycle == 80) {
+        } else if (this.dotNumber == 80) {
             if (this.scanlineNumber >= 144) {
                 this.currentMode = Mode.MODE_1_VBLANK;
             } else {
@@ -498,20 +498,22 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         this.scannedEntries++;
     }
 
-    private void doOAMBugRead() {
+    protected void doOAMBugRead() {
         int cur = ((this.scannedEntries / 2) + 1) * 8;
-        if (cur < 8 || cur >= 160 || !Mode.MODE_2_OAM_SCAN.matchesValue(this.currentMode.getValue())) {
+        if (cur < 8 || cur >= 160 || !Mode.MODE_2_OAM_SCAN.matchesValue(this.getPPUMode())) {
             return;
         }
         int prev = cur - 8;
         int rowGroup = cur & 0x18;
         if (rowGroup == 0x08 || rowGroup == 0x18) {
+            // Simple
             this.oam[prev] = (byte) ((this.getOAMByteFromIndex(prev) | (this.getOAMByteFromIndex(cur) & this.getOAMByteFromIndex(prev + 4))) & 0xFF);
             this.oam[prev + 1] = (byte) ((this.getOAMByteFromIndex(prev + 1) | (this.getOAMByteFromIndex(cur + 1) & this.getOAMByteFromIndex(prev + 5))) & 0xFF);
             for (int i = 0; i <= 7; i++) {
                 this.oam[cur + i] = this.oam[prev + i];
             }
         } else if (rowGroup == 0x10 && cur < 0x98) {
+            // Secondary
             int prev2 = cur - 16;
             this.oam[prev] = (byte) (((this.getOAMByteFromIndex(prev) & (this.getOAMByteFromIndex(prev2) | this.getOAMByteFromIndex(cur) | this.getOAMByteFromIndex(prev + 4))) | (this.getOAMByteFromIndex(prev2) & this.getOAMByteFromIndex(cur) & this.getOAMByteFromIndex(prev + 4))) & 0xFF);
             this.oam[prev + 1] = (byte) (((this.getOAMByteFromIndex(prev + 1) & (this.getOAMByteFromIndex(prev2 + 1) | this.getOAMByteFromIndex(cur + 1) | this.getOAMByteFromIndex(prev + 5))) | (this.getOAMByteFromIndex(prev2 + 1) & this.getOAMByteFromIndex(cur + 1) & this.getOAMByteFromIndex(prev + 5))) & 0xFF);
@@ -520,13 +522,40 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 this.oam[cur + i] = this.oam[prev + i];
             }
         } else if (rowGroup == 0x00 && cur < 0x98) {
-            // TODO: Implement
+            // Tertiary / Quaternary
+            int prev2 = cur - 16;
+            int prev4 = cur - 32;
+            if (cur == 0x20) {
+                this.oam[prev] = (byte) (((this.getOAMByteFromIndex(prev) & (this.getOAMByteFromIndex(cur) | this.getOAMByteFromIndex(prev + 4) | this.getOAMByteFromIndex(prev2) | this.getOAMByteFromIndex(prev4))) | (this.getOAMByteFromIndex(cur) & this.getOAMByteFromIndex(prev + 4) & this.getOAMByteFromIndex(prev2) & this.getOAMByteFromIndex(prev4))) & 0xFF);
+                this.oam[prev + 1] = (byte) (((this.getOAMByteFromIndex(prev + 1) & (this.getOAMByteFromIndex(cur + 1) | this.getOAMByteFromIndex(prev + 5) | this.getOAMByteFromIndex(prev2 + 1) | this.getOAMByteFromIndex(prev4 + 1))) | (this.getOAMByteFromIndex(cur + 1) & this.getOAMByteFromIndex(prev + 5) & this.getOAMByteFromIndex(prev2 + 1) & this.getOAMByteFromIndex(prev4 + 1))) & 0xFF);
+            } else if (cur == 0x40) {
+                // Quaternary
+                this.oam[prev] = (byte) (((this.getOAMByteFromIndex(prev) & (this.getOAMByteFromIndex(cur) | this.getOAMByteFromIndex(prev + 4) | this.getOAMByteFromIndex(prev2) | this.getOAMByteFromIndex(prev4) | (~this.getOAMByteFromIndex(prev + 2) & this.getOAMByteFromIndex(prev2 + 2)))) | (this.getOAMByteFromIndex(prev + 4) & this.getOAMByteFromIndex(prev2) & this.getOAMByteFromIndex(prev4))) & 0xFF);
+                this.oam[prev + 1] = (byte) (((this.getOAMByteFromIndex(prev + 1) & (this.getOAMByteFromIndex(cur + 1) | this.getOAMByteFromIndex(prev + 5) | this.getOAMByteFromIndex(prev2 + 1) | this.getOAMByteFromIndex(prev4 + 1) | (~this.getOAMByteFromIndex(prev + 3) & this.getOAMByteFromIndex(prev2 + 3)))) | (this.getOAMByteFromIndex(prev + 5) & this.getOAMByteFromIndex(prev2 + 1) & this.getOAMByteFromIndex(prev4 + 1))) & 0xFF);
+            } else if (cur == 0x60) {
+                this.oam[prev] = (byte) (((this.getOAMByteFromIndex(prev) & (this.getOAMByteFromIndex(cur) | this.getOAMByteFromIndex(prev + 4) | this.getOAMByteFromIndex(prev2) | this.getOAMByteFromIndex(prev4))) | (this.getOAMByteFromIndex(prev + 4) & this.getOAMByteFromIndex(prev2) & this.getOAMByteFromIndex(prev4))) & 0xFF);
+                this.oam[prev + 1] = (byte) (((this.getOAMByteFromIndex(prev + 1) & (this.getOAMByteFromIndex(cur + 1) | this.getOAMByteFromIndex(prev + 5) | this.getOAMByteFromIndex(prev2 + 1) | this.getOAMByteFromIndex(prev4 + 1))) | (this.getOAMByteFromIndex(prev + 5) & this.getOAMByteFromIndex(prev2 + 1) & this.getOAMByteFromIndex(prev4 + 1))) & 0xFF);
+            } else if (cur == 0x80) {
+                this.oam[prev] = (byte) ((this.getOAMByteFromIndex(prev) | (this.getOAMByteFromIndex(cur) & this.getOAMByteFromIndex(prev + 4) & this.getOAMByteFromIndex(prev2) & this.getOAMByteFromIndex(prev4))) & 0xFF);
+                this.oam[prev + 1] = (byte) ((this.getOAMByteFromIndex(prev + 1) | (this.getOAMByteFromIndex(cur + 1) & this.getOAMByteFromIndex(prev + 5) & this.getOAMByteFromIndex(prev2 + 1) & this.getOAMByteFromIndex(prev4 + 1))) & 0xFF);
+            }
+
+            for (int i = 0; i <= 7; i++) {
+                this.oam[prev2 + i] = this.oam[prev + i];
+                this.oam[cur + i] = this.oam[prev + i];
+            }
+
+            if (cur == 0x80) {
+                for (int i = 0; i <= 7; i++) {
+                    this.oam[i] = this.oam[cur + i];
+                }
+            }
         }
     }
 
-    private void doOamBugWrite() {
+    protected void doOAMBugWrite() {
         int cur = ((this.scannedEntries / 2) + 1) * 8;
-        if (cur < 8 || cur >= 160 || !Mode.MODE_2_OAM_SCAN.matchesValue(this.currentMode.getValue())) {
+        if (cur < 8 || cur >= 160 || !Mode.MODE_2_OAM_SCAN.matchesValue(this.getPPUMode())) {
             return;
         }
         int prev = cur - 8;

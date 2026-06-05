@@ -131,11 +131,21 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
         // No STAT write bug on CGB
     }
 
-    public void checkArmOamBugRead(int address) {
+    public void checkArmOAMBugRead(int address) {
         // No oam bug on CGB
     }
 
-    public void checkArmOamBugWrite(int address) {
+    public void checkArmOAMBugWrite(int address) {
+        // No oam bug on CGB
+    }
+
+    @Override
+    protected void doOAMBugRead() {
+        // No oam bug on CGB
+    }
+
+    @Override
+    protected void doOAMBugWrite() {
         // No oam bug on CGB
     }
 

@@ -175,12 +175,12 @@ public class GameBoyEmulator implements Emulator, SM83.SystemBus {
 
     @Override
     public void onIDURead(int originalValue) {
-        this.ppu.checkArmOamBugRead(originalValue);
+        this.ppu.checkArmOAMBugRead(originalValue);
     }
 
     @Override
     public void onIDUWrite(int originalValue) {
-        this.ppu.checkArmOamBugWrite(originalValue);
+        this.ppu.checkArmOAMBugWrite(originalValue);
     }
 
 }
