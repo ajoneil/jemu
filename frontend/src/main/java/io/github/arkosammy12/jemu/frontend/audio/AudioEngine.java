@@ -129,7 +129,7 @@ public class AudioEngine implements Closeable {
                 this.stop();
             }
 
-            AudioFormat format = new AudioFormat((float) this.getSampleRate(), 16, this.audioChannels == AudioChannels.STEREO ? 2 : 1, true, true);
+            AudioFormat format = new AudioFormat((float) this.getSampleRate(), 16, this.audioChannels == AudioChannels.STEREO ? 2 : 1, true, false);
             this.currentSourceDataLine = AudioSystem.getSourceDataLine(format);
             this.currentSourceDataLine.open(format);
             this.volumeControl = (FloatControl) this.currentSourceDataLine.getControl(FloatControl.Type.MASTER_GAIN);

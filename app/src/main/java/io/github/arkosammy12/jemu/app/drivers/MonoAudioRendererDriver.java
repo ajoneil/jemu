@@ -16,8 +16,8 @@ public class MonoAudioRendererDriver extends DefaultAudioRendererDriver {
                 byte[] buf16 = new byte[this.jemu.getAudioEngine().getBytesPerFrame()];
                 for (int i = 0; i < buf.length; i++) {
                     int sample16 = ((int) buf[i] & 0xFF) * 256;
-                    buf16[i * 2] = (byte) ((sample16 & 0xFF00) >>> 8);
-                    buf16[(i * 2) + 1] = (byte) (sample16 & 0xFF);
+                    buf16[i * 2] = (byte) (sample16 & 0xFF);
+                    buf16[(i * 2) + 1] = (byte) ((sample16 & 0xFF00) >>> 8);
                 }
                 yield buf16;
             }

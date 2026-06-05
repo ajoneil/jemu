@@ -19,10 +19,10 @@ public class StereoAudioRendererDriver extends DefaultAudioRendererDriver {
                 for (int i = 0; i < frames; i++) {
                     int sample16Left = ((int) buf[i * 2] & 0xFF) << 8;
                     int sample16Right = ((int) buf[(i * 2) + 1] & 0xFF) << 8;
-                    buf16[i * 4] = (byte) ((sample16Left & 0xFF00) >>> 8);
-                    buf16[(i * 4) + 1] = (byte) (sample16Left & 0xFF);
-                    buf16[(i * 4) + 2] = (byte) ((sample16Right & 0xFF00) >>> 8);
-                    buf16[(i * 4) + 3] = (byte) (sample16Right & 0xFF);
+                    buf16[i * 4] = (byte) (sample16Left & 0xFF);
+                    buf16[(i * 4) + 1] = (byte) ((sample16Left & 0xFF00) >>> 8);
+                    buf16[(i * 4) + 2] = (byte) (sample16Right & 0xFF);
+                    buf16[(i * 4) + 3] = (byte) ((sample16Right & 0xFF00) >>> 8);
                 }
                 yield buf16;
             }

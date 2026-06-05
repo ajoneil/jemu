@@ -274,10 +274,10 @@ public class DMGAPU<E extends GameBoyEmulator> extends AudioGenerator<E> impleme
             short left = this.leftChannelSamples[nextIndex];
             short right = this.rightChannelSamples[nextIndex];
 
-            out[i * 4] = (byte) (((int) left >> 8) & 0xFF);
-            out[(i * 4) + 1] = (byte) ((int) left & 0xFF);
-            out[(i * 4) + 2] = (byte) (((int) right >> 8) & 0xFF);
-            out[(i * 4) + 3] = (byte) ((int) right & 0xFF);
+            out[i * 4] = (byte) ((int) left & 0xFF);
+            out[(i * 4) + 1] = (byte) (((int) left >> 8) & 0xFF);
+            out[(i * 4) + 2] = (byte) ((int) right & 0xFF);
+            out[(i * 4) + 3] = (byte) (((int) right >> 8) & 0xFF);
 
             pos += step;
         }
