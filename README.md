@@ -114,4 +114,4 @@ This project is licensed under the [MIT License](LICENSE).
 - [Mathew "theklap" Sutton](https://github.com/theklap): Significant accuracy improvements to the NES core.
 - [dtabacaru](https://github.com/dtabacaru/): Providing audio filtering logic to system's audio processing units.
 - [Shawn (L. Spiro) Wilcoxen](https://github.com/L-Spiro): Provide accurate audio filtering classes useful for quality NES APU output.
-- [Andrew "ajoneil" O'Neil](https://github.com/ajoneil) Significant accuracy improvements to the DMG/CGB cores.
+- [Andrew "ajoneil" O'Neil](https://github.com/ajoneil): Significant accuracy improvements to the DMG/CGB cores.
