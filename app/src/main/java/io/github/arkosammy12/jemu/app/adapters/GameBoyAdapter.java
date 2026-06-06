@@ -51,13 +51,11 @@ public class GameBoyAdapter extends AbstractSystemAdapter implements GameBoyHost
     @Override
     protected Emulator createEmulator() {
 
-        StringBuilder titleBuilder;
-        String title = "No title";
-
+        String title = null;
         Optional<byte[]> optionalROM = this.getRom();
         if (optionalROM.isPresent()) {
             try {
-                titleBuilder = new StringBuilder();
+                StringBuilder titleBuilder = new StringBuilder();
                 int[] rom = SystemHost.byteToIntArray(optionalROM.get());
                 for (int i = HEADER_TITLE_START; i <= HEADER_TITLE_END; i++) {
                     int b = rom[i] & 0xFF;
@@ -74,8 +72,15 @@ public class GameBoyAdapter extends AbstractSystemAdapter implements GameBoyHost
             }
         }
 
-        this.romTitle = title;
-        this.saveDataDirectory = this.getRomPath().map(Path::getParent).orElse(null);
+        Optional<Path> romPathOptional = this.getRomPath();
+        if (romPathOptional.isPresent()) {
+            Path romPath = romPathOptional.get();
+            this.romTitle = title == null || title.isBlank() ? romPath.getFileName().toString() : title;
+            this.saveDataDirectory = romPath.getParent();
+        } else {
+            this.romTitle = title;
+            this.saveDataDirectory = null;
+        }
 
         return switch (this.model) {
             case CGB -> new GameBoyColorEmulator(this);
