@@ -39,7 +39,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     };
 
     protected final byte[] vram = new byte[0x2000];
-    private final byte[] oam = new byte[0x00A0]; // TODO: OAM BUG (ONLY FOR DMG) GODDAMMIT!
+    private final byte[] oam = new byte[0x00A0];
 
     private int lcdControl;
     private boolean lcdPPUEnable;
@@ -441,7 +441,6 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     }
 
     protected void onHBlankStart() {
-
         this.scannedEntries = 0;
 
         this.pixelX = 0;
@@ -485,16 +484,12 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             case 2 -> {
                 this.dotCycleIndex = 3;
             }
-            case 3 -> {
+            case 3, 5 -> {
                 this.tickOAMScan();
                 this.dotCycleIndex = 4;
             }
             case 4 -> {
                 this.dotCycleIndex = 5;
-            }
-            case 5 -> {
-                this.tickOAMScan();
-                this.dotCycleIndex = 4;
             }
         }
     }
@@ -622,8 +617,6 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             }
         }
     }
-
-    //private int dotsSpentInSpritePlusStalling;
 
     private void tickDraw() {
         boolean originalWindowCondition = this.isRenderingWindow();
@@ -817,13 +810,9 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 this.spriteBuffer[this.spriteFifoCurrentEntryIndex] = -1;
                 this.spriteFifoCurrentEntryIndex = -1;
                 this.spriteFifoStep = 0;
-
-                //this.spriteCount++;
             }
         }
     }
-
-    //protected int spriteCount;
 
     protected void tickPixelShifter() {
         if (this.backgroundFifo.isEmpty()) {
