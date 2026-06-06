@@ -713,8 +713,6 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 if (this.backgroundFifo.isEmpty()) {
                     this.pushBgPixels();
                     this.bgFifoStep = 0;
-                } else {
-                    this.bgFifoStep = 6;
                 }
             }
         }

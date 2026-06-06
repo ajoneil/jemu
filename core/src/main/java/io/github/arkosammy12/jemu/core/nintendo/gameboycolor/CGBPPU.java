@@ -240,8 +240,6 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
                 if (this.backgroundFifo.isEmpty()) {
                     this.pushBgPixels();
                     this.bgFifoStep = 0;
-                } else {
-                    this.bgFifoStep = 6;
                 }
             }
         }
