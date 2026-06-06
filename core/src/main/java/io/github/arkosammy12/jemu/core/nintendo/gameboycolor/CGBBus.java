@@ -257,10 +257,46 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
         return new byte[8][0x1000];
     }
 
+    public boolean haltCPU() {
+        return this.haltCPU;
+    }
+
+    @Override
+    protected int readByteCartridge(int address) {
+        if (this.enableBootRom && ((address >= 0x0000 && address <= 0x00FF) || (address >= 0x0200 && address <= 0x08FF))) {
+            return SAMEBOY_CGB_BOOT_ROM[address];
+        } else {
+            return this.emulator.getCartridge().readByte(address);
+        }
+    }
+
     @Override
     protected int readWorkRAM(int address) {
         int offset = address & 0x1FFF;
         return (int) this.workRAM[offset < 0x1000 ? 0 : this.workRAMBank][offset & 0xFFF] & 0xFF;
+    }
+
+    @Override
+    protected int readByteIO(int address) {
+        return switch (address) {
+            case KEY_0_ADDR -> this.emulator.readKEY0();
+            case KEY_1_ADDR -> this.emulator.readKEY1();
+            case WBK_ADDR -> this.workRAMBank | 0b11111000;
+            case RP_ADDR -> this.infraredPort | 0b00111100;
+            case UNK_1_ADDR -> this.unknownRegister1;
+            case UNK_2_ADDR -> this.unknownRegister2;
+            case UNK_3_ADDR -> this.emulator.isDMGCompatibilityMode() ? 0xFF : this.unknownRegister3;
+            case UNK_4_ADDR -> this.unknownRegister4 | 0b10001111;
+            case VDMA_1, VDMA_2, VDMA_3, VDMA_4 -> 0xFF;
+            case VDMA_5 -> this.vdmaControl;
+            default -> {
+                if (this.isPPURegisterAddress(address)) {
+                    yield this.emulator.getVideoGenerator().readByte(address);
+                } else {
+                    yield super.readByteIO(address);
+                }
+            }
+        };
     }
 
     @Override
@@ -269,114 +305,69 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
         this.workRAM[offset < 0x1000 ? 0 : this.workRAMBank][offset & 0xFFF] = (byte) value;
     }
 
-    public boolean haltCPU() {
-        return this.haltCPU;
-    }
-
     @Override
-    public int readByte(int address) {
-        if (this.oamTransferInProgress) {
-            return super.readByte(address);
-        } else if (this.enableBootRom && address >= 0x0000 && address <= 0x08FF) {
-            if (address <= 0x00FF) {
-                return SAMEBOY_CGB_BOOT_ROM[address];
-            } else if (address <= 0x01FF) {
-                return super.readByte(address);
-            } else {
-                return SAMEBOY_CGB_BOOT_ROM[address];
+    protected void writeByteIO(int address, int value) {
+        switch (address) {
+            case KEY_0_ADDR -> this.emulator.writeKey0(value);
+            case KEY_1_ADDR -> this.emulator.writeKEY1(value);
+            case WBK_ADDR -> {
+                this.workRAMBank = value & 0b111;
+                if (this.workRAMBank == 0) {
+                    this.workRAMBank = 1;
+                }
             }
-        } else if (address >= IO_START && address <= IO_END) {
-            return switch (address) {
-                case KEY_0_ADDR -> this.emulator.readKEY0();
-                case KEY_1_ADDR -> this.emulator.readKEY1();
-                case WBK_ADDR -> this.workRAMBank | 0b11111000;
-                case RP_ADDR -> this.infraredPort | 0b00111100;
-                case UNK_1_ADDR -> this.unknownRegister1;
-                case UNK_2_ADDR -> this.unknownRegister2;
-                case UNK_3_ADDR -> this.emulator.isDMGCompatibilityMode() ? 0xFF : this.unknownRegister3;
-                case UNK_4_ADDR -> this.unknownRegister4 | 0b10001111;
-                case VDMA_1, VDMA_2, VDMA_3, VDMA_4 -> 0xFF;
-                case VDMA_5 -> this.vdmaControl;
-                default -> {
-                    if (address >= BGPI_ADDR && address <= OPRI_ADDR || address == VBK_ADDR) {
-                        yield this.emulator.getVideoGenerator().readByte(address);
-                    } else {
-                        yield super.readByte(address);
-                    }
-                }
-            };
-        } else {
-            return super.readByte(address);
-        }
-    }
-
-    @Override
-    public void writeByte(int address, int value) {
-        value &= 0xFF;
-        if (this.oamTransferInProgress) {
-            super.writeByte(address, value);
-            return;
-        }
-        if (address >= IO_START && address <= IO_END) {
-            switch (address) {
-                case KEY_0_ADDR -> this.emulator.writeKey0(value);
-                case KEY_1_ADDR -> this.emulator.writeKEY1(value);
-                case WBK_ADDR -> {
-                    this.workRAMBank = value & 0b111;
-                    if (this.workRAMBank == 0) {
-                        this.workRAMBank = 1;
-                    }
-                }
-                case RP_ADDR -> this.infraredPort = (this.infraredPort & 0b10) | (value & 0b11111101);
-                case UNK_1_ADDR -> this.unknownRegister1 = value & 0xFF;
-                case UNK_2_ADDR -> this.unknownRegister2 = value & 0xFF;
-                case UNK_3_ADDR -> this.unknownRegister3 = value & 0xFF;
-                case UNK_4_ADDR -> this.unknownRegister4 = value & 0xFF;
-                case VDMA_1 -> this.vdmaSourceAddress = (((value << 8) & 0xFF00) | (this.vdmaSourceAddress & 0xFF));
-                case VDMA_2 -> this.vdmaSourceAddress = ((this.vdmaSourceAddress & 0xFF00) | (value & 0xF0));
-                case VDMA_3 -> this.vdmaDestinationAddress = (((value << 8) & 0xFF00) | (this.vdmaDestinationAddress & 0xFF));
-                case VDMA_4 -> this.vdmaDestinationAddress = ((this.vdmaDestinationAddress & 0xFF00) | (value & 0xF0));
-                case VDMA_5 -> {
-                    if (this.currentVDMAType != null) {
-                        if ((value & 0x80) != 0) {
-                            this.vdmaControl = value & 0xFF;
-                            this.vdmaControl &= ~0x80;
-                            this.currentVDMAType = VDMAType.HBLANK;
-                            this.vdmaTransferDelay = switch (this.emulator.getCPUSpeed()) {
-                                case DOUBLE_SPEED -> 1;
-                                case SINGLE_SPEED -> 2;
-                            };
-                        } else {
-                            this.vdmaControl = (0x80 | value) & 0xFF;
-                            this.currentVDMAType = null;
-                            this.vdmaTransferInProgress = false;
-                            this.vdmaCopyingBlock = false;
-                            this.oldPpuMode = -1;
-                        }
-                    } else {
+            case RP_ADDR -> this.infraredPort = (this.infraredPort & 0b10) | (value & 0b11111101);
+            case UNK_1_ADDR -> this.unknownRegister1 = value & 0xFF;
+            case UNK_2_ADDR -> this.unknownRegister2 = value & 0xFF;
+            case UNK_3_ADDR -> this.unknownRegister3 = value & 0xFF;
+            case UNK_4_ADDR -> this.unknownRegister4 = value & 0xFF;
+            case VDMA_1 -> this.vdmaSourceAddress = (((value << 8) & 0xFF00) | (this.vdmaSourceAddress & 0xFF));
+            case VDMA_2 -> this.vdmaSourceAddress = ((this.vdmaSourceAddress & 0xFF00) | (value & 0xF0));
+            case VDMA_3 -> this.vdmaDestinationAddress = (((value << 8) & 0xFF00) | (this.vdmaDestinationAddress & 0xFF));
+            case VDMA_4 -> this.vdmaDestinationAddress = ((this.vdmaDestinationAddress & 0xFF00) | (value & 0xF0));
+            case VDMA_5 -> {
+                if (this.currentVDMAType != null) {
+                    if ((value & 0x80) != 0) {
                         this.vdmaControl = value & 0xFF;
                         this.vdmaControl &= ~0x80;
-                        this.currentVDMAType = (value & 0x80) != 0 ? VDMAType.HBLANK : VDMAType.GENERAL;
+                        this.currentVDMAType = VDMAType.HBLANK;
                         this.vdmaTransferDelay = switch (this.emulator.getCPUSpeed()) {
                             case DOUBLE_SPEED -> 1;
                             case SINGLE_SPEED -> 2;
                         };
-                    }
-                }
-                default -> {
-                    if (address >= BGPI_ADDR && address <= OPRI_ADDR || address == VBK_ADDR) {
-                        //if (address != OPRI || this.emulator.getBus().isBootRomEnabled()) {
-                        // TODO: Properly investigate when exactly this applies
-                        this.emulator.getVideoGenerator().writeByte(address, value);
-                        //}
                     } else {
-                        super.writeByte(address, value);
+                        this.vdmaControl = (0x80 | value) & 0xFF;
+                        this.currentVDMAType = null;
+                        this.vdmaTransferInProgress = false;
+                        this.vdmaCopyingBlock = false;
+                        this.oldPpuMode = -1;
                     }
+                } else {
+                    this.vdmaControl = value & 0xFF;
+                    this.vdmaControl &= ~0x80;
+                    this.currentVDMAType = (value & 0x80) != 0 ? VDMAType.HBLANK : VDMAType.GENERAL;
+                    this.vdmaTransferDelay = switch (this.emulator.getCPUSpeed()) {
+                        case DOUBLE_SPEED -> 1;
+                        case SINGLE_SPEED -> 2;
+                    };
                 }
             }
-        } else {
-            super.writeByte(address, value);
+            default -> {
+                if (this.isPPURegisterAddress(address)) {
+                    //if (address != OPRI || this.emulator.getBus().isBootRomEnabled()) {
+                    // TODO: Properly investigate when exactly this applies
+                    this.emulator.getVideoGenerator().writeByte(address, value);
+                    //}
+                } else {
+                    super.writeByteIO(address, value);
+                }
+            }
         }
+    }
+
+    @Override
+    protected boolean isPPURegisterAddress(int address) {
+        return super.isPPURegisterAddress(address) || (address >= BGPI_ADDR && address <= OPRI_ADDR) || address == VBK_ADDR;
     }
 
     // TODO: VDMA bus conflicts with OAM DMA.
