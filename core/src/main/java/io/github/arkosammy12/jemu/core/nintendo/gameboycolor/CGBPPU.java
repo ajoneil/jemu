@@ -194,8 +194,9 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
                 if (this.bgFifoFirstFetch) {
                     this.bgFifoFirstFetch = false;
                     for (int i = 0; i < 8; i++) {
-                        this.backgroundFifo.enqueue(0);
+                        this.backgroundFifo.set(0, 0);
                     }
+                    this.backgroundFifo.setFull();
                     this.bgFifoStep = 0;
                 } else {
                     int tileAddress;
@@ -256,10 +257,9 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
             int bit = getCgbXFlipFromBgAttributes(this.bgFifoCurrentTileAttributes) ? i : (7 - i);
             int low = (this.bgFifoTileDataLow >> bit) & 1;
             int high = (this.bgFifoTileDataHigh >> bit) & 1;
-            int color = (high << 1) | low;
-            int pixelEntry = createCgbBgPixelEntry(color, getCgbPriorityFromBgAttributes(this.bgFifoCurrentTileAttributes), getCgbPaletteFromBgAttributes(this.bgFifoCurrentTileAttributes));
-            this.backgroundFifo.enqueue(pixelEntry);
+            this.backgroundFifo.set(i, createCgbBgPixelEntry((high << 1) | low, getCgbPriorityFromBgAttributes(this.bgFifoCurrentTileAttributes), getCgbPaletteFromBgAttributes(this.bgFifoCurrentTileAttributes)));
         }
+        this.backgroundFifo.setFull();
         this.bgFifoFetcherX++;
     }
 
@@ -345,7 +345,6 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
                 this.spriteFifoCurrentEntryIndex = -1;
                 this.spriteFifoStep = 0;
 
-                //this.spriteCount++;
             }
         }
     }
@@ -356,22 +355,22 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
             return;
         }
 
-        int bgPixel = this.backgroundFifo.dequeueInt();
+        int bgPixel = this.backgroundFifo.shiftHead(0);
         int objPixel = this.spriteFifo.shiftHead(0);
 
-        Integer finalPixel;
+        int finalPixel;
         if (this.emulator.isDMGCompatibilityMode()) {
             if (!this.getBackgroundAndWindowEnable()) {
                 bgPixel = 0;
             }
 
             int bgPaletteIndex = (this.backgroundPalette >>> ((bgPixel & 0b11) * 2)) & 0b11;
-            finalPixel = this.getARGBForBgPixelEntry(bgPaletteIndex, 0);
+            finalPixel = this.getRGBForBgPixelEntry(bgPaletteIndex, 0);
 
             int bgDiscardTarget = this.scrollX % 8;
             if (!this.isRenderingWindow() && this.discardedPixels < bgDiscardTarget) {
                 this.discardedPixels++;
-                finalPixel = null;
+                finalPixel = -1;
             }
 
             int objColorNumber = getDmgColorNumberFromObjPixelEntry(objPixel);
@@ -382,7 +381,7 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
                 boolean objPalette = getDmgPaletteForObjPixelEntry(objPixel);
                 int objPaletteReg = objPalette ? this.objectPalette1 : this.objectPalette0;
                 int objPaletteIndex = (objPaletteReg >>> (objColorNumber * 2)) & 0b11;
-                finalPixel = this.getARGBForObjPixelEntry(objPaletteIndex, objPalette ? 1 : 0);
+                finalPixel = this.getRGBForObjPixelEntry(objPaletteIndex, objPalette ? 1 : 0);
             }
         } else {
             int bgColor = getCgbColorNumberFromBgPixelEntry(bgPixel);
@@ -392,12 +391,12 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
             if (!this.getBackgroundAndWindowEnable()) {
                 bgColor = 0;
             }
-            finalPixel = this.getARGBForBgPixelEntry(getCgbColorNumberFromBgPixelEntry(bgPixel), bgPalette);
+            finalPixel = this.getRGBForBgPixelEntry(getCgbColorNumberFromBgPixelEntry(bgPixel), bgPalette);
 
             int bgDiscardTarget = this.scrollX % 8;
             if (!this.isRenderingWindow() && this.discardedPixels < bgDiscardTarget) {
                 this.discardedPixels++;
-                finalPixel = null;
+                finalPixel = -1;
             }
 
             int objColor = getCgbColorNumberFromObjPixelEntry(objPixel);
@@ -405,12 +404,12 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
                 objColor = 0;
             }
             if (objColor != 0 && (!this.getBackgroundAndWindowEnable() || bgColor == 0 || (!bgPriority && !getDmgPriorityForObjPixelEntry(objPixel)))) {
-                finalPixel = this.getARGBForObjPixelEntry(objColor, getCgbPaletteFromObjPixelEntry(objPixel));
+                finalPixel = this.getRGBForObjPixelEntry(objColor, getCgbPaletteFromObjPixelEntry(objPixel));
             }
         }
 
         // TODO: Emulate color shown in the LCD during CPU STOP mode depending on which mode the STOP mode lands on. Same for DMG
-        if (finalPixel != null) {
+        if (finalPixel >= 0) {
             if (this.pixelX >= 8 && this.enablePixelWrites) {
                 this.lcd[(this.scanlineNumber * WIDTH) + (this.pixelX - 8)] = finalPixel;
             }
@@ -418,27 +417,27 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
         }
     }
 
-    private int getARGBForBgPixelEntry(int colorNumber, int palette) {
+    private int getRGBForBgPixelEntry(int colorNumber, int palette) {
         int colorRamIndex = (palette * 8) + (colorNumber * 2);
 
         int r5 = ((int) this.bgPaletteRAM[colorRamIndex] & 0xFF) & 0b11111;
         int g5 = ((((int) this.bgPaletteRAM[colorRamIndex + 1] & 0xFF) & 0b11) << 3) | ((((int) this.bgPaletteRAM[colorRamIndex] & 0xFF) & 0b11100000) >>> 5);
         int b5 = (((int) this.bgPaletteRAM[colorRamIndex + 1] & 0xFF) & 0b01111100) >>> 2;
 
-        return toARGB(r5, g5, b5);
+        return toRGB(r5, g5, b5);
     }
 
-    private int getARGBForObjPixelEntry(int colorNumber, int palette) {
+    private int getRGBForObjPixelEntry(int colorNumber, int palette) {
         int colorRamIndex = (palette * 8) + (colorNumber * 2);
 
         int r5 = ((int) this.objPaletteRAM[colorRamIndex] & 0xFF) & 0b11111;
         int g5 = ((((int) this.objPaletteRAM[colorRamIndex + 1] & 0xFF) & 0b11) << 3) | ((((int) this.objPaletteRAM[colorRamIndex] & 0xFF) & 0b11100000) >>> 5);
         int b5 = (((int) this.objPaletteRAM[colorRamIndex + 1] & 0xFF) & 0b01111100) >>> 2;
 
-        return toARGB(r5, g5, b5);
+        return toRGB(r5, g5, b5);
     }
 
-    private static int toARGB(int r5, int g5, int b5) {
+    private static int toRGB(int r5, int g5, int b5) {
         int r8 = ((r5 << 3) | (r5 >>> 2)) & 0xFF;
         int g8 = ((g5 << 3) | (g5 >>> 2)) & 0xFF;
         int b8 = ((b5 << 3) | (b5 >>> 2)) & 0xFF;

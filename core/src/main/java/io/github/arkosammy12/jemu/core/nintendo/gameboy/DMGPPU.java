@@ -97,7 +97,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     protected final long[] spriteBuffer = new long[10];
     private int scannedEntries = 0;
 
-    protected final IntArrayFIFOQueue backgroundFifo = new IntArrayFIFOQueue(8);
+    protected final ShiftRegister backgroundFifo = new ShiftRegister(8, 32);
     protected int bgFifoStep = 0;
     protected boolean bgFifoFirstFetch = true;
     protected int bgFifoFetcherX;
@@ -672,8 +672,9 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 if (this.bgFifoFirstFetch) {
                     this.bgFifoFirstFetch = false;
                     for (int i = 7; i >= 0; i--) {
-                        this.backgroundFifo.enqueue(0);
+                        this.backgroundFifo.set(0, 0);
                     }
+                    this.backgroundFifo.setFull();
                     this.bgFifoStep = 0;
                 } else {
                     int effectiveAddress;
@@ -723,8 +724,9 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         for (int i = 7; i >= 0; i--) {
             int low = (this.bgFifoTileDataLow >>> i) & 1;
             int high = (this.bgFifoTileDataHigh >>> i) & 1;
-            this.backgroundFifo.enqueue((high << 1) | low);
+            this.backgroundFifo.set(7 - i, (high << 1) | low);
         }
+        this.backgroundFifo.setFull();
         this.bgFifoFetcherX++;
     }
 
@@ -812,17 +814,17 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             return;
         }
 
-        int bgPixel = this.backgroundFifo.dequeueInt();
+        int bgPixel = this.backgroundFifo.shiftHead(0);
         if (!this.getBackgroundAndWindowEnable()) {
             bgPixel = 0;
         }
         int bgPaletteIndex = (this.backgroundPalette >> (bgPixel * 2)) & 0b11;
-        Integer finalPixel = DMG_PALETTE[bgPaletteIndex];
+        int finalPixel = DMG_PALETTE[bgPaletteIndex];
 
         int bgDiscardTarget = this.scrollX % 8;
         if (!this.isRenderingWindow() && this.discardedPixels < bgDiscardTarget) {
             this.discardedPixels++;
-            finalPixel = null;
+            finalPixel = -1;
         }
 
         int objPixel = this.spriteFifo.shiftHead(0);
@@ -836,7 +838,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         }
 
         // TODO: Emulate color shown in the LCD during CPU STOP mode depending on which mode the STOP mode lands on. Same for CGB
-        if (finalPixel != null) {
+        if (finalPixel >= 0) {
             if (this.pixelX >= 8 && this.enablePixelWrites) {
                 this.lcd[(this.scanlineNumber * WIDTH) + (this.pixelX - 8)] = finalPixel;
             }
