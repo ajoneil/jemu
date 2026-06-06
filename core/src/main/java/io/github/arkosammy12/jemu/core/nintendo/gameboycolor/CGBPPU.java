@@ -37,7 +37,7 @@ public class CGBPPU<E extends GameBoyColorEmulator> extends DMGPPU<E> {
         super(emulator);
     }
 
-    protected int getLcdOffColor() {
+    protected int getLCDOffColor() {
         return 0xFFFFFF;
     }
 

@@ -24,6 +24,11 @@ public class GameBoyEmulator implements Emulator, SM83.SystemBus {
 
     private final GameBoyCartridge cartridge;
 
+    protected int mCycleDot;
+    protected boolean cpuOnBus;
+    protected int cpuMCycleDotBase;
+    protected int cpuMCycleDotSpan = 4;
+
     public GameBoyEmulator(GameBoyHost host) {
         this.host = host;
 
@@ -117,17 +122,43 @@ public class GameBoyEmulator implements Emulator, SM83.SystemBus {
     }
 
     protected void runCycle() {
+        this.mCycleDot = 0;
+        this.cpuMCycleDotBase = 0;
+        this.cpuOnBus = true;
         this.cpu.cycle();
+        this.cpuOnBus = false;
         boolean apuFrameSequencerTick = false;
         if (this.cpu.getMode() != SM83.Mode.STOPPED) {
             apuFrameSequencerTick = this.timerController.cycle();
         }
         this.cpu.nextState();
-        this.ppu.cycle();
+        this.syncPPUToDot(4);
         this.apu.cycle(apuFrameSequencerTick);
         this.serialController.cycle();
         this.cartridge.cycle();
         this.bus.cycleOAMDMA();
+    }
+
+    protected void syncPPUToDot(int targetDot) {
+        while (this.mCycleDot < targetDot) {
+            this.ppu.cycleDot(this.mCycleDot);
+            this.mCycleDot++;
+        }
+    }
+
+    // CPU reads latch at the end of the CPU M-cycle: run its dots first
+    void syncPPUForCPURead() {
+        if (this.cpuOnBus) {
+            this.syncPPUToDot(this.cpuMCycleDotBase + this.cpuMCycleDotSpan);
+        }
+    }
+
+    // CPU writes to PPU registers commit halfway into the CPU M-cycle, so the
+    // remaining dots see the new value
+    void syncPPUForCPUPPURegisterWrite() {
+        if (this.cpuOnBus) {
+            this.syncPPUToDot(this.cpuMCycleDotBase + this.cpuMCycleDotSpan / 2);
+        }
     }
 
     @Override
