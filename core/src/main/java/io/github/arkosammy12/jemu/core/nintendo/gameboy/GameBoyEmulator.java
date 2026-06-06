@@ -24,7 +24,7 @@ public class GameBoyEmulator implements Emulator, SM83.SystemBus {
 
     private final GameBoyCartridge cartridge;
 
-    protected int mcycleDot;
+    protected int mCycleDot;
     protected boolean cpuOnBus;
     protected int cpuMCycleDotBase;
     protected int cpuMCycleDotSpan = 4;
@@ -122,7 +122,7 @@ public class GameBoyEmulator implements Emulator, SM83.SystemBus {
     }
 
     protected void runCycle() {
-        this.mcycleDot = 0;
+        this.mCycleDot = 0;
         this.cpuMCycleDotBase = 0;
         this.cpuOnBus = true;
         this.cpu.cycle();
@@ -132,32 +132,32 @@ public class GameBoyEmulator implements Emulator, SM83.SystemBus {
             apuFrameSequencerTick = this.timerController.cycle();
         }
         this.cpu.nextState();
-        this.syncPpuToDot(4);
+        this.syncPPUToDot(4);
         this.apu.cycle(apuFrameSequencerTick);
         this.serialController.cycle();
         this.cartridge.cycle();
         this.bus.cycleOAMDMA();
     }
 
-    protected void syncPpuToDot(int targetDot) {
-        while (this.mcycleDot < targetDot) {
-            this.ppu.cycleDot(this.mcycleDot);
-            this.mcycleDot++;
+    protected void syncPPUToDot(int targetDot) {
+        while (this.mCycleDot < targetDot) {
+            this.ppu.cycleDot(this.mCycleDot);
+            this.mCycleDot++;
         }
     }
 
     // CPU reads latch at the end of the CPU M-cycle: run its dots first
-    void syncPpuForCpuRead() {
+    void syncPPUForCPURead() {
         if (this.cpuOnBus) {
-            this.syncPpuToDot(this.cpuMCycleDotBase + this.cpuMCycleDotSpan);
+            this.syncPPUToDot(this.cpuMCycleDotBase + this.cpuMCycleDotSpan);
         }
     }
 
     // CPU writes to PPU registers commit halfway into the CPU M-cycle, so the
     // remaining dots see the new value
-    void syncPpuForCpuPpuRegisterWrite() {
+    void syncPPUForCPUPPURegisterWrite() {
         if (this.cpuOnBus) {
-            this.syncPpuToDot(this.cpuMCycleDotBase + this.cpuMCycleDotSpan / 2);
+            this.syncPPUToDot(this.cpuMCycleDotBase + this.cpuMCycleDotSpan / 2);
         }
     }
 

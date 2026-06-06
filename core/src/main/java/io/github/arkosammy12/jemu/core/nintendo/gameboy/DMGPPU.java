@@ -114,13 +114,13 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     protected int spriteFifoTileDataLow;
     protected int spriteFifoTileDataHigh;
 
-    private boolean armOamBugRead;
-    private boolean armOamBugWrite;
+    private boolean armOAMBugRead;
+    private boolean armOAMBugWrite;
 
     public DMGPPU(E emulator) {
         super(emulator);
         this.lcd = new int[this.getImageWidth() * this.getImageHeight()];
-        Arrays.fill(this.lcd, this.getLcdOffColor());
+        Arrays.fill(this.lcd, this.getLCDOffColor());
         Arrays.fill(this.spriteBuffer, -1);
     }
 
@@ -134,7 +134,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         return HEIGHT;
     }
 
-    protected int getLcdOffColor() {
+    protected int getLCDOffColor() {
         return 0x9BBC0F;
     }
 
@@ -242,13 +242,13 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
 
     public void checkArmOAMBugRead(int address) {
         if (address >= OAM_START && address <= UNUSED_END && this.getLCDPPUEnable()) {
-            this.armOamBugRead = true;
+            this.armOAMBugRead = true;
         }
     }
 
     public void checkArmOAMBugWrite(int address) {
         if (address >= OAM_START && address <= UNUSED_END && this.getLCDPPUEnable()) {
-            this.armOamBugWrite = true;
+            this.armOAMBugWrite = true;
         }
     }
 
@@ -263,17 +263,10 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         this.enablePixelWritesDelay = -1;
         this.lcdOnLine = false;
         this.pendingVisibleMode = -1;
-        this.armOamBugRead = false;
-        this.armOamBugWrite = false;
-        Arrays.fill(this.lcd, this.getLcdOffColor());
+        this.armOAMBugRead = false;
+        this.armOAMBugWrite = false;
+        Arrays.fill(this.lcd, this.getLCDOffColor());
         this.emulator.getHost().getVideoDriver().ifPresent(driver -> driver.outputFrame(this.lcd));
-    }
-
-    public void cycle() {
-        this.cycleDot(0);
-        this.cycleDot(1);
-        this.cycleDot(2);
-        this.cycleDot(3);
     }
 
     void cycleDot(int tCycle) {
@@ -301,13 +294,13 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         }
 
         if (tCycle == 2) {
-            if (this.armOamBugRead) {
+            if (this.armOAMBugRead) {
                 this.doOAMBugRead();
-            } else if (this.armOamBugWrite) {
+            } else if (this.armOAMBugWrite) {
                 this.doOAMBugWrite();
             }
-            this.armOamBugRead = false;
-            this.armOamBugWrite = false;
+            this.armOAMBugRead = false;
+            this.armOAMBugWrite = false;
         }
 
         this.dotNumber++;
@@ -375,7 +368,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             // The mode-bit bus drivers settle in about a dot and a half: a transition
             // early in the M-cycle is visible to a read latching at its end, a later
             // one only from the next M-cycle
-            if (this.emulator.mcycleDot <= 1) {
+            if (this.emulator.mCycleDot <= 1) {
                 this.setPPUMode(this.currentMode.getValue());
             } else {
                 this.pendingVisibleMode = this.currentMode.getValue();

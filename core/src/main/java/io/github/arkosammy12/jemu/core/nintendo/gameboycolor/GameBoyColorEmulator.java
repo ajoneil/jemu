@@ -91,7 +91,6 @@ public class GameBoyColorEmulator extends GameBoyEmulator implements CGBSM83.Sys
     @Override
     protected void runCycle() {
         CGBSM83<?> cpu = this.getCpu();
-        CGBPPU<?> ppu = this.getVideoGenerator();
         CGBAPU<?> apu = this.getAudioGenerator();
         GameBoyCartridge cartridge = this.getCartridge();
         CGBBus<?> bus = this.getBus();
@@ -99,7 +98,7 @@ public class GameBoyColorEmulator extends GameBoyEmulator implements CGBSM83.Sys
         DMGSerialController<?> serialController = this.getSerialController();
 
         if ((this.key1 & 0x80) == 0) {
-            this.mcycleDot = 0;
+            this.mCycleDot = 0;
             this.cpuMCycleDotBase = 0;
             this.cpuMCycleDotSpan = 4;
             boolean apuFrameSequencerTick = false;
@@ -117,14 +116,14 @@ public class GameBoyColorEmulator extends GameBoyEmulator implements CGBSM83.Sys
                 cpu.nextState();
             }
 
-            this.syncPpuToDot(4);
+            this.syncPPUToDot(4);
             apu.cycle(apuFrameSequencerTick);
             serialController.cycle();
             cartridge.cycle();
             bus.cycleOAMDMA();
             bus.cycleVDMA();
         } else {
-            this.mcycleDot = 0;
+            this.mCycleDot = 0;
             this.cpuMCycleDotSpan = 2;
             boolean apuFrameSequencerTick = false;
             if (bus.haltCPU()) {
@@ -152,7 +151,7 @@ public class GameBoyColorEmulator extends GameBoyEmulator implements CGBSM83.Sys
                 cpu.nextState();
             }
 
-            this.syncPpuToDot(4);
+            this.syncPPUToDot(4);
             apu.cycle(apuFrameSequencerTick);
 
             serialController.cycle();

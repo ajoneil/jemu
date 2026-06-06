@@ -76,9 +76,9 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
     private int interruptEnable;
 
     private int oamDmaControl;
-    private int oamTransferDelay;
-    protected boolean oamTransferInProgress;
-    private int oamTransferredBytes;
+    private int oamDmaStartDelay;
+    protected boolean oamDmaInProgress;
+    private int oamDmaTransferredBytes;
 
     protected boolean enableBootRom = true;
 
@@ -112,7 +112,7 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
         // The address is on the bus from the start of the M-cycle, before this
         // M-cycle's dots run
         this.emulator.getVideoGenerator().checkArmOAMBugRead(address);
-        this.emulator.syncPpuForCpuRead();
+        this.emulator.syncPPUForCPURead();
         if (this.isOAMDMABusConflict(address)) {
             // TODO: Perhaps this value is only returned when reading from OAM. Otherwise return the current value being read by OAM. Check numism test ROM for info.
             return 0xFF;
@@ -172,10 +172,10 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
 
         this.emulator.getVideoGenerator().checkArmOAMBugWrite(address);
         if (this.isPPURegisterAddress(address)) {
-            this.emulator.syncPpuForCpuPpuRegisterWrite();
+            this.emulator.syncPPUForCPUPPURegisterWrite();
         }
 
-        if (this.oamTransferInProgress && address < 0xFF00) {
+        if (this.oamDmaInProgress && address < 0xFF00) {
             return;
         }
 
@@ -204,7 +204,7 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
         switch (address) {
             case OAM_DMA_ADDR -> {
                 this.oamDmaControl = value & 0xFF;
-                this.oamTransferDelay = 2;
+                this.oamDmaStartDelay = 2;
             }
             case BANK_ADDR -> this.enableBootRom = false;
             case JOYP_ADDR -> this.emulator.getSystemController().writeJoyP(value);
@@ -227,20 +227,20 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
     }
 
     public void cycleOAMDMA() {
-        if (this.oamTransferInProgress) {
-            int sourceAddress = (this.oamDmaControl << 8) | (this.oamTransferredBytes);
+        if (this.oamDmaInProgress) {
+            int sourceAddress = (this.oamDmaControl << 8) | (this.oamDmaTransferredBytes);
             int oamByte = this.readByteOAMDMA(sourceAddress);
-            this.emulator.getVideoGenerator().writeOAMDMA(0xFE00 | this.oamTransferredBytes, oamByte);
-            this.oamTransferredBytes++;
-            if (this.oamTransferredBytes > 0x9F) {
-                this.oamTransferInProgress = false;
+            this.emulator.getVideoGenerator().writeOAMDMA(0xFE00 | this.oamDmaTransferredBytes, oamByte);
+            this.oamDmaTransferredBytes++;
+            if (this.oamDmaTransferredBytes > 0x9F) {
+                this.oamDmaInProgress = false;
             }
         }
-        if (this.oamTransferDelay > 0) {
-            this.oamTransferDelay--;
-            if (this.oamTransferDelay <= 0) {
-                this.oamTransferInProgress = true;
-                this.oamTransferredBytes = 0;
+        if (this.oamDmaStartDelay > 0) {
+            this.oamDmaStartDelay--;
+            if (this.oamDmaStartDelay <= 0) {
+                this.oamDmaInProgress = true;
+                this.oamDmaTransferredBytes = 0;
             }
         }
 
@@ -269,11 +269,11 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
             return false;
         }
         boolean oamBusConflict = false;
-        if (this.oamTransferInProgress) {
+        if (this.oamDmaInProgress) {
             if (address >= OAM_START && address <= OAM_END) {
                 return true;
             }
-            int sourceAddress = (this.oamDmaControl << 8) | (this.oamTransferredBytes);
+            int sourceAddress = (this.oamDmaControl << 8) | (this.oamDmaTransferredBytes);
             if (address >= 0x0000 && address <= 0x7FFF && sourceAddress >= 0x0000 && sourceAddress <= 0x7FFF) { // External bus
                 oamBusConflict = true;
             } else if (address >= 0xA000 && address <= 0xFDFF && sourceAddress >= 0xA000 && sourceAddress <= 0xFDFF) { // External bus
