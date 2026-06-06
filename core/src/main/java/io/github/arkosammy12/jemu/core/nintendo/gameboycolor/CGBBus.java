@@ -253,8 +253,8 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
     }
 
     @Override
-    protected byte[][] createWorkRAM() {
-        return new byte[8][0x1000];
+    protected byte[] createWorkRAM() {
+        return new byte[8 * 0x1000];
     }
 
     public boolean haltCPU() {
@@ -273,7 +273,7 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
     @Override
     protected int readWorkRAM(int address) {
         int offset = address & 0x1FFF;
-        return (int) this.workRAM[offset < 0x1000 ? 0 : this.workRAMBank][offset & 0xFFF] & 0xFF;
+        return (int) this.workRAM[(offset < 0x1000 ? 0 : this.workRAMBank) * 0x1000 + (offset & 0xFFF)] & 0xFF;
     }
 
     @Override
@@ -302,7 +302,7 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
     @Override
     protected void writeWorkRAM(int address, int value) {
         int offset = address & 0x1FFF;
-        this.workRAM[offset < 0x1000 ? 0 : this.workRAMBank][offset & 0xFFF] = (byte) value;
+        this.workRAM[(offset < 0x1000 ? 0 : this.workRAMBank) * 0x1000 + (offset & 0xFFF)] = (byte) value;
     }
 
     @Override

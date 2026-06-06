@@ -70,7 +70,7 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
 
     protected final E emulator;
 
-    protected final byte[][] workRAM;
+    protected final byte[] workRAM;
 
     private int interruptFlag;
     private int interruptEnable;
@@ -87,8 +87,8 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
         this.workRAM = this.createWorkRAM();
     }
 
-    protected byte[][] createWorkRAM() {
-        return new byte[1][0x2000];
+    protected byte[] createWorkRAM() {
+        return new byte[0x2000];
     }
 
     public boolean isBootRomEnabled() {
@@ -142,7 +142,7 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
     }
 
     protected int readWorkRAM(int address) {
-        return (int) this.workRAM[0][address & 0x1FFF] & 0xFF;
+        return (int) this.workRAM[address & 0x1FFF] & 0xFF;
     }
 
     protected int readByteIO(int address) {
@@ -197,7 +197,7 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
     }
 
     protected void writeWorkRAM(int address, int value) {
-        this.workRAM[0][address & 0x1FFF] = (byte) value;
+        this.workRAM[address & 0x1FFF] = (byte) value;
     }
 
     protected void writeByteIO(int address, int value) {
