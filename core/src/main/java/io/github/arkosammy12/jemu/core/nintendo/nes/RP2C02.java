@@ -336,6 +336,11 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         return this.visibleScanlines;
     }
 
+    @Override
+    public double getPixelAspectRatio() {
+        return 8.0 / 7.0;
+    }
+
     protected int getScanlinesPerFrame() {
         return NTSC_SCANLINES_PER_FRAME;
     }

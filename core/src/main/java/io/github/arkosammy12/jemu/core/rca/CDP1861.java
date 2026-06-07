@@ -7,7 +7,7 @@ public class CDP1861<E extends CDP1802System> extends VideoGenerator<E> {
 
     public static final int CPU_CYCLES_PER_FRAME = 3668;
 
-    protected static final int IMAGE_WIDTH = 256;
+    protected static final int IMAGE_WIDTH = 64;
     private static final int IMAGE_HEIGHT = 128;
 
     private static final int SCANLINES_PER_FRAME = 262;
@@ -51,6 +51,11 @@ public class CDP1861<E extends CDP1802System> extends VideoGenerator<E> {
     @Override
     public int getImageHeight() {
         return IMAGE_HEIGHT;
+    }
+
+    @Override
+    public double getPixelAspectRatio() {
+        return 4.0;
     }
 
     public boolean getInterruptSignal() {
@@ -100,7 +105,7 @@ public class CDP1861<E extends CDP1802System> extends VideoGenerator<E> {
             return;
         }
         int row = this.scanlineIndex - DISPLAY_AREA_BEGIN;
-        if (row < 0 || row >= this.getImageWidth()) {
+        if (row < 0 || row >= this.getImageHeight()) {
             return;
         }
         int dmaIndex = (int) ((this.cycles % MACHINE_CYCLES_PER_SCANLINE) - DMAO_BEGIN);
@@ -110,9 +115,7 @@ public class CDP1861<E extends CDP1802System> extends VideoGenerator<E> {
             if (col < 0 || col >= 64) {
                 break;
             }
-            for (int j = 0; j < 4; j++) {
-                this.displayBuffer[(row * IMAGE_WIDTH) + (col * 4) + j] = (value & mask) != 0 ? 0xFFFFFF : 0x000000;
-            }
+            this.displayBuffer[(row * IMAGE_WIDTH) + col] = (value & mask) != 0 ? 0xFFFFFF : 0x000000;
         }
     }
 

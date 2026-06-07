@@ -17,4 +17,8 @@ public abstract class VideoGenerator<E extends Emulator> {
 
     public abstract int getImageHeight();
 
+    public double getPixelAspectRatio() {
+        return 1.0;
+    }
+
 }

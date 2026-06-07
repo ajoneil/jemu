@@ -76,9 +76,7 @@ public class  VP590<E extends CosmacVIPEmulator> extends CDP1861<E> {
             if (col < 0 || col >= 64) {
                 break;
             }
-            for (int j = 0; j < 4; j++) {
-                this.displayBuffer[(row * IMAGE_WIDTH) + (col * 4) + j] = (value & mask) != 0 ? color : backgroundColor;
-            }
+            this.displayBuffer[(row * IMAGE_WIDTH) + col] = (value & mask) != 0 ? color : backgroundColor;
         }
     }
 

@@ -20,6 +20,7 @@ public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Clo
 
     private final int displayWidth;
     private final int displayHeight;
+    private final double pixelAspectRatio;
 
     private final BufferedImage bufferedImage;
     private final AffineTransform drawTransform = new AffineTransform();
@@ -37,6 +38,7 @@ public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Clo
     public DefaultSystemVideoDriver(VideoGenerator<?> videoGenerator) {
         this.displayWidth = videoGenerator.getImageWidth();
         this.displayHeight = videoGenerator.getImageHeight();
+        this.pixelAspectRatio = videoGenerator.getPixelAspectRatio();
 
         this.renderBuffer = new int[displayWidth * displayHeight];
         this.bufferedImage = new BufferedImage(displayWidth, displayHeight, BufferedImage.TYPE_INT_RGB);
@@ -68,9 +70,13 @@ public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Clo
             return;
         }
 
-        double scale = Math.min((double) w / (double) this.displayWidth, (double) h / (double) this.displayHeight);
+        double logicalWidth = (double) this.displayWidth * this.pixelAspectRatio;
 
-        double scaledWidth = (double) this.displayWidth * scale;
+        double scale = Math.min((double) w / logicalWidth, (double) h / (double) this.displayHeight);
+
+        double scaleX = scale * this.pixelAspectRatio;
+
+        double scaledWidth  = (double) this.displayWidth * scaleX;
         double scaledHeight = (double) this.displayHeight * scale;
 
         double offsetX = ((double) w - scaledWidth) / 2.0;
@@ -78,7 +84,7 @@ public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Clo
 
         this.drawTransform.setToIdentity();
         this.drawTransform.translate(offsetX, offsetY);
-        this.drawTransform.scale(scale, scale);
+        this.drawTransform.scale(scaleX, scale);
 
         this.lastWidth = w;
         this.lastHeight = h;

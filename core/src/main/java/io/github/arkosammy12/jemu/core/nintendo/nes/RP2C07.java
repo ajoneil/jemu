@@ -151,6 +151,11 @@ public class RP2C07<E extends NESEmulator> extends RP2C02<E> {
     }
 
     @Override
+    public double getPixelAspectRatio() {
+        return 18.0 / 13.0;
+    }
+
+    @Override
     protected int getScanlinesPerFrame() {
         return PAL_SCANLINES_PER_FRAME;
     }
