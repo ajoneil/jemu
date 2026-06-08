@@ -191,7 +191,6 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private static final int SPRITE_FETCH_END = 320;
 
     private final int[] video;
-    private final int[] compactPalette;
     private final int scanlinesPerFrame;
     private final int visibleScanlines;
     private final int vblScanline;
@@ -232,8 +231,8 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 	private int oamDataReadBuffer;
 
     private DotHalf currentDotHalf = DotHalf.FIRST;
-    private int dotNumber;
-    private int scanlineNumber;
+    protected int dotNumber;
+    protected int scanlineNumber;
     private boolean vBlankFlagForNMI;
     private boolean nmiOutput;
     private boolean ppuInit = true;
@@ -295,9 +294,8 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         this.visibleScanlines = this.getVisibleScanlines();
         this.vblScanline = this.getVblScanline();
         this.doOddFrameDotSkipping = this.doDotSkipping();
-        this.compactPalette = this.getCompactPalette();
 
-        this.video = new int[WIDTH * this.visibleScanlines];
+        this.video = new int[this.getImageWidth() * this.getImageHeight()];
 
         for (int i = 0; i < 8; i++) {
             this.spriteShifters[i] = new SpriteShifter();
@@ -355,10 +353,6 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
 
     protected boolean doDotSkipping() {
         return true;
-    }
-
-    protected int[] getCompactPalette() {
-        return PALETTE_2C02G_COMPACT;
     }
 
     @Override
@@ -885,7 +879,11 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
             paletteByte &= 0x30;
         }
 
-        this.video[(this.scanlineNumber * WIDTH) + (this.dotNumber - 1)] = this.compactPalette[(this.getEmphasisBits() << 6) | (paletteByte & 0b111111)];
+        this.video[(this.scanlineNumber * WIDTH) + (this.dotNumber - 1)] = this.getRGBFromPaletteByte(paletteByte);
+    }
+
+    protected int getRGBFromPaletteByte(int paletteByte) {
+        return PALETTE_2C02G_COMPACT[(this.getEmphasisBits() << 6) | (paletteByte & 0b111111)];
     }
 
     private int shiftBackgroundRegister(int select) {
@@ -1308,7 +1306,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
         return this.enableSpriteRendering;
     }
 
-    private int getEmphasisBits() {
+    protected int getEmphasisBits() {
         return this.emphasisBits;
     }
 
