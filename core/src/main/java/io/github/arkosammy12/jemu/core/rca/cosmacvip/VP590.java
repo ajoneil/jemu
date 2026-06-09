@@ -2,8 +2,6 @@ package io.github.arkosammy12.jemu.core.rca.cosmacvip;
 
 import io.github.arkosammy12.jemu.core.rca.CDP1861;
 
-import java.util.Arrays;
-
 public class VP590<E extends CosmacVIPEmulator> extends CDP1861<E> {
 
     private static final int[] BACKGROUND_COLORS = {
@@ -20,7 +18,6 @@ public class VP590<E extends CosmacVIPEmulator> extends CDP1861<E> {
 
     public VP590(E emulator) {
         super(emulator);
-        Arrays.fill(this.colorRAM, (byte) 0xF0);
     }
 
     public void writeColorRAM(int address, int value) {
