@@ -25,16 +25,12 @@ public class  VP590<E extends CosmacVIPEmulator> extends CDP1861<E> {
 
     public void writeColorRam(int address, int value) {
         this.colorRamModified = true;
-        if ((address >= 0xC000 && address <= 0xCFFF) || (address >= 0xE000 && address <= 0xEFFF)) {
-            hiresColor = false;
-        } else if ((address >= 0xD000 && address <= 0xDFFF) || (address >= 0xF000 && address <= 0xFFFF)) {
-            hiresColor = true;
-        }
-        this.colorRam[address & (this.hiresColor ? 0xFF : 0xE7)] = (byte) (0xF0 | (value & 7));
+        this.hiresColor = (address & (1 << 12)) != 0;
+        this.colorRam[address & (this.hiresColor ? 0xFF : 0xE7)] = (byte) (value & 7);
     }
 
     public int readColorRam(int address) {
-        return (int) this.colorRam[address & (this.hiresColor ? 0xFF : 0xE7)] & 0xFF;
+        return ((int) this.colorRam[address & (this.hiresColor ? 0xFF : 0xE7)] & 0xFF) | 0xF0;
     }
 
     public void incrementBackgroundColorIndex() {
