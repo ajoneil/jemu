@@ -1,7 +1,6 @@
 package io.github.arkosammy12.jemu.core.rca;
 
 import io.github.arkosammy12.jemu.core.common.VideoGenerator;
-import io.github.arkosammy12.jemu.core.rca.cosmacvip.CosmacVIPEmulator;
 
 public class CDP1861<E extends CDP1802System> extends VideoGenerator<E> {
 
@@ -115,8 +114,12 @@ public class CDP1861<E extends CDP1802System> extends VideoGenerator<E> {
             if (col < 0 || col >= 64) {
                 break;
             }
-            this.displayBuffer[(row * IMAGE_WIDTH) + col] = (value & mask) != 0 ? 0xFFFFFF : 0x000000;
+            this.displayBuffer[(row * IMAGE_WIDTH) + col] = this.getPixelRGB(dmaOutAddress, (value & mask) != 0);
         }
+    }
+
+    protected int getPixelRGB(int dmaOutAddress, boolean bit) {
+        return bit ? 0xFFFFFF : 0x000000;
     }
 
 }

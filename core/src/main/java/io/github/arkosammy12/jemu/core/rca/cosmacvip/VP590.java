@@ -42,41 +42,26 @@ public class  VP590<E extends CosmacVIPEmulator> extends CDP1861<E> {
     }
 
     @Override
-    @SuppressWarnings("DuplicatedCode")
-    public void onDMAOUT(int dmaOutAddress, int value) {
-        if (!this.emulator.getCpu().getCurrentState().isS2Dma()) {
-            return;
-        }
-        int row = this.scanlineIndex - DISPLAY_AREA_BEGIN;
-        if (row < 0 || row >= this.getImageHeight()) {
-            return;
-        }
-        int dmaIndex = (int) ((this.cycles % MACHINE_CYCLES_PER_SCANLINE) - DMAO_BEGIN);
-        int colStart = dmaIndex * 8;
-        int color = 0;
-        int backgroundColor;
-        if (this.colorRamModified) {
-            backgroundColor = BACKGROUND_COLORS[backgroundColorIndex];
-            int colorByte = this.readColorRam(dmaOutAddress);
-            if ((colorByte & 1) != 0) {
-                color |= 0xFF0000;
-            }
-            if ((colorByte & 0b100) != 0) {
-                color |= 0x00FF00;
-            }
-            if ((colorByte & 0b10) != 0) {
-                color |= 0x0000FF;
-            }
+    protected int getPixelRGB(int dmaOutAddress, boolean bit) {
+        if (!bit) {
+            return BACKGROUND_COLORS[this.colorRamModified ? this.backgroundColorIndex : 0];
         } else {
-            backgroundColor = 0x000080;
-            color = 0xFFFFFF;
-        }
-        for (int i = 0, mask = 0x80; i < 8; i++, mask >>>= 1) {
-            int col = colStart + i;
-            if (col < 0 || col >= 64) {
-                break;
+            if (!this.colorRamModified) {
+                return 0xFFFFFF;
+            } else {
+                int colorByte = this.readColorRam(dmaOutAddress);
+                int color = 0x000000;
+                if ((colorByte & 1) != 0) {
+                    color |= 0xFF0000;
+                }
+                if ((colorByte & 0b100) != 0) {
+                    color |= 0x00FF00;
+                }
+                if ((colorByte & 0b10) != 0) {
+                    color |= 0x0000FF;
+                }
+                return color;
             }
-            this.displayBuffer[(row * IMAGE_WIDTH) + col] = (value & mask) != 0 ? color : backgroundColor;
         }
     }
 
