@@ -4,7 +4,7 @@ import io.github.arkosammy12.jemu.core.rca.CDP1861;
 
 import java.util.Arrays;
 
-public class  VP590<E extends CosmacVIPEmulator> extends CDP1861<E> {
+public class VP590<E extends CosmacVIPEmulator> extends CDP1861<E> {
 
     private static final int[] BACKGROUND_COLORS = {
             0x000080,
