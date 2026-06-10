@@ -5,7 +5,6 @@ import io.github.arkosammy12.jemu.core.common.VideoGenerator;
 import io.github.arkosammy12.jemu.core.cpu.SM83;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import io.github.arkosammy12.jemu.core.util.ShiftRegister;
-import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
 
 import java.util.Arrays;
 
@@ -72,7 +71,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     // TODO: Implement the PPU behavior when the CPU is in STOP mode for the DMG and CGB
     protected final int[] lcd;
 
-    protected Mode currentMode = Mode.MODE_0_HBLANK;
+    protected Mode currentMode = Mode.HBLANK_0;
     private int dotNumber;
     private int dotCycleIndex;
     protected int scanlineNumber;
@@ -144,14 +143,14 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     public int readByte(int address) {
         if (address >= OAM_START && address <= OAM_END) {
             int ppuMode = this.getPPUMode();
-            if (Mode.MODE_0_HBLANK.matchesValue(ppuMode) || Mode.MODE_1_VBLANK.matchesValue(ppuMode) || !this.getLCDPPUEnable()) {
+            if (Mode.HBLANK_0.matchesValue(ppuMode) || Mode.VBLANK_1.matchesValue(ppuMode) || !this.getLCDPPUEnable()) {
                 return (int) this.oam[address - OAM_START] & 0xFF;
             } else {
                 return 0xFF;
             }
 
         } else if (address >= VRAM_START && address <= VRAM_END) {
-            if (!Mode.MODE_3_DRAWING.matchesValue(this.getPPUMode()) || !this.getLCDPPUEnable()) {
+            if (!Mode.DRAWING_3.matchesValue(this.getPPUMode()) || !this.getLCDPPUEnable()) {
                 return (int) this.vram[address - VRAM_START] & 0xFF;
             } else {
                 return 0xFF;
@@ -178,11 +177,11 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     public void writeByte(int address, int value) {
         if (address >= OAM_START && address <= OAM_END) {
             int ppuMode = this.getPPUMode();
-            if (Mode.MODE_0_HBLANK.matchesValue(ppuMode) || Mode.MODE_1_VBLANK.matchesValue(ppuMode) || !this.getLCDPPUEnable()) {
+            if (Mode.HBLANK_0.matchesValue(ppuMode) || Mode.VBLANK_1.matchesValue(ppuMode) || !this.getLCDPPUEnable()) {
               this.oam[address - OAM_START] = (byte) value;
             }
         } else if (address >= VRAM_START && address <= VRAM_END) {
-            if (!Mode.MODE_3_DRAWING.matchesValue(this.getPPUMode()) || !this.getLCDPPUEnable()) {
+            if (!Mode.DRAWING_3.matchesValue(this.getPPUMode()) || !this.getLCDPPUEnable()) {
                 this.vram[address - VRAM_START] = (byte) value;
             }
         } else {
@@ -205,9 +204,9 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                         this.scanlineNumber = 0;
                         this.lcdY = 0;
                         this.dotNumber = 0;
-                        this.currentMode = Mode.MODE_0_HBLANK;
-                        this.setPPUMode(Mode.MODE_0_HBLANK.getValue());
-                        this.setSTATModeForInterrupt(Mode.MODE_0_HBLANK.getValue());
+                        this.currentMode = Mode.HBLANK_0;
+                        this.setPPUMode(Mode.HBLANK_0.getValue());
+                        this.setSTATModeForInterrupt(Mode.HBLANK_0.getValue());
                     }
                     if (!oldLcdEnable && newLcdEnable) {
                         this.onLCDOn();
@@ -241,7 +240,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     protected void checkSTATWriteBug() {
         // The write transient drives all four enables high while the bus settles
         boolean vblank = this.scanlineNumber >= 144;
-        this.settleSTATLegs(this.getLYEqualsLYCFlag(), vblank, Mode.MODE_0_HBLANK.matchesValue(this.statModeForInterrupt), this.isLineEndPulse() && !vblank);
+        this.settleSTATLegs(this.getLYEqualsLYCFlag(), vblank, Mode.HBLANK_0.matchesValue(this.statModeForInterrupt), this.isLineEndPulse() && !vblank);
     }
 
     public void checkArmOAMBugRead(int address) {
@@ -286,10 +285,10 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         this.nextState();
 
         switch (this.currentMode) {
-            case MODE_0_HBLANK -> this.onHBlank();
-            case MODE_1_VBLANK -> this.onVBlank();
-            case MODE_2_OAM_SCAN -> this.onOAMScan();
-            case MODE_3_DRAWING -> this.onDrawing();
+            case HBLANK_0 -> this.onHBlank();
+            case VBLANK_1 -> this.onVBlank();
+            case OAM_SCAN_2 -> this.onOAMScan();
+            case DRAWING_3 -> this.onDrawing();
         }
 
         if (tCycle == 2) {
@@ -341,7 +340,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         boolean vblank = this.scanlineNumber >= 144;
         boolean lycLeg = this.getLYCInterruptSelect() && this.getLYEqualsLYCFlag();
         boolean mode1Leg = this.getMode1InterruptSelect() && vblank;
-        boolean mode0Leg = this.getMode0InterruptSelect() && Mode.MODE_0_HBLANK.matchesValue(this.statModeForInterrupt);
+        boolean mode0Leg = this.getMode0InterruptSelect() && Mode.HBLANK_0.matchesValue(this.statModeForInterrupt);
         boolean mode2Leg = this.getMode2InterruptSelect() && this.isLineEndPulse() && !vblank;
         // One settle stage per gate-depth rank: LYC, then mode 1, then modes 0/2. A
         // through-zero between stages fires; a covered swap doesn't
@@ -371,19 +370,19 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         Mode oldMode = this.currentMode;
         if (this.dotNumber == 0) {
             if (this.scanlineNumber >= 144) {
-                this.currentMode = Mode.MODE_1_VBLANK;
+                this.currentMode = Mode.VBLANK_1;
             } else if (!this.lcdOnLine) {
                 // OAM scan is skipped on the first scanline after LCD-on
-                this.currentMode = Mode.MODE_2_OAM_SCAN;
+                this.currentMode = Mode.OAM_SCAN_2;
             }
         } else if (this.dotNumber == 80) {
             if (this.scanlineNumber >= 144) {
-                this.currentMode = Mode.MODE_1_VBLANK;
+                this.currentMode = Mode.VBLANK_1;
             } else {
-                this.currentMode = Mode.MODE_3_DRAWING;
+                this.currentMode = Mode.DRAWING_3;
             }
         } else if (this.pixelX >= 168) {
-            this.currentMode = Mode.MODE_0_HBLANK;
+            this.currentMode = Mode.HBLANK_0;
         }
         if (oldMode != this.currentMode) {
             this.dotCycleIndex = 0;
@@ -405,7 +404,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             }
             case 1 -> {
                 if (this.scanlineNumber == 144) {
-                    this.setSTATModeForInterrupt(Mode.MODE_1_VBLANK.getValue());
+                    this.setSTATModeForInterrupt(Mode.VBLANK_1.getValue());
                     this.windowYCondition = false;
                     this.windowLine = 0;
 
@@ -437,7 +436,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 this.dotCycleIndex = 1;
             }
             case 1 -> {
-                this.setSTATModeForInterrupt(Mode.MODE_0_HBLANK.getValue());
+                this.setSTATModeForInterrupt(Mode.HBLANK_0.getValue());
                 this.dotCycleIndex = 2;
             }
             case 2 -> {
@@ -487,7 +486,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 this.dotCycleIndex = 1;
             }
             case 1 -> {
-                this.setSTATModeForInterrupt(Mode.MODE_2_OAM_SCAN.getValue());
+                this.setSTATModeForInterrupt(Mode.OAM_SCAN_2.getValue());
                 this.tickOAMScan();
                 this.dotCycleIndex = 2;
             }
@@ -530,7 +529,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         if (this.scannedEntries < 2) {
             return;
         }
-        if (cur < 8 || cur >= 160 || !Mode.MODE_2_OAM_SCAN.matchesValue(this.getPPUMode())) {
+        if (cur < 8 || cur >= 160 || !Mode.OAM_SCAN_2.matchesValue(this.getPPUMode())) {
             return;
         }
         int prev = cur - 8;
@@ -588,7 +587,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         if (this.scannedEntries < 2) {
             return;
         }
-        if (cur < 8 || cur >= 160 || !Mode.MODE_2_OAM_SCAN.matchesValue(this.getPPUMode())) {
+        if (cur < 8 || cur >= 160 || !Mode.OAM_SCAN_2.matchesValue(this.getPPUMode())) {
             return;
         }
         int prev = cur - 8;
@@ -610,7 +609,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 this.dotCycleIndex = 1;
             }
             case 1 -> {
-                this.setSTATModeForInterrupt(Mode.MODE_3_DRAWING.getValue());
+                this.setSTATModeForInterrupt(Mode.DRAWING_3.getValue());
                 this.tickDraw();
                 this.dotCycleIndex = 2;
             }
@@ -1049,10 +1048,10 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     }
 
     public enum Mode {
-        MODE_0_HBLANK(0),
-        MODE_1_VBLANK(1),
-        MODE_2_OAM_SCAN(2),
-        MODE_3_DRAWING(3);
+        HBLANK_0(0),
+        VBLANK_1(1),
+        OAM_SCAN_2(2),
+        DRAWING_3(3);
 
         private final int value;
 

@@ -436,7 +436,7 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
                 }
                 case HBLANK -> {
                     int ppuMode = this.emulator.getVideoGenerator().getMode().getValue();
-                    if (!DMGPPU.Mode.MODE_0_HBLANK.matchesValue(this.oldPpuMode) && DMGPPU.Mode.MODE_0_HBLANK.matchesValue(ppuMode)) {
+                    if (!DMGPPU.Mode.HBLANK_0.matchesValue(this.oldPpuMode) && DMGPPU.Mode.HBLANK_0.matchesValue(ppuMode)) {
                         this.vdmaCopyingBlock = true;
                         this.haltCPU = true;
                     }
