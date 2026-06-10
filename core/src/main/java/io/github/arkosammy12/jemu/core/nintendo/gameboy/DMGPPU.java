@@ -82,9 +82,11 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     private int enablePixelWritesDelay;
     private boolean lcdOnLine;
     private int pendingVisibleMode = -1;
-    private boolean pendingLyIncrement;
 
     private boolean oldStatInterruptLine;
+    private boolean oldMode1Leg;
+    private boolean oldMode0Leg;
+    private boolean oldMode2Leg;
 
     private boolean windowPixelRendered;
 
@@ -237,7 +239,9 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     }
 
     protected void checkSTATWriteBug() {
-        this.evaluateSTATLine(true, true, true, true);
+        // The write transient drives all four enables high while the bus settles
+        boolean vblank = this.scanlineNumber >= 144;
+        this.settleSTATLegs(this.getLYEqualsLYCFlag(), vblank, Mode.MODE_0_HBLANK.matchesValue(this.statModeForInterrupt), this.isLineEndPulse() && !vblank);
     }
 
     public void checkArmOAMBugRead(int address) {
@@ -279,11 +283,6 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             this.setPPUMode(this.pendingVisibleMode);
             this.pendingVisibleMode = -1;
         }
-        // LY ripples one dot after the scanline wrap
-        if (this.pendingLyIncrement) {
-            this.lcdY = (this.lcdY + 1) % SCANLINES_PER_FRAME;
-            this.pendingLyIncrement = false;
-        }
         this.nextState();
 
         switch (this.currentMode) {
@@ -311,11 +310,13 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             this.dotNumber = 0;
             this.dotCycleIndex = 0;
 
-            int originalScanlineNumber = this.scanlineNumber;
             this.scanlineNumber = (this.scanlineNumber + 1) % SCANLINES_PER_FRAME;
-            if (originalScanlineNumber != 153) {
-                this.pendingLyIncrement = true;
-                this.setLYEqualsLYCFlag(false);
+            if (this.scanlineNumber == 144) {
+                this.triggerVBlankInterrupt();
+            }
+            // line 153 already reset LY to 0
+            if (this.scanlineNumber != 0) {
+                this.lcdY = this.scanlineNumber;
             }
 
             if (this.windowPixelRendered) {
@@ -324,25 +325,46 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             }
         }
 
-        if (this.dotNumber >= 1) {
+        // The LY=LYC comparator output is registered once per M-cycle
+        if ((this.dotNumber & 3) == 0) {
             this.setLYEqualsLYCFlag(this.lcdY == this.lcdYCompare);
         }
+        // LY resets early in line 153; the comparator capture above wins the race
+        if (this.scanlineNumber == 153 && this.dotNumber == 4) {
+            this.lcdY = 0;
+        }
 
-        this.oldStatInterruptLine = this.evaluateSTATLine(this.getLYCInterruptSelect(), this.getMode0InterruptSelect(), this.getMode1InterruptSelect(), this.getMode2InterruptSelect());
+        this.updateSTATLine();
     }
 
-    private boolean evaluateSTATLine(boolean lycSelect, boolean mode0Select, boolean mode1Select, boolean mode2Select) {
-        // The internal OAM-scan signal pulses high at the start of line 144, raising the STAT line for mode 2 at VBlank entry
-        boolean mode2VBlankPulse = this.scanlineNumber == 144 && this.dotNumber >= 1 && this.dotNumber <= 4;
-        boolean statInterruptLine = false;
-        statInterruptLine |= lycSelect && this.getLYEqualsLYCFlag();
-        statInterruptLine |= mode0Select && Mode.MODE_0_HBLANK.matchesValue(this.statModeForInterrupt);
-        statInterruptLine |= mode1Select && Mode.MODE_1_VBLANK.matchesValue(this.statModeForInterrupt);
-        statInterruptLine |= mode2Select && (Mode.MODE_2_OAM_SCAN.matchesValue(this.statModeForInterrupt) || mode2VBlankPulse);
+    private void updateSTATLine() {
+        boolean vblank = this.scanlineNumber >= 144;
+        boolean lycLeg = this.getLYCInterruptSelect() && this.getLYEqualsLYCFlag();
+        boolean mode1Leg = this.getMode1InterruptSelect() && vblank;
+        boolean mode0Leg = this.getMode0InterruptSelect() && Mode.MODE_0_HBLANK.matchesValue(this.statModeForInterrupt);
+        boolean mode2Leg = this.getMode2InterruptSelect() && this.isLineEndPulse() && !vblank;
+        // One settle stage per gate-depth rank: LYC, then mode 1, then modes 0/2. A
+        // through-zero between stages fires; a covered swap doesn't
+        this.settleSTATLegs(lycLeg, this.oldMode1Leg, this.oldMode0Leg, this.oldMode2Leg);
+        this.settleSTATLegs(lycLeg, mode1Leg, this.oldMode0Leg, this.oldMode2Leg);
+        this.settleSTATLegs(lycLeg, mode1Leg, mode0Leg, mode2Leg);
+        this.oldMode1Leg = mode1Leg;
+        this.oldMode0Leg = mode0Leg;
+        this.oldMode2Leg = mode2Leg;
+    }
+
+    // The OAM-scan STAT condition is the line-end pulse itself, straddling the line boundary
+    private boolean isLineEndPulse() {
+        int pulseStart = (this.lcdOnLine ? CYCLES_PER_SCANLINE - 2 : CYCLES_PER_SCANLINE) - 1;
+        return this.dotNumber >= pulseStart || this.dotNumber <= 1;
+    }
+
+    private void settleSTATLegs(boolean lycLeg, boolean mode1Leg, boolean mode0Leg, boolean mode2Leg) {
+        boolean statInterruptLine = lycLeg || mode1Leg || mode0Leg || mode2Leg;
         if (!this.oldStatInterruptLine && statInterruptLine) {
             this.triggerSTATInterrupt();
         }
-        return statInterruptLine;
+        this.oldStatInterruptLine = statInterruptLine;
     }
 
     private void nextState() {
@@ -384,7 +406,6 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             case 1 -> {
                 if (this.scanlineNumber == 144) {
                     this.setSTATModeForInterrupt(Mode.MODE_1_VBLANK.getValue());
-                    this.triggerVBlankInterrupt();
                     this.windowYCondition = false;
                     this.windowLine = 0;
 
@@ -403,10 +424,6 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
                 this.dotCycleIndex = 3;
             }
             case 3 -> {
-                if (this.scanlineNumber == 153) {
-                    this.lcdY = 0;
-                    this.setLYEqualsLYCFlag(false);
-                }
                 this.dotCycleIndex = 4;
             }
             case 4 -> {}
