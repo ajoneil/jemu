@@ -10,7 +10,7 @@ import java.util.Arrays;
 
 import static io.github.arkosammy12.jemu.core.nintendo.gameboy.DMGBus.*;
 
-public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> implements Bus {
+public class DMGPPU<E extends GameBoyEmulator> implements VideoGenerator, Bus {
 
     protected static final int WIDTH = 160;
     private static final int HEIGHT = 144;
@@ -36,6 +36,8 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             0x306230,
             0x0F380F
     };
+
+    protected final E emulator;
 
     protected final byte[] vram = new byte[0x2000];
     private final byte[] oam = new byte[0x00A0];
@@ -119,7 +121,7 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
     private boolean armOAMBugWrite;
 
     public DMGPPU(E emulator) {
-        super(emulator);
+        this.emulator = emulator;
         this.lcd = new int[this.getImageWidth() * this.getImageHeight()];
         Arrays.fill(this.lcd, this.getLCDOffColor());
         Arrays.fill(this.spriteBuffer, -1);

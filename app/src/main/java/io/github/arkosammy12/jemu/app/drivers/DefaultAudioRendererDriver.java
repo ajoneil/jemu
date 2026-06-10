@@ -8,9 +8,9 @@ import org.jetbrains.annotations.Nullable;
 public abstract class DefaultAudioRendererDriver implements AudioDriver {
 
     protected final Jemu jemu;
-    protected final AudioGenerator<?> audioGenerator;
+    protected final AudioGenerator audioGenerator;
 
-    public DefaultAudioRendererDriver(Jemu jemu, AudioGenerator<?> audioGenerator) {
+    public DefaultAudioRendererDriver(Jemu jemu, AudioGenerator audioGenerator) {
         this.jemu = jemu;
         this.audioGenerator = audioGenerator;
     }

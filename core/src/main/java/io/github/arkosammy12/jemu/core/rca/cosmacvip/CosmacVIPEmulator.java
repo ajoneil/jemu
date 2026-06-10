@@ -15,8 +15,8 @@ public class CosmacVIPEmulator implements CDP1802System, CDP1802.SystemBus {
     private final CDP1802 cpu;
     private final CosmacVIPBus bus;
     private final CDP1861<?> vdp;
-    private final AudioGenerator<?> audioGenerator;
-    private final CosmacVIPKeypad<?> keypad;
+    private final AudioGenerator audioGenerator;
+    private final CosmacVIPKeypad keypad;
 
     private final int frameRate;
 
@@ -24,7 +24,7 @@ public class CosmacVIPEmulator implements CDP1802System, CDP1802.SystemBus {
         try {
             this.host = host;
             this.chip8Interpreter = host.getChip8Interpreter();
-            this.keypad = new CosmacVIPKeypad<>(this, host.getRom().isEmpty());
+            this.keypad = new CosmacVIPKeypad(host.getRom().isEmpty());
             this.cpu = new CDP1802(this);
             this.bus = new CosmacVIPBus(this);
             if (this.chip8Interpreter == CosmacVIPHost.Chip8Interpreter.CHIP_8X) {
@@ -62,12 +62,12 @@ public class CosmacVIPEmulator implements CDP1802System, CDP1802.SystemBus {
     }
 
     @Override
-    public AudioGenerator<?> getAudioGenerator() {
+    public AudioGenerator getAudioGenerator() {
         return this.audioGenerator;
     }
 
     @Override
-    public SystemController<?> getSystemController() {
+    public SystemController getSystemController() {
         return this.keypad;
     }
 
@@ -166,7 +166,7 @@ public class CosmacVIPEmulator implements CDP1802System, CDP1802.SystemBus {
             case 2 -> this.keypad.setLatchedKey(value);
             case 3 -> {
                 if (this.audioGenerator instanceof VP595<?> vp595) {
-                    vp595.setFrequency((double) value);
+                    vp595.setFrequency(value);
                 }
             }
             case 5 -> {

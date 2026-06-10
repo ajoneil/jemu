@@ -1,7 +1,7 @@
 package io.github.arkosammy12.jemu.core.nintendo.gameboy;
 
-import io.github.arkosammy12.jemu.core.common.Bus;
 import io.github.arkosammy12.jemu.core.common.AudioGenerator;
+import io.github.arkosammy12.jemu.core.common.Bus;
 import io.github.arkosammy12.jemu.core.drivers.AudioDriver;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import org.jetbrains.annotations.NotNull;
@@ -10,7 +10,7 @@ import java.util.Optional;
 
 import static io.github.arkosammy12.jemu.core.common.SystemHost.intToByteArray;
 
-public class DMGAPU<E extends GameBoyEmulator> extends AudioGenerator<E> implements Bus {
+public class DMGAPU<E extends GameBoyEmulator> implements AudioGenerator, Bus {
 
     public static final int NR10_ADDR = 0xFF10;
     public static final int NR11_ADDR = 0xFF11;
@@ -51,6 +51,8 @@ public class DMGAPU<E extends GameBoyEmulator> extends AudioGenerator<E> impleme
     private static final double HIGH_PASS_CAPACITOR_CONSTANT = 0.999958;
     private static final double LOW_PASS_CAPACITOR_CONSTANT = 0.01664;
 
+    private final E emulator;
+
     private final short[] leftChannelSamples = new short[GameBoyEmulator.T_CYCLES_PER_FRAME];
     private final short[] rightChannelSamples = new short[GameBoyEmulator.T_CYCLES_PER_FRAME];
     private int currentSampleIndex = 0;
@@ -78,7 +80,7 @@ public class DMGAPU<E extends GameBoyEmulator> extends AudioGenerator<E> impleme
     private double rightLowPassFilterCapacitor = 0;
 
     public DMGAPU(E emulator) {
-        super(emulator);
+        this.emulator = emulator;
         this.channel3 = this.createChannel3();
     }
 

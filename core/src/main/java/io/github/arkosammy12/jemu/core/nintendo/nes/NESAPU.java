@@ -13,7 +13,7 @@ import java.util.Optional;
 
 import static io.github.arkosammy12.jemu.core.nintendo.nes.RP2A03.*;
 
-public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements Bus {
+public class NESAPU<E extends NESEmulator> implements AudioGenerator, Bus {
 
     private static final double OUTPUT_GAIN = Short.MAX_VALUE;
 
@@ -61,11 +61,10 @@ public class NESAPU<E extends NESEmulator> extends AudioGenerator<E> implements 
     private boolean frameCounterInterruptInhibitFlag;
 
     public NESAPU(E emulator, int samplesPerFrame) {
-        super(emulator);
         this.emulator = emulator;
         this.sampleBuffer = new double[samplesPerFrame];
 
-        this.lpf.createLpf(17000.0, (double) (samplesPerFrame * emulator.getFramerate()));
+        this.lpf.createLpf(17000.0, samplesPerFrame * emulator.getFramerate());
 
         this.frameCounterControlUpdateSignalId = this.signalDispatcher.addSignal(newJoy2Value -> {
             this.frameCounterStepMode = (newJoy2Value & (1 << 7)) != 0 ? FrameCounterStepMode.STEP_5 : FrameCounterStepMode.STEP_4;

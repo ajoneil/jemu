@@ -38,8 +38,8 @@ public abstract class GameBoyCartridge implements Bus {
         byte[] rom = optionalROM.get();
         this.originalRom = Arrays.copyOf(rom, rom.length);
         this.cartridgeType = cartridgeType;
-        this.romSizeHeader = (int) rom[ROM_SIZE_ADDRESS];
-        this.ramSizeHeader = (int) rom[RAM_SIZE_ADDRESS];
+        this.romSizeHeader = rom[ROM_SIZE_ADDRESS];
+        this.ramSizeHeader = rom[RAM_SIZE_ADDRESS];
     }
 
     public static GameBoyCartridge getCartridge(GameBoyEmulator emulator) {

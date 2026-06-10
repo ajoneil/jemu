@@ -2,15 +2,11 @@ package io.github.arkosammy12.jemu.core.rca.studioii;
 
 import io.github.arkosammy12.jemu.core.common.SystemController;
 
-public class RCAStudioIIKeypad<E extends RCAStudioIIEmulator> extends SystemController<E> {
+public class RCAStudioIIKeypad implements SystemController {
 
     private final boolean[] keypad1Keys = new boolean[10];
     private final boolean[] keypad2Keys = new boolean[10];
     private int latchedKey;
-
-    public RCAStudioIIKeypad(E emulator) {
-        super(emulator);
-    }
 
     @Override
     public void onActionPressed(Action action) {

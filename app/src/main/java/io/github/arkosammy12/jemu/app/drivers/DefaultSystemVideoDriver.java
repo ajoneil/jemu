@@ -6,7 +6,6 @@ import io.github.arkosammy12.jemu.core.drivers.VideoDriver;
 import org.tinylog.Logger;
 
 import java.awt.*;
-import java.awt.event.KeyListener;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
@@ -35,7 +34,7 @@ public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Clo
     private int lastWidth = -1;
     private int lastHeight = -1;
 
-    public DefaultSystemVideoDriver(VideoGenerator<?> videoGenerator) {
+    public DefaultSystemVideoDriver(VideoGenerator videoGenerator) {
         this.displayWidth = videoGenerator.getImageWidth();
         this.displayHeight = videoGenerator.getImageHeight();
         this.pixelAspectRatio = videoGenerator.getPixelAspectRatio();

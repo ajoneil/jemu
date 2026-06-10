@@ -6,11 +6,11 @@ public interface Emulator extends AutoCloseable {
 
     SystemHost getHost();
 
-    VideoGenerator<?> getVideoGenerator();
+    VideoGenerator getVideoGenerator();
 
-    AudioGenerator<?> getAudioGenerator();
+    AudioGenerator getAudioGenerator();
 
-    SystemController<?> getSystemController();
+    SystemController getSystemController();
 
     void executeFrame();
 

@@ -6,10 +6,11 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
 
-public class ToneGenerator<E extends CDP1802System> extends AudioGenerator<E> {
+public class ToneGenerator<E extends CDP1802System> implements AudioGenerator {
 
     public static final int SQUARE_WAVE_AMPLITUDE = 4;
 
+    private final E emulator;
     protected double phase = 0.0;
 
     private static final int[] DEFAULT_PATTERN_1 = {
@@ -21,7 +22,7 @@ public class ToneGenerator<E extends CDP1802System> extends AudioGenerator<E> {
     };
 
     public ToneGenerator(E emulator) {
-        super(emulator);
+        this.emulator = emulator;
     }
 
     @Override

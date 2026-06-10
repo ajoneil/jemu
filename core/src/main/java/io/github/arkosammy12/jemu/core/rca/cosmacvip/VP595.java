@@ -8,13 +8,15 @@ import java.util.Optional;
 
 import static io.github.arkosammy12.jemu.core.rca.ToneGenerator.SQUARE_WAVE_AMPLITUDE;
 
-public class VP595<E extends CosmacVIPEmulator> extends AudioGenerator<E> {
+public class VP595<E extends CosmacVIPEmulator> implements AudioGenerator {
+
+    private final E emulator;
 
     private double frequencyLatch = 27535.0 / (0x80 + 1);
     private double phase = 0.0;
 
     public VP595(E emulator) {
-        super(emulator);
+        this.emulator = emulator;
     }
 
     @Override

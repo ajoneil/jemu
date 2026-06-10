@@ -5,7 +5,7 @@ import io.github.arkosammy12.jemu.core.common.AudioGenerator;
 
 public class StereoAudioRendererDriver extends DefaultAudioRendererDriver {
 
-    public StereoAudioRendererDriver(Jemu jemu, AudioGenerator<?> audioGenerator) {
+    public StereoAudioRendererDriver(Jemu jemu, AudioGenerator audioGenerator) {
         super(jemu, audioGenerator);
     }
 

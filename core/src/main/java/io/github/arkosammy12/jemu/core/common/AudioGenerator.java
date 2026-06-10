@@ -4,22 +4,16 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
 
-public abstract class AudioGenerator<E extends Emulator> {
+public interface AudioGenerator {
 
-    protected final E emulator;
-
-    public AudioGenerator(E emulator) {
-        this.emulator = emulator;
-    }
-
-    abstract public boolean isStereo();
+    boolean isStereo();
 
     @NotNull
-    abstract public SampleSize getBytesPerSample();
+    SampleSize getBytesPerSample();
 
-    abstract public Optional<byte[]> getSampleFrame();
+    Optional<byte[]> getSampleFrame();
 
-    public enum SampleSize {
+    enum SampleSize {
         BYTES_1,
         BYTES_2
     }

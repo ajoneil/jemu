@@ -4,15 +4,14 @@ import io.github.arkosammy12.jemu.core.common.SystemController;
 
 import java.util.function.BooleanSupplier;
 
-public class CosmacVIPKeypad<E extends CosmacVIPEmulator> extends SystemController<E> {
+public class CosmacVIPKeypad implements SystemController {
 
     private final boolean[] keys = new boolean[16];
     private int latchedKey = 0;
 
     private BooleanSupplier efxFunction;
 
-    public CosmacVIPKeypad(E emulator, boolean forceCKeyOnStartup) {
-        super(emulator);
+    public CosmacVIPKeypad(boolean forceCKeyOnStartup) {
         BooleanSupplier regularEfxFunction = () -> this.keys[this.latchedKey];
         if (forceCKeyOnStartup) {
             this.efxFunction = () -> {

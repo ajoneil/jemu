@@ -2,7 +2,7 @@ package io.github.arkosammy12.jemu.core.rca;
 
 import io.github.arkosammy12.jemu.core.common.VideoGenerator;
 
-public class CDP1861<E extends CDP1802System> extends VideoGenerator<E> {
+public class CDP1861<E extends CDP1802System> implements VideoGenerator {
 
     public static final int CPU_CYCLES_PER_FRAME = 3668;
 
@@ -27,6 +27,8 @@ public class CDP1861<E extends CDP1802System> extends VideoGenerator<E> {
     protected static final int DMAO_BEGIN = 4;
     private static final int DMAO_END = 12;
 
+    private final E emulator;
+
     protected final int[] displayBuffer;
     protected long cycles;
     protected int scanlineIndex;
@@ -38,7 +40,7 @@ public class CDP1861<E extends CDP1802System> extends VideoGenerator<E> {
     private boolean displayEnableLatch;
 
     public CDP1861(E emulator) {
-        super(emulator);
+        this.emulator = emulator;
         this.displayBuffer = new int[this.getImageWidth() * this.getImageHeight()];
     }
 

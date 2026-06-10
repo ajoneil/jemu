@@ -12,7 +12,7 @@ import java.util.Arrays;
 import static io.github.arkosammy12.jemu.core.nintendo.nes.NESCPUBus.PPU_END;
 import static io.github.arkosammy12.jemu.core.nintendo.nes.NESCPUBus.PPU_START;
 
-public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements Bus {
+public class RP2C02<E extends NESEmulator> implements VideoGenerator, Bus {
 
     private static final int[] PALETTE_2C02G_WIKI = {
             0x62, 0x62, 0x62, 0x00, 0x1c, 0x95, 0x19, 0x04, 0xac, 0x42, 0x00, 0x9d,
@@ -190,6 +190,8 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private static final int SPRITE_FETCH_START = 257;
     private static final int SPRITE_FETCH_END = 320;
 
+    private final E emulator;
+
     private final int[] video;
     private final int scanlinesPerFrame;
     private final int visibleScanlines;
@@ -288,7 +290,7 @@ public class RP2C02<E extends NESEmulator> extends VideoGenerator<E> implements 
     private int spriteFetcherPatternTableHigh;
 
     public RP2C02(E emulator) {
-        super(emulator);
+        this.emulator = emulator;
 
         this.scanlinesPerFrame = this.getScanlinesPerFrame();
         this.visibleScanlines = this.getVisibleScanlines();

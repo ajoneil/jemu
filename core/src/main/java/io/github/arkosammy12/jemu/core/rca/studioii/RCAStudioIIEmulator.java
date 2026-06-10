@@ -13,8 +13,8 @@ public class RCAStudioIIEmulator implements CDP1802System, CDP1802.SystemBus {
     private final CDP1802 cpu;
     private final RCAStudioIIBus bus;
     private final CDP1861<?> vdp;
-    private final AudioGenerator<?> audioGenerator;
-    private final RCAStudioIIKeypad<?> keypad;
+    private final AudioGenerator audioGenerator;
+    private final RCAStudioIIKeypad keypad;
 
     public RCAStudioIIEmulator(SystemHost systemHost) {
         this.systemHost = systemHost;
@@ -22,7 +22,7 @@ public class RCAStudioIIEmulator implements CDP1802System, CDP1802.SystemBus {
         this.bus = new RCAStudioIIBus(this);
         this.vdp = new CDP1861<>(this);
         this.audioGenerator = new ToneGenerator<>(this);
-        this.keypad = new RCAStudioIIKeypad<>(this);
+        this.keypad = new RCAStudioIIKeypad();
     }
 
     @Override
@@ -41,17 +41,17 @@ public class RCAStudioIIEmulator implements CDP1802System, CDP1802.SystemBus {
     }
 
     @Override
-    public VideoGenerator<?> getVideoGenerator() {
+    public VideoGenerator getVideoGenerator() {
         return this.vdp;
     }
 
     @Override
-    public AudioGenerator<?> getAudioGenerator() {
+    public AudioGenerator getAudioGenerator() {
         return this.audioGenerator;
     }
 
     @Override
-    public SystemController<?> getSystemController() {
+    public SystemController getSystemController() {
         return this.keypad;
     }
 
