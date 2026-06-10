@@ -3,7 +3,7 @@ package io.github.arkosammy12.jemu.frontend.gui.internal.menus;
 import io.github.arkosammy12.jemu.frontend.SystemDescriptor;
 import io.github.arkosammy12.jemu.frontend.gui.internal.SerializedEntry;
 import io.github.arkosammy12.jemu.frontend.gui.internal.commands.PauseCommandCallback;
-import io.github.arkosammy12.jemu.frontend.gui.internal.commands.ResetCommandCallback;
+import io.github.arkosammy12.jemu.frontend.gui.internal.commands.PowerCycleCommandCallback;
 import io.github.arkosammy12.jemu.frontend.gui.internal.commands.StopCommandCallback;
 import io.github.arkosammy12.jemu.frontend.gui.swing.MainWindow;
 import io.github.arkosammy12.jemu.frontend.gui.swing.MenuBarMenu;
@@ -62,10 +62,10 @@ public class EmulatorMenu extends MenuBarMenu implements EmulatorManager {
             this.systemDescriptorButtonMap.put(systemDescriptor, item);
         }
 
-        JMenuItem resetButton = new JMenuItem("Reset");
-        resetButton.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.CTRL_DOWN_MASK, true));
-        resetButton.setEnabled(true);
-        resetButton.addActionListener(_ -> this.submitReset());
+        JMenuItem powerCycleButton = new JMenuItem("Power Cycle");
+        powerCycleButton.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.CTRL_DOWN_MASK, true));
+        powerCycleButton.setEnabled(true);
+        powerCycleButton.addActionListener(_ -> this.submitPowerCycle());
 
         this.pauseButton.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_P, InputEvent.CTRL_DOWN_MASK, true));
         this.pauseButton.setEnabled(true);
@@ -94,7 +94,7 @@ public class EmulatorMenu extends MenuBarMenu implements EmulatorManager {
             mainWindow.submitEmulatorCommand(new StepCycleEmulatorCommand());
         });
 
-        this.jMenu.add(resetButton);
+        this.jMenu.add(powerCycleButton);
         this.jMenu.add(pauseButton);
         this.jMenu.add(stopButton);
         this.jMenu.add(stepFrameButton);
@@ -138,7 +138,7 @@ public class EmulatorMenu extends MenuBarMenu implements EmulatorManager {
             }
         }));
 
-        mainWindow.<ResetCommandCallback>addEmulatorCommandCallback(_ -> SwingUtilities.invokeLater(() -> {
+        mainWindow.<PowerCycleCommandCallback>addEmulatorCommandCallback(_ -> SwingUtilities.invokeLater(() -> {
             boolean paused = this.pauseButton.isSelected();
             stopButton.setEnabled(true);
             stepFrameButton.setEnabled(paused);
@@ -177,21 +177,21 @@ public class EmulatorMenu extends MenuBarMenu implements EmulatorManager {
         this.mainWindow.submitEmulatorCommand(new StopEmulatorCommand());
     }
 
-    void submitReset() {
+    void submitPowerCycle() {
         SystemDescriptor systemDescriptor = this.currentSystemDescriptor;
         if (systemDescriptor != null) {
-            this.mainWindow.submitEmulatorCommand(new ResetEmulatorCommand(systemDescriptor, this.pauseButton.isSelected()));
+            this.mainWindow.submitEmulatorCommand(new PowerCycleCommand(systemDescriptor, this.pauseButton.isSelected()));
             return;
         }
 
         Optional<Path> optionalRomPath = this.mainWindow.getMainMenuBar().getFileMenu().getSelectedRomPath();
         if (optionalRomPath.isEmpty()) {
-            this.mainWindow.showDialog("Error attempting to restart", "No selected ROM path to determine system from!", MainWindow.DialogType.ERROR);
+            this.mainWindow.showDialog("Error attempting to power cycle", "No selected ROM path to determine system from!", MainWindow.DialogType.ERROR);
             return;
         }
         String fileExtension = FilenameUtils.getExtension(optionalRomPath.get().toString());
         if (fileExtension.isBlank()) {
-            this.mainWindow.showDialog("Error attempting to restart", "The file extension of the selected ROM path is blank!", MainWindow.DialogType.ERROR);
+            this.mainWindow.showDialog("Error attempting to power cycle", "The file extension of the selected ROM path is blank!", MainWindow.DialogType.ERROR);
             return;
         }
 
@@ -210,11 +210,11 @@ public class EmulatorMenu extends MenuBarMenu implements EmulatorManager {
         }
 
         if (systemDescriptor == null) {
-            this.mainWindow.showDialog("Error attempting to restart", "File extension of selected ROM path does not match of system descriptors!", MainWindow.DialogType.ERROR);
+            this.mainWindow.showDialog("Error attempting to power cycle", "File extension of selected ROM path does not match of system descriptors!", MainWindow.DialogType.ERROR);
             return;
         }
 
-        this.mainWindow.submitEmulatorCommand(new ResetEmulatorCommand(systemDescriptor, this.pauseButton.isSelected()));
+        this.mainWindow.submitEmulatorCommand(new PowerCycleCommand(systemDescriptor, this.pauseButton.isSelected()));
     }
 
 }

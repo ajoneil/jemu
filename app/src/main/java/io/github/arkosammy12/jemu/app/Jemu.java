@@ -121,7 +121,7 @@ public final class Jemu {
                     State enqueuedState;
                     try {
                         enqueuedState = switch (enqueuedEmulatorCommand.getEmulatorCommand()) {
-                            case ResetEmulatorCommand resetEvent -> this.onEmulatorResetCommand(resetEvent);
+                            case PowerCycleCommand powerCycleCommand -> this.onEmulatorPowerCycleCommand(powerCycleCommand);
                             case StopEmulatorCommand _ -> this.onEmulatorStopCommand();
                             case PauseEmulatorCommand pauseEmulatorCommand -> this.onEmulatorPauseCommand(pauseEmulatorCommand);
                             case StepFrameEmulatorCommand _ -> this.onEmulatorStepFrameCommand();
@@ -175,7 +175,7 @@ public final class Jemu {
         this.currentState = State.PAUSED;
     }
 
-    private State onEmulatorResetCommand(ResetEmulatorCommand resetEvent) throws Exception {
+    private State onEmulatorPowerCycleCommand(PowerCycleCommand powerCycleCommand) throws Exception {
         if (this.currentSystem != null) {
             this.currentSystem.close();
         }
@@ -194,7 +194,7 @@ public final class Jemu {
 
             @Override
             public Optional<System> getSystem() {
-                return Optional.ofNullable(resetEvent.getSystemDescriptor().orElse(null) instanceof System system ? system : null);
+                return Optional.ofNullable(powerCycleCommand.getSystemDescriptor().orElse(null) instanceof System system ? system : null);
             }
 
         };
@@ -208,9 +208,9 @@ public final class Jemu {
         this.mainWindow.getSystemViewport().setSystemDisplay(() -> this.currentSystem.createAWTComponentVideoDriver());
         this.mainWindow.getSystemViewport().setSystemKeyListener(this.currentSystem.getSystemKeyListener());
 
-        boolean resetIntoPaused = resetEvent.resetIntoPaused();
-        this.audioEngine.setPaused(resetIntoPaused);
-        return resetIntoPaused ? State.PAUSED : State.RUNNING;
+        boolean powerCycleIntoPaused = powerCycleCommand.powerCycleIntoPaused();
+        this.audioEngine.setPaused(powerCycleIntoPaused);
+        return powerCycleIntoPaused ? State.PAUSED : State.RUNNING;
     }
 
     private State onEmulatorStopCommand() {

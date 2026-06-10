@@ -8,10 +8,6 @@ import io.github.arkosammy12.jemu.frontend.gui.internal.commands.*;
 import io.github.arkosammy12.jemu.frontend.gui.internal.events.InternalEvent;
 import io.github.arkosammy12.jemu.frontend.gui.swing.commands.*;
 import io.github.arkosammy12.jemu.frontend.gui.swing.events.Event;
-import io.github.arkosammy12.jemu.frontend.gui.internal.menus.EmulatorMenu;
-import io.github.arkosammy12.jemu.frontend.gui.internal.menus.FileMenu;
-import io.github.arkosammy12.jemu.frontend.gui.internal.menus.HelpMenu;
-import io.github.arkosammy12.jemu.frontend.gui.internal.menus.SettingsMenu;
 import io.github.arkosammy12.jemu.frontend.gui.swing.managers.EmulatorManager;
 import io.github.arkosammy12.jemu.frontend.gui.swing.managers.FileManager;
 import io.github.arkosammy12.jemu.frontend.gui.swing.managers.HelpManager;
@@ -294,8 +290,8 @@ public class MainWindow implements Closeable {
                     pauseCallback.onPause(command);
                 }
             });
-            case ResetEmulatorCommand command -> () -> this.emulatorCommandCallbacks.forEach(c -> {
-                if (c instanceof ResetCommandCallback resetCallback) {
+            case PowerCycleCommand command -> () -> this.emulatorCommandCallbacks.forEach(c -> {
+                if (c instanceof PowerCycleCommandCallback resetCallback) {
                     resetCallback.onReset(command);
                 }
             });

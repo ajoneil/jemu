@@ -1,10 +1,9 @@
 package io.github.arkosammy12.jemu.frontend.gui.swing;
 
-import io.github.arkosammy12.jemu.frontend.gui.internal.commands.ResetCommandCallback;
+import io.github.arkosammy12.jemu.frontend.gui.internal.commands.PowerCycleCommandCallback;
 import io.github.arkosammy12.jemu.frontend.gui.internal.commands.StopCommandCallback;
 
 import javax.swing.*;
-import java.util.Objects;
 
 public class TitleManager {
 
@@ -37,7 +36,7 @@ public class TitleManager {
             });
         });
 
-        mainWindow.<ResetCommandCallback>addEmulatorCommandCallback(_ -> {
+        mainWindow.<PowerCycleCommandCallback>addEmulatorCommandCallback(_ -> {
             this.projectNameString = this.mainWindow.getMainMenuBar().getHelpMenu().getProjectName();
         });
 
