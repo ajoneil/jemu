@@ -464,16 +464,8 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
     }
 
     private int readByteVDMA(int address) {
-        if (this.enableBootRom && address >= 0x0000 && address <= 0x08FF) {
-            if (address <= 0x00FF) {
-                return SAMEBOY_CGB_BOOT_ROM[address];
-            } else if (address <= 0x01FF) {
-                return super.readByteOAMDMA(address);
-            } else {
-                return SAMEBOY_CGB_BOOT_ROM[address];
-            }
-        } else if ((address >= ROM0_START && address <= ROMX_END) || (address >= SRAM_START && address <= SRAM_END)) {
-            return this.emulator.getCartridge().readByte(address);
+        if ((address >= ROM0_START && address <= ROMX_END) || (address >= SRAM_START && address <= SRAM_END)) {
+            return this.readByteCartridge(address);
         } else if (address >= VRAM_START && address <= VRAM_END) {
             return 0xFF;
         } else if (address >= WRAM0_START && address <= WRAMX_END) {
@@ -487,20 +479,16 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
     }
 
     @Override
-    protected int readByteOAMDMA(int address) {
-        if (this.enableBootRom) {
-            if (address >= 0x0000 && address <= 0x00FF) {
-                return SAMEBOY_CGB_BOOT_ROM[address];
-            } else if (address >= 0x0100 && address <= 0x01FF) {
-                return super.readByteOAMDMA(address);
-            } else if (address >= 0x0200 && address <= 0x08FF) {
-                return SAMEBOY_CGB_BOOT_ROM[address];
-            } else {
-                return super.readByteOAMDMA(address);
-            }
-        } else {
-            return super.readByteOAMDMA(address);
-        }
+    protected boolean areUsingSameBuses(int address1, int address2) {
+        return (isExternalBus(address1) && isExternalBus(address2)) || (isVRAMBus(address1) && isVRAMBus(address2)) || (isWRAMBus(address1) && isWRAMBus(address2));
+    }
+
+    private static boolean isExternalBus(int address) {
+        return (address >= 0x0000 && address <= 0x7FFF) || (address >= 0xA000 && address <= 0xBFFF);
+    }
+
+    private static boolean isWRAMBus(int address) {
+        return address >= WRAM0_START && address <= ECHO_END;
     }
 
     private enum VDMAType {
