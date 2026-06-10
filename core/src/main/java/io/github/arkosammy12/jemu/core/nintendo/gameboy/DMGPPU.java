@@ -536,16 +536,16 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
         int rowGroup = cur & 0x18;
         if (rowGroup == 0x08 || rowGroup == 0x18) {
             // Simple
-            this.oam[prev] = (byte) ((this.getOAMByteFromIndex(prev) | (this.getOAMByteFromIndex(cur) & this.getOAMByteFromIndex(prev + 4))) & 0xFF);
-            this.oam[prev + 1] = (byte) ((this.getOAMByteFromIndex(prev + 1) | (this.getOAMByteFromIndex(cur + 1) & this.getOAMByteFromIndex(prev + 5))) & 0xFF);
+            this.oam[prev] = (byte) ((this.oam[prev] | (this.oam[cur] & this.oam[prev + 4])));
+            this.oam[prev + 1] = (byte) ((this.oam[prev + 1] | (this.oam[cur + 1] & this.oam[prev + 5])));
             for (int i = 0; i <= 7; i++) {
                 this.oam[cur + i] = this.oam[prev + i];
             }
         } else if (rowGroup == 0x10 && cur < 0x98) {
             // Secondary
             int prev2 = cur - 16;
-            this.oam[prev] = (byte) (((this.getOAMByteFromIndex(prev) & (this.getOAMByteFromIndex(prev2) | this.getOAMByteFromIndex(cur) | this.getOAMByteFromIndex(prev + 4))) | (this.getOAMByteFromIndex(prev2) & this.getOAMByteFromIndex(cur) & this.getOAMByteFromIndex(prev + 4))) & 0xFF);
-            this.oam[prev + 1] = (byte) (((this.getOAMByteFromIndex(prev + 1) & (this.getOAMByteFromIndex(prev2 + 1) | this.getOAMByteFromIndex(cur + 1) | this.getOAMByteFromIndex(prev + 5))) | (this.getOAMByteFromIndex(prev2 + 1) & this.getOAMByteFromIndex(cur + 1) & this.getOAMByteFromIndex(prev + 5))) & 0xFF);
+            this.oam[prev] = (byte) (((this.oam[prev] & (this.oam[prev2] | this.oam[cur] | this.oam[prev + 4])) | (this.oam[prev2] & this.oam[cur] & this.oam[prev + 4])));
+            this.oam[prev + 1] = (byte) (((this.oam[prev + 1] & (this.oam[prev2 + 1] | this.oam[cur + 1] | this.oam[prev + 5])) | (this.oam[prev2 + 1] & this.oam[cur + 1] & this.oam[prev + 5])));
             for (int i = 0; i <= 7; i++) {
                 this.oam[prev2 + i] = this.oam[prev + i];
                 this.oam[cur + i] = this.oam[prev + i];
@@ -555,18 +555,18 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             int prev2 = cur - 16;
             int prev4 = cur - 32;
             if (cur == 0x20) {
-                this.oam[prev] = (byte) (((this.getOAMByteFromIndex(prev) & (this.getOAMByteFromIndex(cur) | this.getOAMByteFromIndex(prev + 4) | this.getOAMByteFromIndex(prev2) | this.getOAMByteFromIndex(prev4))) | (this.getOAMByteFromIndex(cur) & this.getOAMByteFromIndex(prev + 4) & this.getOAMByteFromIndex(prev2) & this.getOAMByteFromIndex(prev4))) & 0xFF);
-                this.oam[prev + 1] = (byte) (((this.getOAMByteFromIndex(prev + 1) & (this.getOAMByteFromIndex(cur + 1) | this.getOAMByteFromIndex(prev + 5) | this.getOAMByteFromIndex(prev2 + 1) | this.getOAMByteFromIndex(prev4 + 1))) | (this.getOAMByteFromIndex(cur + 1) & this.getOAMByteFromIndex(prev + 5) & this.getOAMByteFromIndex(prev2 + 1) & this.getOAMByteFromIndex(prev4 + 1))) & 0xFF);
+                this.oam[prev] = (byte) (((this.oam[prev] & (this.oam[cur] | this.oam[prev + 4] | this.oam[prev2] | this.oam[prev4])) | (this.oam[cur] & this.oam[prev + 4] & this.oam[prev2] & this.oam[prev4])));
+                this.oam[prev + 1] = (byte) (((this.oam[prev + 1] & (this.oam[cur + 1] | this.oam[prev + 5] | this.oam[prev2 + 1] | this.oam[prev4 + 1])) | (this.oam[cur + 1] & this.oam[prev + 5] & this.oam[prev2 + 1] & this.oam[prev4 + 1])));
             } else if (cur == 0x40) {
                 // Quaternary
-                this.oam[prev] = (byte) (((this.getOAMByteFromIndex(prev) & (this.getOAMByteFromIndex(cur) | this.getOAMByteFromIndex(prev + 4) | this.getOAMByteFromIndex(prev2) | this.getOAMByteFromIndex(prev4) | (~this.getOAMByteFromIndex(prev + 2) & this.getOAMByteFromIndex(prev2 + 2)))) | (this.getOAMByteFromIndex(prev + 4) & this.getOAMByteFromIndex(prev2) & this.getOAMByteFromIndex(prev4))) & 0xFF);
-                this.oam[prev + 1] = (byte) (((this.getOAMByteFromIndex(prev + 1) & (this.getOAMByteFromIndex(cur + 1) | this.getOAMByteFromIndex(prev + 5) | this.getOAMByteFromIndex(prev2 + 1) | this.getOAMByteFromIndex(prev4 + 1) | (~this.getOAMByteFromIndex(prev + 3) & this.getOAMByteFromIndex(prev2 + 3)))) | (this.getOAMByteFromIndex(prev + 5) & this.getOAMByteFromIndex(prev2 + 1) & this.getOAMByteFromIndex(prev4 + 1))) & 0xFF);
+                this.oam[prev] = (byte) (((this.oam[prev] & (this.oam[cur] | this.oam[prev + 4] | this.oam[prev2] | this.oam[prev4] | (~this.oam[prev + 2] & this.oam[prev2 + 2]))) | (this.oam[prev + 4] & this.oam[prev2] & this.oam[prev4])));
+                this.oam[prev + 1] = (byte) (((this.oam[prev + 1] & (this.oam[cur + 1] | this.oam[prev + 5] | this.oam[prev2 + 1] | this.oam[prev4 + 1] | (~this.oam[prev + 3] & this.oam[prev2 + 3]))) | (this.oam[prev + 5] & this.oam[prev2 + 1] & this.oam[prev4 + 1])));
             } else if (cur == 0x60) {
-                this.oam[prev] = (byte) (((this.getOAMByteFromIndex(prev) & (this.getOAMByteFromIndex(cur) | this.getOAMByteFromIndex(prev + 4) | this.getOAMByteFromIndex(prev2) | this.getOAMByteFromIndex(prev4))) | (this.getOAMByteFromIndex(prev + 4) & this.getOAMByteFromIndex(prev2) & this.getOAMByteFromIndex(prev4))) & 0xFF);
-                this.oam[prev + 1] = (byte) (((this.getOAMByteFromIndex(prev + 1) & (this.getOAMByteFromIndex(cur + 1) | this.getOAMByteFromIndex(prev + 5) | this.getOAMByteFromIndex(prev2 + 1) | this.getOAMByteFromIndex(prev4 + 1))) | (this.getOAMByteFromIndex(prev + 5) & this.getOAMByteFromIndex(prev2 + 1) & this.getOAMByteFromIndex(prev4 + 1))) & 0xFF);
+                this.oam[prev] = (byte) (((this.oam[prev] & (this.oam[cur] | this.oam[prev + 4] | this.oam[prev2] | this.oam[prev4])) | (this.oam[prev + 4] & this.oam[prev2] & this.oam[prev4])));
+                this.oam[prev + 1] = (byte) (((this.oam[prev + 1] & (this.oam[cur + 1] | this.oam[prev + 5] | this.oam[prev2 + 1] | this.oam[prev4 + 1])) | (this.oam[prev + 5] & this.oam[prev2 + 1] & this.oam[prev4 + 1])));
             } else if (cur == 0x80) {
-                this.oam[prev] = (byte) ((this.getOAMByteFromIndex(prev) | (this.getOAMByteFromIndex(cur) & this.getOAMByteFromIndex(prev + 4) & this.getOAMByteFromIndex(prev2) & this.getOAMByteFromIndex(prev4))) & 0xFF);
-                this.oam[prev + 1] = (byte) ((this.getOAMByteFromIndex(prev + 1) | (this.getOAMByteFromIndex(cur + 1) & this.getOAMByteFromIndex(prev + 5) & this.getOAMByteFromIndex(prev2 + 1) & this.getOAMByteFromIndex(prev4 + 1))) & 0xFF);
+                this.oam[prev] = (byte) ((this.oam[prev] | (this.oam[cur] & this.oam[prev + 4] & this.oam[prev2] & this.oam[prev4])) & 0xFF);
+                this.oam[prev + 1] = (byte) ((this.oam[prev + 1] | (this.oam[cur + 1] & this.oam[prev + 5] & this.oam[prev2 + 1] & this.oam[prev4 + 1])));
             }
 
             for (int i = 0; i <= 7; i++) {
@@ -591,15 +591,15 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             return;
         }
         int prev = cur - 8;
-        this.oam[cur] = (byte) (bitwiseMajority(this.getOAMByteFromIndex(cur), this.getOAMByteFromIndex(prev), this.getOAMByteFromIndex(prev + 4)) & 0xFF);
-        this.oam[cur + 1] = (byte) (bitwiseMajority(this.getOAMByteFromIndex(cur + 1), this.getOAMByteFromIndex(prev + 1),  this.getOAMByteFromIndex(prev + 5)) & 0xFF);
+        this.oam[cur] = bitwiseMajority(this.oam[cur], this.oam[prev], this.oam[prev + 4]);
+        this.oam[cur + 1] = bitwiseMajority(this.oam[cur + 1], this.oam[prev + 1], this.oam[prev + 5]);
         for (int i = 2; i <= 7; i++) {
             this.oam[cur + i] = this.oam[prev + i];
         }
     }
 
-    private static int bitwiseMajority(int x, int y, int z) {
-        return (x & y) | (x & z) | (y & z);
+    private static byte bitwiseMajority(byte x, byte y, byte z) {
+        return (byte) (((int) x & (int) y) | ((int) x & (int) z) | ((int) y & (int) z));
     }
 
     private void onDrawing() {
@@ -952,14 +952,6 @@ public class DMGPPU<E extends GameBoyEmulator> extends VideoGenerator<E> impleme
             return (int) this.oam[address - OAM_START] & 0xFF;
         } else {
             throw new EmulatorException("Invalid GameBoy OAM address \"%04X\"!".formatted(address));
-        }
-    }
-
-    private int getOAMByteFromIndex(int index) {
-        if (index >= 0 && index < this.oam.length) {
-            return (int) this.oam[index] & 0xFF;
-        } else {
-            throw new EmulatorException("Invalid GameBoy OAM index %d!".formatted(index));
         }
     }
 
