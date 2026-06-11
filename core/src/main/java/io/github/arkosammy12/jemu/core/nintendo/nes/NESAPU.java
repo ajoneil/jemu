@@ -459,13 +459,11 @@ public class NESAPU<E extends NESEmulator> implements AudioGenerator, Bus {
         private int lengthCounter;
         private boolean lengthCounterReloadPending;
         private int lengthCounterReloadValue;
-        private boolean haltFlagPending;
 
         // TODO: Delay on the halt flag. Writes to $4000 and equivalent for pulse1, pulse2, triangle and noise have a delay when changing the halt flag
 
         protected void setVolume(int value) {
             this.haltLengthCounter = (value & (1 << 5)) != 0;
-            this.haltFlagPending = true;
         }
 
         protected void setLO(int value) {
@@ -503,10 +501,6 @@ public class NESAPU<E extends NESEmulator> implements AudioGenerator, Bus {
                 didClock = true;
             }
 
-            if (this.haltFlagPending) {
-                this.haltFlagPending = false;
-            }
-
             if (this.lengthCounterReloadPending) {
                 this.lengthCounterReloadPending = false;
                 if (!didClock || this.lengthCounter == 0) {
@@ -525,7 +519,6 @@ public class NESAPU<E extends NESEmulator> implements AudioGenerator, Bus {
                 this.lengthCounterReloadPending = false;
                 this.lengthCounter = this.lengthCounterReloadValue;
             }
-            this.haltFlagPending = false;
         }
 
     }

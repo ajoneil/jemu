@@ -15,11 +15,11 @@ import java.awt.image.BufferStrategy;
 
 public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Closeable {
 
+    private final VideoGenerator videoGenerator;
     private final int[] renderBuffer;
 
     private final int displayWidth;
     private final int displayHeight;
-    private final double pixelAspectRatio;
 
     private final BufferedImage bufferedImage;
     private final AffineTransform drawTransform = new AffineTransform();
@@ -31,13 +31,19 @@ public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Clo
     private volatile boolean running = true;
     private boolean frameRequested = false;
 
-    private int lastWidth = -1;
-    private int lastHeight = -1;
+    private int lastWidth;
+    private int lastHeight;
+
+    private double lastPixelAspectRatio;
 
     public DefaultSystemVideoDriver(VideoGenerator videoGenerator) {
+        this.videoGenerator = videoGenerator;
         this.displayWidth = videoGenerator.getImageWidth();
         this.displayHeight = videoGenerator.getImageHeight();
-        this.pixelAspectRatio = videoGenerator.getPixelAspectRatio();
+
+        this.lastWidth = this.getWidth();
+        this.lastHeight = this.getHeight();
+        this.lastPixelAspectRatio = videoGenerator.getPixelAspectRatio();
 
         this.renderBuffer = new int[displayWidth * displayHeight];
         this.bufferedImage = new BufferedImage(displayWidth, displayHeight, BufferedImage.TYPE_INT_RGB);
@@ -64,16 +70,17 @@ public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Clo
     private void updateTransformIfNeeded() {
         int w = this.getWidth();
         int h = this.getHeight();
+        double pixelAspectRatio = this.videoGenerator.getPixelAspectRatio();
 
-        if (w == this.lastWidth && h == this.lastHeight) {
+        if (w == this.lastWidth && h == this.lastHeight && pixelAspectRatio == this.lastPixelAspectRatio) {
             return;
         }
 
-        double logicalWidth = (double) this.displayWidth * this.pixelAspectRatio;
+        double logicalWidth = (double) this.displayWidth * pixelAspectRatio;
 
         double scale = Math.min((double) w / logicalWidth, (double) h / (double) this.displayHeight);
 
-        double scaleX = scale * this.pixelAspectRatio;
+        double scaleX = scale * pixelAspectRatio;
 
         double scaledWidth  = (double) this.displayWidth * scaleX;
         double scaledHeight = (double) this.displayHeight * scale;
@@ -87,6 +94,7 @@ public class DefaultSystemVideoDriver extends Canvas implements VideoDriver, Clo
 
         this.lastWidth = w;
         this.lastHeight = h;
+        this.lastPixelAspectRatio = pixelAspectRatio;
     }
 
     private void renderLoop() {
