@@ -202,11 +202,15 @@ public class GameBoyColorEmulator extends GameBoyEmulator implements CGBSM83.Sys
     }
 
     public int readKEY0() {
-        return this.dmgCompatibilityMode ? 0xFF : 0xFB;
+        return 0xFF;
     }
 
     public int readKEY1() {
-        return this.key1 | 0b01111110;
+        if (this.dmgCompatibilityMode) {
+            return 0xFF;
+        } else {
+            return this.key1 | 0b01111110;
+        }
     }
 
     public boolean isSwitchSpeedArmed() {

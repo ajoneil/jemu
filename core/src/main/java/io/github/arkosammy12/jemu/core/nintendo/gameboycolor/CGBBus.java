@@ -229,6 +229,7 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
     public static final int UNK_3_ADDR = 0xFF74;
     public static final int UNK_4_ADDR = 0xFF75;
 
+    private int rWBKValue = 0;
     private int workRAMBank = 1;
 
     private int infraredPort;
@@ -287,8 +288,8 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
         return switch (address) {
             case KEY_0_ADDR -> this.emulator.readKEY0();
             case KEY_1_ADDR -> this.emulator.readKEY1();
-            case WBK_ADDR -> this.workRAMBank | 0b11111000;
-            case RP_ADDR -> this.infraredPort | 0b00111100;
+            case WBK_ADDR -> this.emulator.isDMGCompatibilityMode() ? 0xFF : this.rWBKValue | 0b11111000;
+            case RP_ADDR -> this.infraredPort | 0b00111100 | (0b10 /*Not receiving IR signal*/);
             case PCM12_ADDR, PCM34_ADDR -> this.emulator.getAudioGenerator().readByte(address);
             case UNK_1_ADDR -> this.unknownRegister1;
             case UNK_2_ADDR -> this.unknownRegister2;
@@ -318,9 +319,12 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
             case KEY_0_ADDR -> this.emulator.writeKey0(value);
             case KEY_1_ADDR -> this.emulator.writeKEY1(value);
             case WBK_ADDR -> {
-                this.workRAMBank = value & 0b111;
-                if (this.workRAMBank == 0) {
-                    this.workRAMBank = 1;
+                if (!this.emulator.isDMGCompatibilityMode() || !this.enableBootRom) {
+                    this.rWBKValue = value & 0b111;
+                    this.workRAMBank = this.rWBKValue;
+                    if (this.workRAMBank == 0) {
+                        this.workRAMBank = 1;
+                    }
                 }
             }
             case RP_ADDR -> this.infraredPort = (this.infraredPort & 0b10) | (value & 0b11111101);
