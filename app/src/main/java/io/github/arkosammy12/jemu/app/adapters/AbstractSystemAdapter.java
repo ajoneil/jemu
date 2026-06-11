@@ -7,8 +7,9 @@ import io.github.arkosammy12.jemu.app.drivers.DefaultSystemVideoDriver;
 import io.github.arkosammy12.jemu.app.drivers.MonoAudioRendererDriver;
 import io.github.arkosammy12.jemu.app.drivers.JoypadDriver;
 import io.github.arkosammy12.jemu.app.drivers.StereoAudioRendererDriver;
-import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
+import io.github.arkosammy12.jemu.app.io.EmulatorInitializer;
 import io.github.arkosammy12.jemu.core.common.Emulator;
+import io.github.arkosammy12.jemu.core.common.Resetable;
 import io.github.arkosammy12.jemu.core.common.SystemController;
 import io.github.arkosammy12.jemu.core.drivers.VideoDriver;
 import org.jetbrains.annotations.Nullable;
@@ -24,53 +25,22 @@ import java.util.Optional;
 
 public abstract class AbstractSystemAdapter implements SystemAdapter {
 
-    private final byte[] rom;
-    private final Path path;
+    private final Jemu jemu;
 
-    private final Emulator emulator;
-    private final DefaultAudioRendererDriver audioDriver;
-    private final JoypadDriver joypadDriver;
-    private final KeyListener keyListener;
+    private byte[] rom;
+    private Path path;
+
+    private Emulator emulator;
+    private DefaultAudioRendererDriver audioDriver;
+    private JoypadDriver joypadDriver;
+    private KeyListener keyListener;
 
     @Nullable
     private DefaultSystemVideoDriver videoDriver;
 
-    public AbstractSystemAdapter(Jemu jemu, CoreInitializer initializer) {
-
-        Optional<byte[]> rawRomOptional = initializer.getRawRom();
-        if (rawRomOptional.isPresent()) {
-            byte[] rom = rawRomOptional.get();
-            this.rom = Arrays.copyOf(rom, rom.length);
-        } else {
-            this.rom = null;
-        }
-        this.path = initializer.getRomPath().orElse(null);
-
-        this.emulator = this.createEmulator();
-        this.joypadDriver = new JoypadDriver(this);
-        this.audioDriver = this.emulator.getAudioGenerator().isStereo() ? new StereoAudioRendererDriver(jemu, this.emulator.getAudioGenerator()) : new MonoAudioRendererDriver(jemu, this.emulator.getAudioGenerator());
-
-        this.keyListener = new KeyAdapter() {
-
-            @Override
-            public void keyPressed(KeyEvent e) {
-                int keyCode = e.getKeyCode();
-                SystemController.Action action = getActionForKeyCode(keyCode);
-                if (action != null) {
-                    getEmulator().getSystemController().onActionPressed(action);
-                }
-            }
-
-            @Override
-            public void keyReleased(KeyEvent e) {
-                int keyCode = e.getKeyCode();
-                SystemController.Action action = getActionForKeyCode(keyCode);
-                if (action != null) {
-                    getEmulator().getSystemController().onActionReleased(action);
-                }
-            }
-
-        };
+    public AbstractSystemAdapter(Jemu jemu, EmulatorInitializer initializer) {
+        this.jemu = jemu;
+        this.initialize(jemu, initializer, false);
     }
 
     protected abstract Emulator createEmulator();
@@ -120,6 +90,54 @@ public abstract class AbstractSystemAdapter implements SystemAdapter {
             this.videoDriver.requestFrame();
         }
         this.joypadDriver.poll();
+    }
+
+    public void reset(EmulatorInitializer emulatorInitializer) {
+        this.initialize(this.jemu, emulatorInitializer, true);
+    }
+
+    protected void initialize(Jemu jemu, EmulatorInitializer initializer, boolean tryReset) {
+        Optional<byte[]> rawRomOptional = initializer.getRawRom();
+        if (rawRomOptional.isPresent()) {
+            byte[] rom = rawRomOptional.get();
+            this.rom = Arrays.copyOf(rom, rom.length);
+        } else {
+            this.rom = null;
+        }
+        this.path = initializer.getRomPath().orElse(null);
+
+        if (tryReset && this.emulator instanceof Resetable resetableEmulator) {
+            resetableEmulator.reset();
+        } else {
+            this.emulator = this.createEmulator();
+        }
+
+        this.joypadDriver = new JoypadDriver(this);
+        Optional.ofNullable(this.emulator).map(Emulator::getAudioGenerator).ifPresent(audioGenerator -> {
+            this.audioDriver = audioGenerator.isStereo() ? new StereoAudioRendererDriver(jemu, this.emulator.getAudioGenerator()) : new MonoAudioRendererDriver(jemu, this.emulator.getAudioGenerator());
+        });
+
+        this.keyListener = new KeyAdapter() {
+
+            @Override
+            public void keyPressed(KeyEvent e) {
+                int keyCode = e.getKeyCode();
+                SystemController.Action action = getActionForKeyCode(keyCode);
+                if (action != null) {
+                    getEmulator().getSystemController().onActionPressed(action);
+                }
+            }
+
+            @Override
+            public void keyReleased(KeyEvent e) {
+                int keyCode = e.getKeyCode();
+                SystemController.Action action = getActionForKeyCode(keyCode);
+                if (action != null) {
+                    getEmulator().getSystemController().onActionReleased(action);
+                }
+            }
+
+        };
     }
 
     @Override

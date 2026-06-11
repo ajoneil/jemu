@@ -4,10 +4,11 @@ import io.github.arkosammy12.jemu.app.adapters.AbstractSystemAdapter;
 import io.github.arkosammy12.jemu.app.adapters.SystemAdapter;
 import io.github.arkosammy12.jemu.app.drivers.DefaultAudioRendererDriver;
 import io.github.arkosammy12.jemu.app.io.CLIArgs;
-import io.github.arkosammy12.jemu.app.io.initializers.EmulatorInitializer;
+import io.github.arkosammy12.jemu.app.io.EmulatorInitializer;
 import io.github.arkosammy12.jemu.app.util.GitProperties;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.app.util.MavenProperties;
+import io.github.arkosammy12.jemu.frontend.SystemDescriptor;
 import io.github.arkosammy12.jemu.frontend.audio.AudioChannels;
 import io.github.arkosammy12.jemu.frontend.audio.AudioEngine;
 import io.github.arkosammy12.jemu.frontend.audio.SampleRate;
@@ -122,6 +123,7 @@ public final class Jemu {
                     try {
                         enqueuedState = switch (enqueuedEmulatorCommand.getEmulatorCommand()) {
                             case PowerCycleCommand powerCycleCommand -> this.onEmulatorPowerCycleCommand(powerCycleCommand);
+                            case ResetEmulatorCommand resetEmulatorCommand -> this.onEmulatorResetCommand(resetEmulatorCommand);
                             case StopEmulatorCommand _ -> this.onEmulatorStopCommand();
                             case PauseEmulatorCommand pauseEmulatorCommand -> this.onEmulatorPauseCommand(pauseEmulatorCommand);
                             case StepFrameEmulatorCommand _ -> this.onEmulatorStepFrameCommand();
@@ -176,41 +178,25 @@ public final class Jemu {
     }
 
     private State onEmulatorPowerCycleCommand(PowerCycleCommand powerCycleCommand) throws Exception {
-        if (this.currentSystem != null) {
-            this.currentSystem.close();
-        }
-
-        EmulatorInitializer emulatorInitializer = new EmulatorInitializer() {
-
-            @Override
-            public Optional<Path> getRomPath() {
-                return mainWindow.getFileManager().getSelectedRomPath();
-            }
-
-            @Override
-            public Optional<byte[]> getRawRom() {
-                return this.getRomPath().map(SystemAdapter::readRawRom);
-            }
-
-            @Override
-            public Optional<System> getSystem() {
-                return Optional.ofNullable(powerCycleCommand.getSystemDescriptor().orElse(null) instanceof System system ? system : null);
-            }
-
-        };
-
-        // TODO: If there was a current emulator running before initializing a new one, just reset the current one and update its loaded ROM if any
-        // TODO: Do not require a ROM to be selected to initialize it
-        this.currentSystem = System.getSystemAdapter(this, emulatorInitializer);
-        this.audioEngine.setFramerate(this.currentSystem.getEmulator().getFramerate());
-        this.audioEngine.setAudioChannels(this.currentSystem.getEmulator().getAudioGenerator().isStereo() ? AudioChannels.STEREO : AudioChannels.MONO);
-        this.audioEngine.start();
-        this.mainWindow.getSystemViewport().setSystemDisplay(() -> this.currentSystem.createAWTComponentVideoDriver());
-        this.mainWindow.getSystemViewport().setSystemKeyListener(this.currentSystem.getSystemKeyListener());
-
+        this.initializeEmulator(powerCycleCommand.systemDescriptor() instanceof System system ? system : null);
         boolean powerCycleIntoPaused = powerCycleCommand.powerCycleIntoPaused();
         this.audioEngine.setPaused(powerCycleIntoPaused);
         return powerCycleIntoPaused ? State.PAUSED : State.RUNNING;
+    }
+
+    private State onEmulatorResetCommand(ResetEmulatorCommand resetEmulatorCommand) throws Exception {
+        if (this.currentSystem == null) {
+            return null;
+        }
+        Optional<SystemDescriptor> currentSystemDescriptor = resetEmulatorCommand.getSystemDescriptor();
+        if (currentSystemDescriptor.isPresent() && currentSystemDescriptor.get() instanceof System system && system != this.currentSystem.getSystem()) {
+            this.initializeEmulator(system);
+        } else {
+            this.currentSystem.reset(this.createEmulatorInitializer(this.currentSystem.getSystem()));
+        }
+        boolean resetIntoPaused = resetEmulatorCommand.resetIntoPaused();
+        this.audioEngine.setPaused(resetIntoPaused);
+        return resetIntoPaused ? State.PAUSED : State.RUNNING;
     }
 
     private State onEmulatorStopCommand() {
@@ -306,6 +292,40 @@ public final class Jemu {
             }
         }
         this.mainWindow.submitEmulatorCommand(new StopEmulatorCommand());
+    }
+
+    private void initializeEmulator(System system) throws Exception {
+        if (this.currentSystem != null) {
+            this.currentSystem.close();
+        }
+
+        this.currentSystem = System.getSystemAdapter(this, this.createEmulatorInitializer(system));
+        this.audioEngine.setFramerate(this.currentSystem.getEmulator().getFramerate());
+        this.audioEngine.setAudioChannels(this.currentSystem.getEmulator().getAudioGenerator().isStereo() ? AudioChannels.STEREO : AudioChannels.MONO);
+        this.audioEngine.start();
+        this.mainWindow.getSystemViewport().setSystemDisplay(() -> this.currentSystem.createAWTComponentVideoDriver());
+        this.mainWindow.getSystemViewport().setSystemKeyListener(this.currentSystem.getSystemKeyListener());
+    }
+
+    private EmulatorInitializer createEmulatorInitializer(@Nullable System system) {
+        return new EmulatorInitializer() {
+
+            @Override
+            public Optional<Path> getRomPath() {
+                return mainWindow.getFileManager().getSelectedRomPath();
+            }
+
+            @Override
+            public Optional<byte[]> getRawRom() {
+                return this.getRomPath().map(SystemAdapter::readRawRom);
+            }
+
+            @Override
+            public Optional<System> getSystem() {
+                return Optional.ofNullable(system);
+            }
+
+        };
     }
 
     private void onShutdown() {

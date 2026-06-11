@@ -285,14 +285,19 @@ public class MainWindow implements Closeable {
             return null;
         }
         Runnable acknowledgeFunction = switch (emulatorCommand) {
+            case PowerCycleCommand command -> () -> this.emulatorCommandCallbacks.forEach(c -> {
+                if (c instanceof PowerCycleCommandCallback powerCycleCallback) {
+                    powerCycleCallback.onReset(command);
+                }
+            });
+            case ResetEmulatorCommand command -> () -> this.emulatorCommandCallbacks.forEach(c -> {
+                if (c instanceof ResetEmulatorCommandCallback resetCallback) {
+                    resetCallback.onReset(command);
+                }
+            });
             case PauseEmulatorCommand command -> () -> this.emulatorCommandCallbacks.forEach(c -> {
                 if (c instanceof PauseCommandCallback pauseCallback) {
                     pauseCallback.onPause(command);
-                }
-            });
-            case PowerCycleCommand command -> () -> this.emulatorCommandCallbacks.forEach(c -> {
-                if (c instanceof PowerCycleCommandCallback resetCallback) {
-                    resetCallback.onReset(command);
                 }
             });
             case StepCycleEmulatorCommand command -> () -> this.emulatorCommandCallbacks.forEach(c -> {

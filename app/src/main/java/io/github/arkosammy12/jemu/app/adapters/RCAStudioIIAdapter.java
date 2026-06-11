@@ -2,7 +2,7 @@ package io.github.arkosammy12.jemu.app.adapters;
 
 import de.gurkenlabs.input4j.InputComponent;
 import io.github.arkosammy12.jemu.app.Jemu;
-import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
+import io.github.arkosammy12.jemu.app.io.EmulatorInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.core.common.Emulator;
 import io.github.arkosammy12.jemu.core.common.SystemController;
@@ -17,12 +17,11 @@ import static io.github.arkosammy12.jemu.app.util.System.RCA_STUDIO_II;
 
 public class RCAStudioIIAdapter extends AbstractSystemAdapter {
 
-    private final String romTitle;
+    private String romTitle;
     private final System system;
 
-    public RCAStudioIIAdapter(Jemu jemu, CoreInitializer initializer) {
+    public RCAStudioIIAdapter(Jemu jemu, EmulatorInitializer initializer) {
         super(jemu, initializer);
-        this.romTitle = initializer.getRomPath().map(path -> path.getFileName().toString()).orElse(null);
         this.system = initializer.getSystem().orElse(RCA_STUDIO_II);
     }
 
@@ -77,6 +76,12 @@ public class RCAStudioIIAdapter extends AbstractSystemAdapter {
     @Override
     public Optional<String> getRomTitle() {
         return Optional.ofNullable(this.romTitle);
+    }
+
+    @Override
+    protected void initialize(Jemu jemu, EmulatorInitializer initializer, boolean tryReset) {
+        super.initialize(jemu, initializer, tryReset);
+        this.romTitle = initializer.getRomPath().map(path -> path.getFileName().toString()).orElse(null);
     }
 
 }

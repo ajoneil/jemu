@@ -169,7 +169,7 @@ public class FileMenu extends MenuBarMenu implements FileManager {
             this.currentRomPath = filePath;
             this.ejectRomButton.setEnabled(true);
             if (this.resetOnFileSelect || forceReset) {
-                mainWindow.getMainMenuBar().getEmulatorMenu().submitPowerCycle();
+                mainWindow.getMainMenuBar().getEmulatorMenu().restartEmulator();
             }
         });
     }

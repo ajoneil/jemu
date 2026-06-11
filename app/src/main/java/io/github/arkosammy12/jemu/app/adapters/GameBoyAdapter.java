@@ -3,7 +3,7 @@ package io.github.arkosammy12.jemu.app.adapters;
 import de.gurkenlabs.input4j.InputComponent;
 import de.gurkenlabs.input4j.components.XInput;
 import io.github.arkosammy12.jemu.app.Jemu;
-import io.github.arkosammy12.jemu.app.io.initializers.CoreInitializer;
+import io.github.arkosammy12.jemu.app.io.EmulatorInitializer;
 import io.github.arkosammy12.jemu.app.util.System;
 import io.github.arkosammy12.jemu.core.common.Emulator;
 import io.github.arkosammy12.jemu.core.common.SystemHost;
@@ -21,8 +21,6 @@ import java.util.Optional;
 
 public class GameBoyAdapter extends AbstractSystemAdapter implements GameBoyHost {
 
-    private String romTitle;
-
     private static final int HEADER_TITLE_START = 0x0134;
     private static final int HEADER_TITLE_END = 0x0143;
 
@@ -37,12 +35,13 @@ public class GameBoyAdapter extends AbstractSystemAdapter implements GameBoyHost
             XInput.B, GameBoyJoypad.Actions.B
     );
 
+    private String romTitle;
     private final System system;
     private final Model model;
 
     private Path saveDataDirectory;
 
-    public GameBoyAdapter(Jemu jemu, CoreInitializer initializer, Model model) {
+    public GameBoyAdapter(Jemu jemu, EmulatorInitializer initializer, Model model) {
         this.model = model;
         this.system = initializer.getSystem().orElse(System.GAME_BOY);
         super(jemu, initializer);
