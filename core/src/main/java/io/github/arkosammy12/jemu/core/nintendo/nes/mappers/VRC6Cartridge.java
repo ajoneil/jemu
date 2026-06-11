@@ -48,7 +48,7 @@ public class VRC6Cartridge<E extends NESEmulator> extends NESCartridge<E> {
     private int R6;
     private int R7;
 
-    //private int frequencyControl;
+    // Frequency control registers
     private boolean halt;
     private boolean frequency16x;
     private boolean frequency256x;

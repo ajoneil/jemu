@@ -21,7 +21,7 @@ public class NROMCartridge<E extends NESEmulator> extends NESCartridge<E> {
     public NROMCartridge(E emulator, INESFile iNESFile) {
         super(emulator, iNESFile);
 
-        int programRamSize = Math.clamp((long) iNESFile.getProgramRamSize(), 0, KB_8);
+        int programRamSize = Math.clamp(iNESFile.getProgramRamSize(), 0, KB_8);
         this.programRAM = programRamSize > 0 ? new byte[programRamSize] : null;
 
         byte[] programRomData = iNESFile.getProgramRom();
