@@ -297,17 +297,29 @@ public class DMGAPU<E extends GameBoyEmulator> implements AudioGenerator, Bus {
             double ch3 = 0;
             double ch4 = 0;
             if (this.masterAudioEnable) {
-                ch1 = (double) this.channel1.tick();
-                ch2 = (double) this.channel2.tick();
-                ch3 = (double) this.channel3.tick();
-                ch4 = (double) this.channel4.tick();
+                this.channel1.tick();
+                this.channel2.tick();
+                this.channel3.tick();
+                this.channel4.tick();
+                ch1 = this.channel1.getDigitalOutput();
+                ch2 = this.channel2.getDigitalOutput();
+                ch3 = this.channel3.getDigitalOutput();
+                ch4 = this.channel4.getDigitalOutput();
+
+                // Hack to avoid aliasing at extremely high frequencies for the square channels
+                if (this.channel1.getPeriodFull() > 2046) {
+                    ch1 = 0;
+                }
+                if (this.channel2.getPeriodFull() > 2046) {
+                    ch2 = 0;
+                }
             }
 
             ch1 = ((ch1 - ((double) this.channel1.envelopeCurrentVolume / 2.0)) / MAX_VOLUME);
             ch2 = ((ch2 - ((double) this.channel2.envelopeCurrentVolume / 2.0)) / MAX_VOLUME);
 
             ch3 /= MAX_VOLUME;
-            ch4 = (double) ((ch4 - ((double) this.channel4.envelopeCurrentVolume / 2.0)) / MAX_VOLUME);
+            ch4 = (ch4 - ((double) this.channel4.envelopeCurrentVolume / 2.0)) / MAX_VOLUME;
 
             double left = 0;
             double right = 0;
@@ -484,6 +496,7 @@ public class DMGAPU<E extends GameBoyEmulator> implements AudioGenerator, Bus {
             this.nrx4 = value & 0xFF;
             this.lengthEnable = (value & (1 << 6)) != 0;
 
+            // TODO: Possible difference in hardware behavior in CGB. Consult https://gbdev.gg8.se/wiki/articles/Gameboy_sound_hardware#Differences
             if (!oldEnable && this.getLengthEnable() && !isLengthClockStep()) {
                 this.clockLength();
             }
@@ -507,8 +520,6 @@ public class DMGAPU<E extends GameBoyEmulator> implements AudioGenerator, Bus {
             return 64;
         }
 
-        abstract protected int tick();
-
         protected void trigger() {
             if (this.getDacEnable()) {
                 this.setEnabled(true);
@@ -520,6 +531,10 @@ public class DMGAPU<E extends GameBoyEmulator> implements AudioGenerator, Bus {
                 }
             }
         }
+
+        abstract protected void tick();
+
+        abstract public int getDigitalOutput();
 
         protected void clockLength() {
             if (!this.getLengthEnable()) {
@@ -586,6 +601,8 @@ public class DMGAPU<E extends GameBoyEmulator> implements AudioGenerator, Bus {
             boolean oldEnvelopeDirection = this.getEnvelopeDirection();
 
             super.setNRX2(value);
+
+            // TODO: Possible difference in hardware behavior in CGB. Consult https://gbdev.gg8.se/wiki/articles/Gameboy_sound_hardware#Differences
             this.initialVolume = (value >>> 4) & 0b1111;
             this.envelopeDirection = (value & (1 << 3)) != 0;
             this.envelopeSweepPace = value & 0b111;
@@ -641,27 +658,6 @@ public class DMGAPU<E extends GameBoyEmulator> implements AudioGenerator, Bus {
         }
 
         @Override
-        protected int tick() {
-            if (!this.getEnabled()) {
-                if (this.getDacEnable()) {
-                    return 0xF;
-                } else {
-                    return 0;
-                }
-            }
-            this.wavePeriodTimer--;
-            if (this.wavePeriodTimer <= 0) {
-                this.wavePeriodTimer = (2048 - this.getPeriodFull()) * 4;
-                this.waveDutyIndex = (this.waveDutyIndex + 1) % 8;
-            }
-            if (this.getPeriodFull() > 2046) {
-                return 0;
-            }
-            int amplitude = DUTY_CYCLES[this.getWaveDuty()][this.waveDutyIndex];
-            return amplitude * this.envelopeCurrentVolume;
-        }
-
-        @Override
         protected void trigger() {
             super.trigger();
             this.wavePeriodTimer = Math.max(4, (2048 - this.getPeriodFull()) * 4);
@@ -669,6 +665,30 @@ public class DMGAPU<E extends GameBoyEmulator> implements AudioGenerator, Bus {
             this.envelopeCurrentVolume = this.getInitialVolume();
             this.waveDutyIndex = 0;
             this.envelopeUpdating = true;
+        }
+
+        @Override
+        protected void tick() {
+            if (!this.getEnabled()) {
+                return;
+            }
+            this.wavePeriodTimer--;
+            if (this.wavePeriodTimer <= 0) {
+                this.wavePeriodTimer = (2048 - this.getPeriodFull()) * 4;
+                this.waveDutyIndex = (this.waveDutyIndex + 1) % 8;
+            }
+        }
+
+        @Override
+        public int getDigitalOutput() {
+            if (this.getEnabled()) {
+                int amplitude = DUTY_CYCLES[this.getWaveDuty()][this.waveDutyIndex];
+                return amplitude * this.envelopeCurrentVolume;
+            } else if (this.getDacEnable()) {
+                return 0xF;
+            } else {
+                return 0;
+            }
         }
 
         protected void clockEnvelope() {
@@ -908,15 +928,18 @@ public class DMGAPU<E extends GameBoyEmulator> implements AudioGenerator, Bus {
         }
 
         @Override
-        protected int tick() {
+        protected void trigger() {
+            this.checkWaveRamCorruption();
+            super.trigger();
+            this.wavePeriodTimer = (2048 - this.getPeriodFull()) * 2;
+            this.currentOutputLevel = this.getOutputLevel();
+            this.waveRamIndex = 0;
+        }
+
+        @Override
+        protected void tick() {
             if (!this.getEnabled()) {
-                int amplitude;
-                if (this.waveRamIndex % 2 == 0) {
-                    amplitude = (this.waveSampleBuffer >>> 4) & 0xF;
-                } else {
-                    amplitude = this.waveSampleBuffer & 0xF;
-                }
-                return amplitude >>> this.getShiftAmount();
+                return;
             }
 
             this.wavePeriodTimer--;
@@ -927,14 +950,16 @@ public class DMGAPU<E extends GameBoyEmulator> implements AudioGenerator, Bus {
                 this.currentOutputLevel = this.getOutputLevel();
                 this.fetchedFirstByte = true;
             }
+        }
 
+        @Override
+        public int getDigitalOutput() {
             int amplitude;
             if (this.waveRamIndex % 2 == 0) {
                 amplitude = (this.waveSampleBuffer >>> 4) & 0xF;
             } else {
                 amplitude = this.waveSampleBuffer & 0xF;
             }
-
             return amplitude >>> this.getShiftAmount();
         }
 
@@ -946,15 +971,6 @@ public class DMGAPU<E extends GameBoyEmulator> implements AudioGenerator, Bus {
                 case 3 -> 2;
                 default -> throw new EmulatorException("Invalid CH3 output level \"%d\" for the GameBoy APU!".formatted(this.currentOutputLevel));
             };
-        }
-
-        @Override
-        protected void trigger() {
-            this.checkWaveRamCorruption();
-            super.trigger();
-            this.wavePeriodTimer = (2048 - this.getPeriodFull()) * 2;
-            this.currentOutputLevel = this.getOutputLevel();
-            this.waveRamIndex = 0;
         }
 
         protected void checkWaveRamCorruption() {
@@ -1017,6 +1033,8 @@ public class DMGAPU<E extends GameBoyEmulator> implements AudioGenerator, Bus {
             boolean oldIncrease = this.getEnvelopeDirection();
 
             super.setNRX2(value);
+
+            // TODO: Possible difference in hardware behavior in CGB. Consult https://gbdev.gg8.se/wiki/articles/Gameboy_sound_hardware#Differences
             this.initialVolume = (value >>> 4) & 0b1111;
             this.envelopeDirection = (value & (1 << 3)) != 0;
             this.envelopeSweepPace = value & 0b111;
@@ -1072,15 +1090,19 @@ public class DMGAPU<E extends GameBoyEmulator> implements AudioGenerator, Bus {
         }
 
         @Override
-        protected int tick() {
-            if (!this.getEnabled()) {
-                if (this.getDacEnable()) {
-                    return 0xF;
-                } else {
-                    return 0;
-                }
-            }
+        protected void trigger() {
+            super.trigger();
+            this.wavePeriodTimer = (this.getClockDivider() > 0 ? (this.getClockDivider() << 4) : 8) << this.getClockShift();
+            this.envelopeCurrentVolume = this.getInitialVolume();
+            this.lfsr = 0x7FFF;
+            this.envelopeUpdating = true;
+        }
 
+        @Override
+        protected void tick() {
+            if (!this.getEnabled()) {
+                return;
+            }
             this.wavePeriodTimer--;
             if (this.wavePeriodTimer <= 0) {
                 this.wavePeriodTimer = (this.getClockDivider() > 0 ? (this.getClockDivider() << 4) : 8) << this.getClockShift();
@@ -1091,17 +1113,17 @@ public class DMGAPU<E extends GameBoyEmulator> implements AudioGenerator, Bus {
                     this.lfsr = (this.lfsr | (xorResult << 6)) & 0x7FFF;
                 }
             }
-            int amplitude = ~this.lfsr & 0x01;
-            return amplitude * this.envelopeCurrentVolume;
         }
 
         @Override
-        protected void trigger() {
-            super.trigger();
-            this.wavePeriodTimer = (this.getClockDivider() > 0 ? (this.getClockDivider() << 4) : 8) << this.getClockShift();
-            this.envelopeCurrentVolume = this.getInitialVolume();
-            this.lfsr = 0x7FFF;
-            this.envelopeUpdating = true;
+        public int getDigitalOutput() {
+            if (this.getEnabled()) {
+                return (~this.lfsr & 0x01) * this.envelopeCurrentVolume;
+            } else if (this.getDacEnable()) {
+                return 0xF;
+            } else {
+                return 0;
+            }
         }
 
         protected void clockEnvelope() {

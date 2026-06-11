@@ -6,9 +6,10 @@ import io.github.arkosammy12.jemu.core.nintendo.gameboy.DMGBus;
 import io.github.arkosammy12.jemu.core.nintendo.gameboy.DMGPPU;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.function.IntSupplier;
 import java.util.function.IntUnaryOperator;
 
+import static io.github.arkosammy12.jemu.core.nintendo.gameboycolor.CGBAPU.PCM12_ADDR;
+import static io.github.arkosammy12.jemu.core.nintendo.gameboycolor.CGBAPU.PCM34_ADDR;
 import static io.github.arkosammy12.jemu.core.nintendo.gameboycolor.CGBPPU.*;
 
 public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
@@ -288,6 +289,7 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
             case KEY_1_ADDR -> this.emulator.readKEY1();
             case WBK_ADDR -> this.workRAMBank | 0b11111000;
             case RP_ADDR -> this.infraredPort | 0b00111100;
+            case PCM12_ADDR, PCM34_ADDR -> this.emulator.getAudioGenerator().readByte(address);
             case UNK_1_ADDR -> this.unknownRegister1;
             case UNK_2_ADDR -> this.unknownRegister2;
             case UNK_3_ADDR -> this.emulator.isDMGCompatibilityMode() ? 0xFF : this.unknownRegister3;
