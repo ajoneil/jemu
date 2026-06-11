@@ -3,6 +3,8 @@ package io.github.arkosammy12.jemu.core.nintendo.gameboy;
 import io.github.arkosammy12.jemu.core.exceptions.EmulatorException;
 import io.github.arkosammy12.jemu.core.common.Bus;
 
+import java.util.function.IntUnaryOperator;
+
 import static io.github.arkosammy12.jemu.core.nintendo.gameboy.DMGAPU.*;
 import static io.github.arkosammy12.jemu.core.nintendo.gameboy.DMGPPU.*;
 import static io.github.arkosammy12.jemu.core.nintendo.gameboy.DMGSerialController.SB_ADDR;
@@ -69,6 +71,8 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
     public static final int IE_ADDR = 0xFFFF;
 
     protected final E emulator;
+    private final IntUnaryOperator bootRomDisabledReadCartridgeReadFunction;
+    protected IntUnaryOperator currentReadCartridgeFunction;
 
     protected final byte[] workRAM;
 
@@ -85,10 +89,22 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
     public DMGBus(E emulator) {
         this.emulator = emulator;
         this.workRAM = this.createWorkRAM();
+        this.bootRomDisabledReadCartridgeReadFunction = address -> this.emulator.getCartridge().readByte(address);
+        this.currentReadCartridgeFunction = this.getBootRomEnabledCartridgeReadFunction();
     }
 
     protected byte[] createWorkRAM() {
         return new byte[0x2000];
+    }
+
+    protected IntUnaryOperator getBootRomEnabledCartridgeReadFunction() {
+        return address -> {
+            if (address <= 0x00FF) {
+                return BOOTIX[address];
+            } else {
+                return this.emulator.getCartridge().readByte(address);
+            }
+        };
     }
 
     public boolean isBootRomEnabled() {
@@ -117,7 +133,7 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
             // TODO: Perhaps this value is only returned when reading from OAM. Otherwise return the current value being read by OAM. Check numism test ROM for info.
             return 0xFF;
         } else if ((address >= ROM0_START && address <= ROMX_END) || (address >= SRAM_START && address <= SRAM_END)) {
-            return this.readByteCartridge(address);
+            return this.currentReadCartridgeFunction.applyAsInt(address);
         } else if ((address >= VRAM_START && address <= VRAM_END) || (address >= OAM_START && address <= OAM_END)) {
             return this.emulator.getVideoGenerator().readByte(address);
         } else if (address >= WRAM0_START && address <= ECHO_END) {
@@ -133,14 +149,6 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
         }
     }
 
-    protected int readByteCartridge(int address) {
-        if (this.enableBootRom && address <= 0x00FF) {
-            return BOOTIX[address];
-        } else {
-            return this.emulator.getCartridge().readByte(address);
-        }
-    }
-
     protected int readWorkRAM(int address) {
         return (int) this.workRAM[address & 0x1FFF] & 0xFF;
     }
@@ -148,7 +156,7 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
     protected int readByteIO(int address) {
         return switch (address) {
             case OAM_DMA_ADDR -> this.oamDmaControl;
-            case BANK_ADDR -> (this.enableBootRom ? 0 : 1) | 0b11111110;
+            case BANK_ADDR -> 0xFF;
             case JOYP_ADDR -> this.emulator.getSystemController().readJoypad();
             case SB_ADDR, SC_ADDR -> this.emulator.getSerialController().readByte(address);
             case DIV_ADDR, TIMA_ADDR, TMA_ADDR, TAC_ADDR -> this.emulator.getTimerController().readByte(address);
@@ -206,7 +214,10 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
                 this.oamDmaControl = value & 0xFF;
                 this.oamDmaStartDelay = 2;
             }
-            case BANK_ADDR -> this.enableBootRom = false;
+            case BANK_ADDR -> {
+                this.enableBootRom = false;
+                this.currentReadCartridgeFunction = this.bootRomDisabledReadCartridgeReadFunction;
+            }
             case JOYP_ADDR -> this.emulator.getSystemController().writeJoyP(value);
             case SB_ADDR, SC_ADDR -> this.emulator.getSerialController().writeByte(address, value);
             case DIV_ADDR, TIMA_ADDR, TMA_ADDR, TAC_ADDR -> this.emulator.getTimerController().writeByte(address, value);
@@ -248,7 +259,7 @@ public class DMGBus<E extends GameBoyEmulator> implements Bus {
 
     private int readByteOAMDMA(int address) {
         if ((address >= ROM0_START && address <= ROMX_END) || (address >= SRAM_START && address <= SRAM_END)) {
-            return this.readByteCartridge(address);
+            return this.currentReadCartridgeFunction.applyAsInt(address);
         } else if (address >= VRAM_START && address <= VRAM_END) {
             return this.emulator.getVideoGenerator().readByte(address);
         } else if (address >= WRAM0_START && address <= 0xFFFF) {

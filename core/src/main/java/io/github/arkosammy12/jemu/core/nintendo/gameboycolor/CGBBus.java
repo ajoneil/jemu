@@ -6,6 +6,9 @@ import io.github.arkosammy12.jemu.core.nintendo.gameboy.DMGBus;
 import io.github.arkosammy12.jemu.core.nintendo.gameboy.DMGPPU;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.function.IntSupplier;
+import java.util.function.IntUnaryOperator;
+
 import static io.github.arkosammy12.jemu.core.nintendo.gameboycolor.CGBPPU.*;
 
 public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
@@ -257,17 +260,19 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
         return new byte[8 * 0x1000];
     }
 
-    public boolean haltCPU() {
-        return this.haltCPU;
+    @Override
+    protected IntUnaryOperator getBootRomEnabledCartridgeReadFunction() {
+        return address -> {
+            if ((address >= 0x0000 && address <= 0x00FF) || (address >= 0x0200 && address <= 0x08FF)) {
+                return SAMEBOY_CGB_BOOT_ROM[address];
+            } else {
+                return this.emulator.getCartridge().readByte(address);
+            }
+        };
     }
 
-    @Override
-    protected int readByteCartridge(int address) {
-        if (this.enableBootRom && ((address >= 0x0000 && address <= 0x00FF) || (address >= 0x0200 && address <= 0x08FF))) {
-            return SAMEBOY_CGB_BOOT_ROM[address];
-        } else {
-            return this.emulator.getCartridge().readByte(address);
-        }
+    public boolean haltCPU() {
+        return this.haltCPU;
     }
 
     @Override
@@ -465,7 +470,7 @@ public class CGBBus<E extends GameBoyColorEmulator> extends DMGBus<E> {
 
     private int readByteVDMA(int address) {
         if ((address >= ROM0_START && address <= ROMX_END) || (address >= SRAM_START && address <= SRAM_END)) {
-            return this.readByteCartridge(address);
+            return this.currentReadCartridgeFunction.applyAsInt(address);
         } else if (address >= VRAM_START && address <= VRAM_END) {
             return 0xFF;
         } else if (address >= WRAM0_START && address <= WRAMX_END) {
